@@ -35,7 +35,8 @@ struct Story {
 
 #[get("/stories/{id}")]
 async fn get_story(
-	path: web::Path<String>, data: web::Data<Arc<Mutex<HashMap<u32, Story>>>>,
+	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
+	data: web::Data<Arc<Mutex<HashMap<u32, Story>>>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
 	let ident = ident.split('/').collect::<Vec<_>>();
@@ -45,6 +46,11 @@ async fn get_story(
 	if let Some(story) = stories.get(&ident) {
 		Ok(HttpResponse::Ok().body(""))
 	} else {
+		let fimfic = String::from("https://www.fimfiction.net/api/v2/stories?filter%5Bids%5D=571171,570257,565869,565515,562089");
+		let test = handle_request(&api, &fimfic).await?;
+		let api = test.json::<Api>().await?;
+		println!("{:?}", api);
+
 		Ok(HttpResponse::Found()
 			.append_header((
 				"Location",
@@ -56,9 +62,6 @@ async fn get_story(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	// URL setup.
-	let fimfic = "https://www.fimfiction.net/api/v2/stories?page%5Bsize%5D=100";
-
 	// API Bearer token is required to scrape the data.
 	let token = &env::args().collect::<Vec<_>>()[1];
 
@@ -71,10 +74,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		interval_max: Duration::from_secs(120),
 		timeout: Duration::from_secs(10),
 	};
+	let api = Arc::new(api);
 
 	let cache_duration = 3_600;
 
-	let exchanges = Arc::new(Mutex::new(HashMap::<u32, Story>::new()));
+	let stories = Arc::new(Mutex::new(HashMap::<u32, Story>::new()));
 
 	tokio::task::spawn(async {
 		loop {
@@ -87,7 +91,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	HttpServer::new(move || {
 		App::new()
-			.app_data(web::Data::new(exchanges.clone()))
+			.app_data(web::Data::new(api.clone()))
+			.app_data(web::Data::new(stories.clone()))
 			.wrap(
 				Cors::default()
 					.allow_any_origin()
@@ -114,7 +119,7 @@ fn setup_api_headers(token: &str) -> Result<HeaderMap, Box<dyn Error>> {
 	Ok(headers)
 }
 
-async fn handle_request(request: FimficRequest, url: &str) -> Result<Response, Box<dyn Error>> {
+async fn handle_request(request: &FimficRequest, url: &str) -> Result<Response, Box<dyn Error>> {
 	let mut interval = request.interval;
 	loop {
 		let start_time = unix_time()?;
