@@ -1,6 +1,7 @@
 use self::structs::Api;
 use actix_cors::Cors;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use pony::time::format_milliseconds;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use std::collections::HashMap;
@@ -46,10 +47,12 @@ async fn get_story(
 	if let Some(story) = stories.get(&ident) {
 		Ok(HttpResponse::Ok().body(""))
 	} else {
+		let start = unix_time()?;
 		let fimfic = String::from("https://www.fimfiction.net/api/v2/stories?filter%5Bids%5D=571171,570257,565869,565515,562089");
 		let test = handle_request(&api, &fimfic).await?;
+		let end = unix_time()?;
 		let api = test.json::<Api>().await?;
-		println!("{:?}", api);
+		println!("{}", format_milliseconds(end - start, None)?);
 
 		Ok(HttpResponse::Found()
 			.append_header((
@@ -76,16 +79,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	};
 	let api = Arc::new(api);
 
-	let cache_duration = 3_600;
+	const GC: u64 = 1200;
+	const TTL: u128 = 600;
 
 	let stories = Arc::new(Mutex::new(HashMap::<u32, Story>::new()));
+	let stories_clone = Arc::clone(&stories);
 
-	tokio::task::spawn(async {
+	tokio::task::spawn(async move {
 		loop {
-			sleep(unix_time().unwrap(), Duration::from_secs(3600))
+			sleep(unix_time().unwrap(), Duration::from_secs(GC))
 				.await
 				.unwrap();
-			// code for cleanup here?
+
+			let lock = stories_clone.lock();
+			match lock {
+				Ok(mut stories) => {
+					let time = unix_time().unwrap();
+					for (id, story) in stories.clone().iter() {
+						if TTL <= time - story.timestamp {
+							stories.remove(id);
+						}
+					}
+				}
+				Err(error) => {
+					eprintln!("Failed to lock stories: {error}");
+					continue;
+				}
+			}
 		}
 	});
 
