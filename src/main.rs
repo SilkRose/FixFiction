@@ -27,6 +27,7 @@ struct Story {
 	id: u32,
 	link: String,
 	title: String,
+	author: String,
 	timestamp: u128,
 	short_description: String,
 	cover_medium_url: Option<String>,
@@ -174,7 +175,10 @@ fn story_template(story: &Story) -> String {
 	<meta property="og:image" content="{}">
 	<meta property="og:url" content="{link}">
 	<meta property="og:type" content="book" />
+	<meta property="book:author" content="{}" />
 	<meta property="og:site_name" content="Fimfiction" />
+	<meta property="twitter:site" content="fimfiction" />
+	<meta property="twitter:card" content="summary" />
 	<title>{title}- Fimfiction</title>
 </head>
 <body>
@@ -183,6 +187,7 @@ fn story_template(story: &Story) -> String {
 </html>"#,
 		story.short_description,
 		story.cover_medium_url.as_ref().unwrap(),
+		story.author,
 		title = story.title,
 		link = story.link,
 	)
