@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Api {
-	pub data: Vec<ApiData>,
+pub struct Api<T> {
+	pub data: T,
 	pub included: Vec<ApiIncluded>,
 	pub meta: APIMeta,
 	pub links: APILinks,

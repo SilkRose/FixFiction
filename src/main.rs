@@ -9,6 +9,7 @@ use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use structs::ApiData;
 use tokio::time::timeout;
 
 pub mod structs;
@@ -28,8 +29,8 @@ struct Story {
 	id: u32,
 	link: String,
 	title: String,
+	requests: u32,
 	author: String,
-	timestamp: u128,
 	short_description: String,
 	cover_medium_url: Option<String>,
 }
@@ -47,13 +48,6 @@ async fn get_story(
 	if let Some(story) = stories.get(&ident) {
 		Ok(HttpResponse::Ok().body(""))
 	} else {
-		let start = unix_time()?;
-		let fimfic = String::from("https://www.fimfiction.net/api/v2/stories?filter%5Bids%5D=571171,570257,565869,565515,562089");
-		let test = handle_request(&api, &fimfic).await?;
-		let end = unix_time()?;
-		let api = test.json::<Api>().await?;
-		println!("{}", format_milliseconds(end - start, None)?);
-
 		Ok(HttpResponse::Found()
 			.append_header((
 				"Location",
@@ -78,6 +72,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		timeout: Duration::from_secs(10),
 	};
 	let api = Arc::new(api);
+	let api_clone = Arc::clone(&api);
 
 	const GC: u64 = 1200;
 	const TTL: u128 = 600;
@@ -91,19 +86,53 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				.await
 				.unwrap();
 
-			let lock = stories_clone.lock();
-			match lock {
-				Ok(mut stories) => {
-					let time = unix_time().unwrap();
-					for (id, story) in stories.clone().iter() {
-						if TTL <= time - story.timestamp {
-							stories.remove(id);
-						}
+			let story_ids: Vec<u32> = {
+				let lock = stories_clone.lock();
+				match lock {
+					Ok(stories) => stories
+						.iter()
+						.filter(|(_, story)| story.requests > 0)
+						.map(|(id, _)| *id)
+						.collect(),
+					Err(error) => {
+						eprintln!("Failed to lock stories: {error}");
+						return;
 					}
 				}
+			};
+
+			let mut stories: HashMap<u32, Story> = HashMap::new();
+			for chunk in story_ids.chunks(100) {
+				let fimfic = format!(
+					"https://www.fimfiction.net/api/v2/stories?filter%5Bids%5D={}",
+					chunk
+						.iter()
+						.map(|id| id.to_string())
+						.collect::<Vec<_>>()
+						.join(",")
+				);
+
+				let response = handle_request(&api_clone, &fimfic).await.unwrap();
+				let api = response.json::<Api<Vec<ApiData>>>().await.unwrap();
+				for story in api.data {
+					let story = Story {
+						id: story.id.parse::<u32>().unwrap(),
+						link: story.links.link,
+						title: story.attributes.title,
+						requests: 0,
+						author: story.relationships.author.data.id,
+						short_description: story.attributes.short_description,
+						cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
+					};
+					stories.insert(story.id, story);
+				}
+			}
+			let lock = stories_clone.lock();
+			match lock {
+				Ok(mut stories_lock) => *stories_lock = stories,
 				Err(error) => {
 					eprintln!("Failed to lock stories: {error}");
-					continue;
+					return;
 				}
 			}
 		}
@@ -139,7 +168,9 @@ fn setup_api_headers(token: &str) -> Result<HeaderMap, Box<dyn Error>> {
 	Ok(headers)
 }
 
-async fn handle_request(request: &FimficRequest, url: &str) -> Result<Response, Box<dyn Error>> {
+async fn handle_request(
+	request: &FimficRequest, url: &str,
+) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
 	let mut interval = request.interval;
 	loop {
 		let start_time = unix_time()?;
@@ -173,7 +204,9 @@ async fn handle_request(request: &FimficRequest, url: &str) -> Result<Response, 
 	}
 }
 
-async fn sleep(start_time: u128, interval: Duration) -> Result<(), Box<dyn Error>> {
+async fn sleep(
+	start_time: u128, interval: Duration,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 	let current_time = unix_time()?;
 	let elapsed_time = Duration::from_millis((current_time - start_time).try_into()?);
 	if elapsed_time > interval {
@@ -183,7 +216,7 @@ async fn sleep(start_time: u128, interval: Duration) -> Result<(), Box<dyn Error
 	Ok(())
 }
 
-fn unix_time() -> Result<u128, Box<dyn Error>> {
+fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 	Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())
 }
 
