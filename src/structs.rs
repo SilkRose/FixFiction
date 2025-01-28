@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 pub struct Api<T> {
 	pub data: T,
 	pub included: Vec<ApiIncluded>,
-	pub meta: APIMeta,
-	pub links: APILinks,
+	pub meta: Option<APIMeta>,
+	pub links: Option<APILinks>,
 	pub uri: String,
 	pub method: String,
 	pub debug: ApiDebug,

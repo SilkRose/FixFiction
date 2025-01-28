@@ -43,16 +43,38 @@ async fn get_story(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let stories = data.lock().map_err(|_| "Failed to lock data")?;
-	if let Some(story) = stories.get(&ident) {
-		Ok(HttpResponse::Ok().body(""))
+	let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
+	if let Some(ref mut story) = stories.get_mut(&ident) {
+		story.requests += 1;
+		Ok(HttpResponse::Ok().body(story_template(story)))
 	} else {
-		Ok(HttpResponse::Found()
-			.append_header((
-				"Location",
-				"https://www.fimfiction.net/story/571171/hearths-warming-homecoming",
-			))
-			.body("Story not found"))
+		drop(stories);
+		let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{ident}");
+		let response = handle_request(&api, &fimfic).await.unwrap();
+		let api = response.json::<Api<ApiData>>().await.unwrap();
+		let author = api.included.iter().find_map(|author| match author {
+			structs::ApiIncluded::Tag(_) => None,
+			structs::ApiIncluded::Author(included_author) => {
+				if included_author.id == api.data.relationships.author.data.id {
+					Some(included_author.meta.url.clone())
+				} else {
+					None
+				}
+			}
+		});
+		let story = api.data;
+		let story = Story {
+			id: story.id.parse::<u32>().unwrap(),
+			link: story.links.link,
+			title: story.attributes.title,
+			requests: 0,
+			author: author.unwrap(),
+			short_description: story.attributes.short_description,
+			cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
+		};
+		let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
+		stories.insert(story.id, story.clone());
+		Ok(HttpResponse::Found().body(story_template(&story)))
 	}
 }
 
@@ -113,12 +135,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				let response = handle_request(&api_clone, &fimfic).await.unwrap();
 				let api = response.json::<Api<Vec<ApiData>>>().await.unwrap();
 				for story in api.data {
+					let author = api.included.iter().find_map(|author| match author {
+						structs::ApiIncluded::Tag(_) => None,
+						structs::ApiIncluded::Author(included_author) => {
+							if included_author.id == story.relationships.author.data.id {
+								Some(included_author.meta.url.clone())
+							} else {
+								None
+							}
+						}
+					});
+
 					let story = Story {
 						id: story.id.parse::<u32>().unwrap(),
 						link: story.links.link,
 						title: story.attributes.title,
 						requests: 0,
-						author: story.relationships.author.data.id,
+						author: author.unwrap(),
 						short_description: story.attributes.short_description,
 						cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
 					};
@@ -128,7 +161,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			let lock = stories_clone.lock();
 			match lock {
 				Ok(mut stories_lock) => {
-					let dropped = stories.len() - stories_lock.len();
+					let dropped = stories_lock.len() - stories.len();
 					println!(
 						"{}: stories kept - {}, stories dropped - {dropped}",
 						Utc::now(),
