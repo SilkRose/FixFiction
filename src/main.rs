@@ -74,7 +74,7 @@ async fn get_story(
 		};
 		let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
 		stories.insert(story.id, story.clone());
-		Ok(HttpResponse::Found().body(story_template(&story)))
+		Ok(HttpResponse::Ok().body(story_template(&story)))
 	}
 }
 
@@ -264,23 +264,19 @@ fn story_template(story: &Story) -> String {
 		r#"<!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="refresh" content="0;url={link}">
-	<meta property="og:title" content="{title}">
-	<meta property="og:description" content="{}">
-	<meta property="og:image" content="{}">
-	<meta property="og:url" content="{link}">
+	<link rel="canonical" href="{link}" />
+	<meta property="og:title" content="{title}" />
+	<meta property="og:description" content="{}" />
+	<meta property="og:image" content="{}" />
+	<meta property="og:url" content="{link}" />
 	<meta property="og:type" content="book" />
 	<meta property="book:author" content="{}" />
 	<meta property="og:site_name" content="Fimfiction" />
 	<meta property="twitter:site" content="fimfiction" />
 	<meta property="twitter:card" content="summary" />
-	<title>{title} - Fimfiction</title>
+	<meta http-equiv="refresh" content="0;url={link}" />
 </head>
-<body>
-	<p>If you are not redirected, <a href="{link}">click here</a>.</p>
-</body>
+<body></body>
 </html>"#,
 		story.short_description,
 		story.cover_medium_url.as_ref().unwrap(),
