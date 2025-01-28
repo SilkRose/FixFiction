@@ -1,7 +1,6 @@
-use self::structs::Api;
 use actix_cors::Cors;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use pony::time::format_milliseconds;
+use chrono::Utc;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use std::collections::HashMap;
@@ -9,7 +8,7 @@ use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use structs::ApiData;
+use structs::{Api, ApiData};
 use tokio::time::timeout;
 
 pub mod structs;
@@ -74,15 +73,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let api = Arc::new(api);
 	let api_clone = Arc::clone(&api);
 
-	const GC: u64 = 1200;
-	const TTL: u128 = 600;
+	let interval = 10;
 
 	let stories = Arc::new(Mutex::new(HashMap::<u32, Story>::new()));
 	let stories_clone = Arc::clone(&stories);
 
 	tokio::task::spawn(async move {
 		loop {
-			sleep(unix_time().unwrap(), Duration::from_secs(GC))
+			sleep(unix_time().unwrap(), Duration::from_secs(interval))
 				.await
 				.unwrap();
 
@@ -91,7 +89,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 				match lock {
 					Ok(stories) => stories
 						.iter()
-						.filter(|(_, story)| story.requests > 0)
+						.filter(|(_, story)| story.requests > 1)
 						.map(|(id, _)| *id)
 						.collect(),
 					Err(error) => {
@@ -129,7 +127,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			}
 			let lock = stories_clone.lock();
 			match lock {
-				Ok(mut stories_lock) => *stories_lock = stories,
+				Ok(mut stories_lock) => {
+					let dropped = stories.len() - stories_lock.len();
+					println!(
+						"{}: stories kept - {}, stories dropped - {dropped}",
+						Utc::now(),
+						stories.len()
+					);
+					*stories_lock = stories;
+				}
 				Err(error) => {
 					eprintln!("Failed to lock stories: {error}");
 					return;
@@ -188,11 +194,11 @@ async fn handle_request(
 				sleep(start_time, request.interval).await?;
 				return Ok(response);
 			}
-			Ok(Err(e)) => {
-				println!("Request failed: {e}");
+			Ok(Err(error)) => {
+				println!("Request failed: {error}");
 			}
-			Err(e) => {
-				println!("Request timed out: {e}");
+			Err(error) => {
+				println!("Request timed out: {error}");
 			}
 		}
 		sleep(start_time, interval).await?;
