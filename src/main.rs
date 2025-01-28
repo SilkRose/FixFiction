@@ -34,7 +34,7 @@ struct Story {
 	cover_medium_url: Option<String>,
 }
 
-#[get("/stories/{id}")]
+#[get("/story/{id:.*}")]
 async fn get_story(
 	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
 	data: web::Data<Arc<Mutex<HashMap<u32, Story>>>>,
@@ -65,7 +65,7 @@ async fn get_story(
 		let story = api.data;
 		let story = Story {
 			id: story.id.parse::<u32>().unwrap(),
-			link: story.links.link,
+			link: story.meta.url,
 			title: story.attributes.title,
 			requests: 0,
 			author: author.unwrap(),
@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 					let story = Story {
 						id: story.id.parse::<u32>().unwrap(),
-						link: story.links.link,
+						link: story.meta.url,
 						title: story.attributes.title,
 						requests: 0,
 						author: author.unwrap(),
@@ -276,7 +276,7 @@ fn story_template(story: &Story) -> String {
 	<meta property="og:site_name" content="Fimfiction" />
 	<meta property="twitter:site" content="fimfiction" />
 	<meta property="twitter:card" content="summary" />
-	<title>{title}- Fimfiction</title>
+	<title>{title} - Fimfiction</title>
 </head>
 <body>
 	<p>If you are not redirected, <a href="{link}">click here</a>.</p>
