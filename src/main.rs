@@ -46,7 +46,9 @@ async fn get_story(
 	let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut story) = stories.get_mut(&ident) {
 		story.requests += 1;
-		Ok(HttpResponse::Ok().body(story_template(story)))
+		Ok(HttpResponse::Ok()
+			.content_type("text/html; charset=utf-8")
+			.body(story_template(story)))
 	} else {
 		drop(stories);
 		let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{ident}");
@@ -74,7 +76,9 @@ async fn get_story(
 		};
 		let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
 		stories.insert(story.id, story.clone());
-		Ok(HttpResponse::Ok().body(story_template(&story)))
+		Ok(HttpResponse::Ok()
+			.content_type("text/html; charset=utf-8")
+			.body(story_template(&story)))
 	}
 }
 
@@ -95,7 +99,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let api = Arc::new(api);
 	let api_clone = Arc::clone(&api);
 
-	let interval = 10;
+	let interval = 600;
 
 	let stories = Arc::new(Mutex::new(HashMap::<u32, Story>::new()));
 	let stories_clone = Arc::clone(&stories);
