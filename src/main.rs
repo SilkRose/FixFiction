@@ -191,6 +191,7 @@ fn story_template(story: &Story) -> String {
 	<html lang="en">
 	<head>
 		<link rel="canonical" href="{link}" />
+		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
 		<meta property="og:image" content="{}" />
@@ -200,7 +201,6 @@ fn story_template(story: &Story) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
-		<meta http-equiv="refresh" content="0;url={link}" />
 	</head>
 	<body></body>
 	</html>"#,
@@ -215,6 +215,7 @@ fn story_template(story: &Story) -> String {
 	<html lang="en">
 	<head>
 		<link rel="canonical" href="{link}" />
+		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
 		<meta property="og:url" content="{link}" />
@@ -223,7 +224,6 @@ fn story_template(story: &Story) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
-		<meta http-equiv="refresh" content="0;url={link}" />
 	</head>
 	<body></body>
 	</html>"#,
