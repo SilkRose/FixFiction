@@ -3,6 +3,7 @@ use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Utc;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -29,9 +30,29 @@ struct Story {
 	link: String,
 	title: String,
 	requests: u32,
-	author: String,
+	author: Author,
+	o_embed: OEmbed,
 	short_description: String,
 	cover_medium_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct Author {
+	url: String,
+	name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct OEmbed {
+	r#type: String,
+	version: u32,
+	provider_name: String,
+	provider_url: String,
+	title: String,
+	author_name: String,
+	author_url: String,
+	cache_age: u32,
+	html: String,
 }
 
 #[get("/story/{id:.*}")]
@@ -60,19 +81,35 @@ async fn get_story(
 			structs::ApiIncluded::Tag(_) => None,
 			structs::ApiIncluded::Author(included_author) => {
 				if included_author.id == api.data.relationships.author.data.id {
-					Some(included_author.meta.url.clone())
+					let author = Author {
+						url: included_author.meta.url.clone(),
+						name: included_author.attributes.name.replace('"', "&quot;"),
+					};
+					Some(author)
 				} else {
 					None
 				}
 			}
 		});
 		let story = api.data;
+		let embed = OEmbed {
+			r#type: String::from(""),
+			version: 1,
+			provider_name: String::from("Fimfiction"),
+			provider_url: String::from("https://www.fimfiction.net/"),
+			title: story.attributes.title.replace('"', "&quot;"),
+			author_name: author.clone().unwrap().name,
+			author_url: author.clone().unwrap().url,
+			cache_age: 86400,
+			html: String::default(),
+		};
 		let story = Story {
 			id: story.id.parse::<u32>().unwrap(),
 			link: story.meta.url,
-			title: story.attributes.title.replace('"', "&quot;"),
+			title: embed.title.clone(),
 			requests: 0,
 			author: author.unwrap(),
+			o_embed: embed,
 			short_description: story.attributes.short_description.replace('"', "&quot;"),
 			cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
 		};
@@ -81,6 +118,21 @@ async fn get_story(
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(story_template(&story)))
+	}
+}
+
+#[get("/oembed/story/{id}")]
+async fn oembed_story(
+	path: web::Path<String>, data: web::Data<Arc<Mutex<HashMap<u32, Story>>>>,
+) -> Result<impl Responder, Box<dyn std::error::Error>> {
+	let ident = path.into_inner().parse::<u32>().unwrap();
+	let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
+	if let Some(story) = stories.get(&ident) {
+		Ok(HttpResponse::Ok()
+			.content_type("application/json+oembed")
+			.json(story.o_embed.clone()))
+	} else {
+		Ok(HttpResponse::NotFound().finish())
 	}
 }
 
@@ -114,6 +166,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 					.max_age(3600),
 			)
 			.service(get_story)
+			.service(oembed_story)
 	})
 	.bind(("0.0.0.0", 7669))? // pony
 	.run()
@@ -201,12 +254,15 @@ fn story_template(story: &Story) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
+		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/story/{}" title="{}" />
 	</head>
 	<body></body>
 	</html>"#,
 			story.short_description,
 			cover,
-			story.author,
+			story.author.url,
+			story.id,
+			story.author.name,
 			title = story.title,
 			link = story.link,
 		),
@@ -224,11 +280,14 @@ fn story_template(story: &Story) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
+		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/story/{}" title="{}" />
 	</head>
 	<body></body>
 	</html>"#,
 			story.short_description,
-			story.author,
+			story.author.url,
+			story.id,
+			story.author.name,
 			title = story.title,
 			link = story.link,
 		),
