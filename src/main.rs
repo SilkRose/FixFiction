@@ -185,28 +185,52 @@ fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 }
 
 fn story_template(story: &Story) -> String {
-	format!(
-		r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-	<link rel="canonical" href="{link}" />
-	<meta property="og:title" content="{title}" />
-	<meta property="og:description" content="{}" />
-	<meta property="og:image" content="{}" />
-	<meta property="og:url" content="{link}" />
-	<meta property="og:type" content="book" />
-	<meta property="book:author" content="{}" />
-	<meta property="og:site_name" content="Fimfiction" />
-	<meta property="twitter:site" content="fimfiction" />
-	<meta property="twitter:card" content="summary" />
-	<meta http-equiv="refresh" content="0;url={link}" />
-</head>
-<body></body>
-</html>"#,
-		story.short_description,
-		story.cover_medium_url.as_ref().unwrap(),
-		story.author,
-		title = story.title,
-		link = story.link,
-	)
+	match &story.cover_medium_url {
+		Some(cover) => format!(
+			r#"<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<link rel="canonical" href="{link}" />
+		<meta property="og:title" content="{title}" />
+		<meta property="og:description" content="{}" />
+		<meta property="og:image" content="{}" />
+		<meta property="og:url" content="{link}" />
+		<meta property="og:type" content="book" />
+		<meta property="book:author" content="{}" />
+		<meta property="og:site_name" content="Fimfiction" />
+		<meta property="twitter:site" content="fimfiction" />
+		<meta property="twitter:card" content="summary" />
+		<meta http-equiv="refresh" content="0;url={link}" />
+	</head>
+	<body></body>
+	</html>"#,
+			story.short_description,
+			cover,
+			story.author,
+			title = story.title,
+			link = story.link,
+		),
+		None => format!(
+			r#"<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<link rel="canonical" href="{link}" />
+		<meta property="og:title" content="{title}" />
+		<meta property="og:description" content="{}" />
+		<meta property="og:url" content="{link}" />
+		<meta property="og:type" content="book" />
+		<meta property="book:author" content="{}" />
+		<meta property="og:site_name" content="Fimfiction" />
+		<meta property="twitter:site" content="fimfiction" />
+		<meta property="twitter:card" content="summary" />
+		<meta http-equiv="refresh" content="0;url={link}" />
+	</head>
+	<body></body>
+	</html>"#,
+			story.short_description,
+			story.author,
+			title = story.title,
+			link = story.link,
+		),
+	}
 }
