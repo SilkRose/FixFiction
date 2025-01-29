@@ -70,10 +70,10 @@ async fn get_story(
 		let story = Story {
 			id: story.id.parse::<u32>().unwrap(),
 			link: story.meta.url,
-			title: story.attributes.title,
+			title: story.attributes.title.replace('"', "&quot;"),
 			requests: 0,
 			author: author.unwrap(),
-			short_description: story.attributes.short_description,
+			short_description: story.attributes.short_description.replace('"', "&quot;"),
 			cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
 		};
 		let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
