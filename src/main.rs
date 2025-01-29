@@ -30,6 +30,7 @@ struct Story {
 	link: String,
 	title: String,
 	requests: u32,
+	color: String,
 	author: Author,
 	o_embed: OEmbed,
 	short_description: String,
@@ -108,6 +109,7 @@ async fn get_story(
 			link: story.meta.url,
 			title: embed.title.clone(),
 			requests: 0,
+			color: story.attributes.color.hex,
 			author: author.unwrap(),
 			o_embed: embed,
 			short_description: story.attributes.short_description.replace('"', "&quot;"),
@@ -243,6 +245,7 @@ fn story_template(story: &Story) -> String {
 			r#"<!DOCTYPE html>
 	<html lang="en">
 	<head>
+		<meta name="theme-color" content="\#{}" />
 		<link rel="canonical" href="{link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
@@ -258,6 +261,7 @@ fn story_template(story: &Story) -> String {
 	</head>
 	<body></body>
 	</html>"#,
+			story.color,
 			story.short_description,
 			cover,
 			story.author.url,
@@ -270,6 +274,7 @@ fn story_template(story: &Story) -> String {
 			r#"<!DOCTYPE html>
 	<html lang="en">
 	<head>
+		<meta name="theme-color" content="\#{}" />
 		<link rel="canonical" href="{link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
@@ -284,6 +289,7 @@ fn story_template(story: &Story) -> String {
 	</head>
 	<body></body>
 	</html>"#,
+			story.color,
 			story.short_description,
 			story.author.url,
 			story.id,
