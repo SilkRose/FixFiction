@@ -8,7 +8,7 @@ use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use structs::{Api, ApiData};
+use structs::StoryApi;
 use tokio::time::timeout;
 
 pub mod structs;
@@ -45,15 +45,17 @@ async fn get_story(
 	let ident = ident.parse::<u32>().unwrap();
 	let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut story) = stories.get_mut(&ident) {
+		println!("{}: cache hit - {ident}", Utc::now());
 		story.requests += 1;
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(story_template(story)))
 	} else {
 		drop(stories);
+		println!("{}: cache miss - {ident}", Utc::now());
 		let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{ident}");
 		let response = handle_request(&api, &fimfic).await.unwrap();
-		let api = response.json::<Api<ApiData>>().await.unwrap();
+		let api = response.json::<StoryApi>().await.unwrap();
 		let author = api.included.iter().find_map(|author| match author {
 			structs::ApiIncluded::Tag(_) => None,
 			structs::ApiIncluded::Author(included_author) => {
@@ -97,89 +99,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		timeout: Duration::from_secs(10),
 	};
 	let api = Arc::new(api);
-	let api_clone = Arc::clone(&api);
-
-	let interval = 600;
 
 	let stories = Arc::new(Mutex::new(HashMap::<u32, Story>::new()));
-	let stories_clone = Arc::clone(&stories);
-
-	tokio::task::spawn(async move {
-		loop {
-			sleep(unix_time().unwrap(), Duration::from_secs(interval))
-				.await
-				.unwrap();
-
-			let story_ids: Vec<u32> = {
-				let lock = stories_clone.lock();
-				match lock {
-					Ok(stories) => stories
-						.iter()
-						.filter(|(_, story)| story.requests > 1)
-						.map(|(id, _)| *id)
-						.collect(),
-					Err(error) => {
-						eprintln!("Failed to lock stories: {error}");
-						return;
-					}
-				}
-			};
-
-			let mut stories: HashMap<u32, Story> = HashMap::new();
-			for chunk in story_ids.chunks(100) {
-				let fimfic = format!(
-					"https://www.fimfiction.net/api/v2/stories?filter%5Bids%5D={}",
-					chunk
-						.iter()
-						.map(|id| id.to_string())
-						.collect::<Vec<_>>()
-						.join(",")
-				);
-
-				let response = handle_request(&api_clone, &fimfic).await.unwrap();
-				let api = response.json::<Api<Vec<ApiData>>>().await.unwrap();
-				for story in api.data {
-					let author = api.included.iter().find_map(|author| match author {
-						structs::ApiIncluded::Tag(_) => None,
-						structs::ApiIncluded::Author(included_author) => {
-							if included_author.id == story.relationships.author.data.id {
-								Some(included_author.meta.url.clone())
-							} else {
-								None
-							}
-						}
-					});
-
-					let story = Story {
-						id: story.id.parse::<u32>().unwrap(),
-						link: story.meta.url,
-						title: story.attributes.title,
-						requests: 0,
-						author: author.unwrap(),
-						short_description: story.attributes.short_description,
-						cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
-					};
-					stories.insert(story.id, story);
-				}
-			}
-			let lock = stories_clone.lock();
-			match lock {
-				Ok(mut stories_lock) => {
-					let dropped = stories_lock.len() - stories.len();
-					println!(
-						"{}: stories kept - {}, stories dropped - {dropped}",
-						Utc::now(),
-						stories.len()
-					);
-					*stories_lock = stories;
-				}
-				Err(error) => {
-					eprintln!("Failed to lock stories: {error}");
-					return;
-				}
-			}
-		}
-	});
 
 	HttpServer::new(move || {
 		App::new()

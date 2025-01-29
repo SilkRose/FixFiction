@@ -1,11 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Api<T> {
-	pub data: T,
+pub struct StoryApi {
+	pub data: ApiData,
 	pub included: Vec<ApiIncluded>,
-	pub meta: Option<APIMeta>,
-	pub links: Option<APILinks>,
 	pub uri: String,
 	pub method: String,
 	pub debug: ApiDebug,
