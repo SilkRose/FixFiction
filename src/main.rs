@@ -144,13 +144,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	// API Bearer token is required to scrape the data.
 	let token = &env::args().collect::<Vec<_>>()[1];
 
-	let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
-	let db_pool = sqlx::postgres::PgPoolOptions::new()
-		.max_connections(16)
-		.connect(&database_url)
-		.await
-		.expect("database should open");
-
 	// API and site request structs, client, headers, and time intervals.
 	let api = FimficRequest {
 		client: Client::new(),
@@ -166,7 +159,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	HttpServer::new(move || {
 		App::new()
-			.app_data(Data::new(db_pool.clone()))
 			.app_data(Data::new(api.clone()))
 			.app_data(Data::new(stories.clone()))
 			.wrap(
