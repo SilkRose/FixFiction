@@ -13,10 +13,17 @@ actix-cors = { version = "0.7.0" }
 actix-web = { version = "4.9.0" }
 chrono = { version = "0.4.39" }
 pony = { git = "https://github.com/SilkRose/Pony" }
-reqwest = { version = "0.12.9", features = ["json"] }
-serde = { version = "1.0.216", features = ["derive"] }
-serde_json = { version = "1.0.133", features = ["preserve_order"] }
-tokio = { version = "1.42.0", features = ["full"] }
+reqwest = { version = "0.12.12", features = ["json"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = { version = "1.0.138", features = ["preserve_order"] }
+sqlx = { version = "0.8.3", features = [
+	"runtime-tokio",
+	"tls-rustls",
+	"postgres",
+	"uuid",
+	"chrono",
+] }
+tokio = { version = "1.43.0", features = ["full"] }
 
 [profile.dev]
 opt-level = 0
