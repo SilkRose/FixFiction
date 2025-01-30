@@ -1,4 +1,5 @@
 use actix_cors::Cors;
+use actix_web::web::Data;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Utc;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
@@ -128,7 +129,7 @@ async fn oembed_story(
 	path: web::Path<String>, data: web::Data<Arc<Mutex<HashMap<u32, Story>>>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner().parse::<u32>().unwrap();
-	let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
+	let stories = data.lock().map_err(|_| "Failed to lock data")?;
 	if let Some(story) = stories.get(&ident) {
 		Ok(HttpResponse::Ok()
 			.content_type("application/json+oembed")
@@ -143,7 +144,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	// API Bearer token is required to scrape the data.
 	let token = &env::args().collect::<Vec<_>>()[1];
 
-	let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL should be set");
+	let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
 	let db_pool = sqlx::postgres::PgPoolOptions::new()
 		.max_connections(16)
 		.connect(&database_url)
@@ -165,9 +166,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	HttpServer::new(move || {
 		App::new()
-			.app_data(db_pool.clone())
-			.app_data(web::Data::new(api.clone()))
-			.app_data(web::Data::new(stories.clone()))
+			.app_data(Data::new(db_pool.clone()))
+			.app_data(Data::new(api.clone()))
+			.app_data(Data::new(stories.clone()))
 			.wrap(
 				Cors::default()
 					.allow_any_origin()
