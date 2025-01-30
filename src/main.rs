@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use structs::StoryApi;
 use tokio::time::timeout;
@@ -60,13 +60,13 @@ struct OEmbed {
 #[get("/story/{id:.*}")]
 async fn get_story(
 	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
-	data: web::Data<Arc<Mutex<HashMap<u32, Story>>>>,
+	data: web::Data<Arc<RwLock<HashMap<u32, Story>>>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
+	let mut stories = data.write().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut story) = stories.get_mut(&ident) {
 		println!("{}: cache hit - {ident}", Utc::now());
 		story.requests += 1;
@@ -116,7 +116,7 @@ async fn get_story(
 			short_description: story.attributes.short_description.replace('"', "&quot;"),
 			cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
 		};
-		let mut stories = data.lock().map_err(|_| "Failed to lock data")?;
+		let mut stories = data.write().map_err(|_| "Failed to lock data")?;
 		stories.insert(story.id, story.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
@@ -126,10 +126,10 @@ async fn get_story(
 
 #[get("/oembed/story/{id}")]
 async fn oembed_story(
-	path: web::Path<String>, data: web::Data<Arc<Mutex<HashMap<u32, Story>>>>,
+	path: web::Path<String>, data: web::Data<Arc<RwLock<HashMap<u32, Story>>>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner().parse::<u32>().unwrap();
-	let stories = data.lock().map_err(|_| "Failed to lock data")?;
+	let stories = data.read().map_err(|_| "Failed to lock data")?;
 	if let Some(story) = stories.get(&ident) {
 		Ok(HttpResponse::Ok()
 			.content_type("application/json+oembed")
@@ -155,7 +155,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	};
 	let api = Arc::new(api);
 
-	let stories = Arc::new(Mutex::new(HashMap::<u32, Story>::new()));
+	let stories = Arc::new(RwLock::new(HashMap::<u32, Story>::new()));
 
 	HttpServer::new(move || {
 		App::new()
