@@ -2,6 +2,7 @@ use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Utc;
+use pony::fimfiction_api::story_api::{ApiIncluded, StoryApi};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
@@ -10,10 +11,7 @@ use std::env;
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use structs::StoryApi;
 use tokio::time::timeout;
-
-pub mod structs;
 
 #[derive(Debug, Clone)]
 struct FimficRequest {
@@ -80,8 +78,8 @@ async fn get_story(
 		let response = handle_request(&api, &fimfic).await.unwrap();
 		let api = response.json::<StoryApi>().await.unwrap();
 		let author = api.included.iter().find_map(|author| match author {
-			structs::ApiIncluded::Tag(_) => None,
-			structs::ApiIncluded::Author(included_author) => {
+			ApiIncluded::Tag(_) => None,
+			ApiIncluded::Author(included_author) => {
 				if included_author.id == api.data.relationships.author.data.id {
 					let author = Author {
 						url: included_author.meta.url.clone(),
