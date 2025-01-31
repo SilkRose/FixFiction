@@ -1,7 +1,7 @@
 use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use chrono::Utc;
+use chrono::Local;
 use pony::fimfiction_api::story_api::{ApiIncluded, StoryApi};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
@@ -32,6 +32,7 @@ struct Story {
 	color: String,
 	author: Author,
 	o_embed: OEmbed,
+	timestamp: u128,
 	short_description: String,
 	cover_medium_url: Option<String>,
 }
@@ -66,14 +67,16 @@ async fn get_story(
 	let ident = ident.parse::<u32>().unwrap();
 	let mut stories = data.write().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut story) = stories.get_mut(&ident) {
-		println!("{}: cache hit - {ident}", Utc::now());
+		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+		println!("{local_time}: cache hit:  {ident}");
 		story.requests += 1;
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(story_template(story)))
 	} else {
 		drop(stories);
-		println!("{}: cache miss - {ident}", Utc::now());
+		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+		println!("{local_time}: cache miss: {ident}");
 		let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{ident}");
 		let response = handle_request(&api, &fimfic).await.unwrap();
 		let api = response.json::<StoryApi>().await.unwrap();
@@ -100,17 +103,18 @@ async fn get_story(
 			title: story.attributes.title.replace('"', "&quot;"),
 			author_name: author.clone().unwrap().name,
 			author_url: author.clone().unwrap().url,
-			cache_age: 86400,
+			cache_age: 86_400,
 			html: String::default(),
 		};
 		let story = Story {
 			id: story.id.parse::<u32>().unwrap(),
 			link: story.meta.url,
 			title: embed.title.clone(),
-			requests: 0,
+			requests: 1,
 			color: story.attributes.color.hex,
 			author: author.unwrap(),
 			o_embed: embed,
+			timestamp: unix_time().unwrap(),
 			short_description: story.attributes.short_description.replace('"', "&quot;"),
 			cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
 		};
@@ -154,6 +158,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let api = Arc::new(api);
 
 	let stories = Arc::new(RwLock::new(HashMap::<u32, Story>::new()));
+	let stories_clone = stories.clone();
+
+	// Seconds between garbage collection.
+	const GC: u64 = 3600;
+	// Milliseconds to keep a story cached.
+	const TTL: u128 = 86_400_000;
+
+	tokio::task::spawn(async move {
+		loop {
+			tokio::time::sleep(Duration::from_secs(GC)).await;
+			let time = unix_time().unwrap();
+			let local_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+			let mut stories = stories_clone.write().expect("Failed to lock data");
+			let count = stories.len();
+			let requests = stories.iter().map(|(_, story)| story.requests).sum::<u32>();
+			stories.retain(|_, story| story.timestamp + TTL > time);
+			let remaining = stories.len();
+			let dropped = count - remaining;
+			println!(
+				"{local_time}: Requests - {requests}, Stories - {count}, Dropped - {dropped}, Remaining - {remaining}"
+			);
+		}
+	});
 
 	HttpServer::new(move || {
 		App::new()
