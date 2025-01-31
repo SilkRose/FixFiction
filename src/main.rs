@@ -4,13 +4,14 @@ use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Local;
 use pony::fimfiction_api::story::StoryApi;
 use pony::fimfiction_api::user::UserApi;
+use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
@@ -59,7 +60,6 @@ struct OEmbed {
 
 #[derive(Debug, Clone)]
 struct User {
-	id: u32,
 	link: String,
 	name: String,
 	requests: u32,
@@ -177,14 +177,17 @@ async fn get_user(
 		let api = response.json::<UserApi>().await.unwrap();
 		let image = (!api.data.attributes.avatar.r64.ends_with("none_64.png"))
 			.then_some(api.data.attributes.avatar.r256);
+		let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
 		let user = User {
-			id: ident,
 			link: api.data.meta.url,
 			name: api.data.attributes.name.replace('"', "&quot;"),
 			requests: 1,
 			color: api.data.attributes.color.hex,
 			timestamp: unix_time().unwrap(),
-			bio_bbcode: api.data.attributes.bio.replace('"', "&quot;"),
+			bio_bbcode: re
+				.replace_all(&api.data.attributes.bio, "")
+				.to_string()
+				.replace('"', "&quot;"),
 			profile_pic_256_url: image,
 		};
 		Ok(HttpResponse::Ok()
