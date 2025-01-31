@@ -2,7 +2,8 @@ use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Local;
-use pony::fimfiction_api::story_api::{ApiIncluded, StoryApi};
+use pony::fimfiction_api::story::StoryApi;
+use pony::fimfiction_api::user::UserApi;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
@@ -56,6 +57,18 @@ struct OEmbed {
 	html: String,
 }
 
+#[derive(Debug, Clone)]
+struct User {
+	id: u32,
+	link: String,
+	name: String,
+	requests: u32,
+	color: String,
+	timestamp: u128,
+	bio_bbcode: String,
+	profile_pic_256_url: Option<String>,
+}
+
 #[get("/story/{id:.*}")]
 async fn get_story(
 	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
@@ -68,7 +81,7 @@ async fn get_story(
 	let mut stories = data.write().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut story) = stories.get_mut(&ident) {
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-		println!("{local_time}: cache hit:  {ident}");
+		println!("{local_time}: [story] cache hit:  {ident}");
 		story.requests += 1;
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
@@ -76,22 +89,19 @@ async fn get_story(
 	} else {
 		drop(stories);
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-		println!("{local_time}: cache miss: {ident}");
+		println!("{local_time}: [story] cache miss: {ident}");
 		let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{ident}");
 		let response = handle_request(&api, &fimfic).await.unwrap();
 		let api = response.json::<StoryApi>().await.unwrap();
-		let author = api.included.iter().find_map(|author| match author {
-			ApiIncluded::Tag(_) => None,
-			ApiIncluded::Author(included_author) => {
-				if included_author.id == api.data.relationships.author.data.id {
-					let author = Author {
-						url: included_author.meta.url.clone(),
-						name: included_author.attributes.name.replace('"', "&quot;"),
-					};
-					Some(author)
-				} else {
-					None
-				}
+		let author = api.included.iter().find_map(|author| {
+			if author.id == api.data.relationships.author.data.id {
+				let author = Author {
+					url: author.meta.url.clone(),
+					name: author.attributes.name.replace('"', "&quot;"),
+				};
+				Some(author)
+			} else {
+				None
 			}
 		});
 		let story = api.data;
@@ -141,6 +151,48 @@ async fn oembed_story(
 	}
 }
 
+#[get("/user/{id:.*}")]
+async fn get_user(
+	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
+	data: web::Data<Arc<RwLock<HashMap<u32, User>>>>,
+) -> Result<impl Responder, Box<dyn std::error::Error>> {
+	let ident = path.into_inner();
+	let ident = ident.split('/').collect::<Vec<_>>();
+	let ident = ident.first().unwrap();
+	let ident = ident.parse::<u32>().unwrap();
+	let mut users = data.write().map_err(|_| "Failed to lock data")?;
+	if let Some(ref mut user) = users.get_mut(&ident) {
+		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+		println!("{local_time}: [user]  cache hit:  {ident}");
+		user.requests += 1;
+		Ok(HttpResponse::Ok()
+			.content_type("text/html; charset=utf-8")
+			.body(user_template(user)))
+	} else {
+		drop(users);
+		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+		println!("{local_time}: [user]  cache miss: {ident}");
+		let fimfic = format!("https://www.fimfiction.net/api/v2/users/{ident}");
+		let response = handle_request(&api, &fimfic).await.unwrap();
+		let api = response.json::<UserApi>().await.unwrap();
+		let image = (!api.data.attributes.avatar.r64.ends_with("none_64.png"))
+			.then_some(api.data.attributes.avatar.r256);
+		let user = User {
+			id: ident,
+			link: api.data.meta.url,
+			name: api.data.attributes.name.replace('"', "&quot;"),
+			requests: 1,
+			color: api.data.attributes.color.hex,
+			timestamp: unix_time().unwrap(),
+			bio_bbcode: api.data.attributes.bio.replace('"', "&quot;"),
+			profile_pic_256_url: image,
+		};
+		Ok(HttpResponse::Ok()
+			.content_type("text/html; charset=utf-8")
+			.body(user_template(&user)))
+	}
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 	// API Bearer token is required to scrape the data.
@@ -160,6 +212,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let stories = Arc::new(RwLock::new(HashMap::<u32, Story>::new()));
 	let stories_clone = stories.clone();
 
+	let users = Arc::new(RwLock::new(HashMap::<u32, User>::new()));
+	let users_clone = users.clone();
+
 	// Seconds between garbage collection.
 	const GC: u64 = 3600;
 	// Milliseconds to keep a story cached.
@@ -177,7 +232,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			let remaining = stories.len();
 			let dropped = count - remaining;
 			println!(
-				"{local_time}: Requests - {requests}, Stories - {count}, Dropped - {dropped}, Remaining - {remaining}"
+				"{local_time}: [story] Requests - {requests}, Stories - {count}, Dropped - {dropped}, Remaining - {remaining}"
+			);
+
+			let mut users = users_clone.write().expect("Failed to lock data");
+			let count = users.len();
+			let requests = users.iter().map(|(_, user)| user.requests).sum::<u32>();
+			users.retain(|_, user| user.timestamp + TTL > time);
+			let remaining = users.len();
+			let dropped = count - remaining;
+			println!(
+				"{local_time}: [user]  Requests - {requests}, Stories - {count}, Dropped - {dropped}, Remaining - {remaining}"
 			);
 		}
 	});
@@ -186,6 +251,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		App::new()
 			.app_data(Data::new(api.clone()))
 			.app_data(Data::new(stories.clone()))
+			.app_data(Data::new(users.clone()))
 			.wrap(
 				Cors::default()
 					.allow_any_origin()
@@ -195,6 +261,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			)
 			.service(get_story)
 			.service(oembed_story)
+			.service(get_user)
 	})
 	.bind(("0.0.0.0", 7669))? // pony
 	.run()
@@ -322,6 +389,59 @@ fn story_template(story: &Story) -> String {
 			story.author.name,
 			title = story.title,
 			link = story.link,
+		),
+	}
+}
+
+fn user_template(user: &User) -> String {
+	match &user.profile_pic_256_url {
+		Some(image) => format!(
+			r#"<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta name="theme-color" content="\#{}" />
+		<link rel="canonical" href="{link}" />
+		<meta http-equiv="refresh" content="0;url={link}" />
+		<meta property="og:title" content="{name}" />
+		<meta property="og:description" content="{}" />
+		<meta property="og:image" content="{}" />
+		<meta property="og:url" content="{link}" />
+		<meta property="og:type" content="profile" />
+		<meta property="profile:username" content="{name}" />
+		<meta property="og:site_name" content="Fimfiction" />
+		<meta property="twitter:site" content="fimfiction" />
+		<meta property="twitter:card" content="summary" />
+	</head>
+	<body></body>
+	</html>"#,
+			user.color,
+			user.bio_bbcode,
+			image,
+			name = user.name,
+			link = user.link
+		),
+		None => format!(
+			r#"<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta name="theme-color" content="\#{}" />
+		<link rel="canonical" href="{link}" />
+		<meta http-equiv="refresh" content="0;url={link}" />
+		<meta property="og:title" content="{name}" />
+		<meta property="og:description" content="{}" />
+		<meta property="og:url" content="{link}" />
+		<meta property="og:type" content="profile" />
+		<meta property="profile:username" content="{name}" />
+		<meta property="og:site_name" content="Fimfiction" />
+		<meta property="twitter:site" content="fimfiction" />
+		<meta property="twitter:card" content="summary" />
+	</head>
+	<body></body>
+	</html>"#,
+			user.color,
+			user.bio_bbcode,
+			name = user.name,
+			link = user.link
 		),
 	}
 }
