@@ -208,6 +208,8 @@ async fn get_user(
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [user]  cache miss: {ident}");
 		let user = request_user(ident, api).await?;
+		let mut users = data.write().map_err(|_| "Failed to lock data")?;
+		users.insert(ident, user.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(user_template(&user)))
