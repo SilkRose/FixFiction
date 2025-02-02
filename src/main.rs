@@ -227,6 +227,8 @@ async fn get_blog(
 		} else {
 			request_user(blog.author_id, api).await?
 		};
+		let mut blogs = blog_data.write().map_err(|_| "Failed to lock data")?;
+		blogs.insert(ident, blog.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(blog_template(&blog, &user)))
