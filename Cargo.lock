@@ -1754,7 +1754,7 @@ dependencies = [
 [[package]]
 name = "pony"
 version = "0.0.0"
-source = "git+https://github.com/SilkRose/Pony#e68d85f4c7fbe3ccea26709431223a622dfc2d18"
+source = "git+https://github.com/SilkRose/Pony#c6b50f3d1ab3827c091f7e5436be5630e01892db"
 dependencies = [
  "camino",
  "git2",
@@ -2338,9 +2338,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "syn"
-version = "2.0.97"
+version = "2.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dabd04e3b9a8c3c03d5e743f5ef5e1207befc9de704d477f7198cc28049763e"
+checksum = "36147f1a48ae0ec2b5b3bc5b537d267457555a10dc06f3dbc8cb11ba3006d3b1"
 dependencies = [
  "proc-macro2",
  "quote",
