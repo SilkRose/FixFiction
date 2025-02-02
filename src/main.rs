@@ -82,6 +82,28 @@ struct Blog {
 	date_published: String,
 }
 
+macro_rules! garbage_collector {
+	($fun:ident, $T:ty, $name:literal) => {
+		fn $fun(
+			data: Arc<RwLock<HashMap<u32, $T>>>, time: u128,
+		) -> Result<String, Box<dyn std::error::Error>> {
+			let mut data = data.write().expect("Failed to lock data");
+			let total = data.len();
+			let requests = data.iter().map(|(_, item)| item.requests).sum::<u32>();
+			data.retain(|_, story| story.timestamp > time);
+			data.iter_mut().for_each(|(_, item)| item.requests = 0);
+			let remaining = data.len();
+			let dropped = total - remaining;
+			let text = format!("{}: ({requests}, {dropped}, {remaining})", $name);
+			Ok(text)
+		}
+	};
+}
+
+garbage_collector!(story_cleanup, Story, "story");
+garbage_collector!(user_cleanup, User, "user");
+garbage_collector!(blog_cleanup, Blog, "blog");
+
 #[get("/story/{id:.*}")]
 async fn get_story(
 	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
@@ -268,37 +290,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	tokio::task::spawn(async move {
 		loop {
 			tokio::time::sleep(Duration::from_secs(GC)).await;
-			let time = unix_time().unwrap();
+			let time = unix_time().unwrap() - TTL;
 			let local_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-			let mut stories = stories_clone.write().expect("Failed to lock data");
-			let count = stories.len();
-			let requests = stories.iter().map(|(_, story)| story.requests).sum::<u32>();
-			stories.retain(|_, story| story.timestamp + TTL > time);
-			let remaining = stories.len();
-			let dropped = count - remaining;
+			let stories = story_cleanup(stories_clone.clone(), time).unwrap();
+			let users = user_cleanup(users_clone.clone(), time).unwrap();
+			let blogs = blog_cleanup(blogs_clone.clone(), time).unwrap();
 			println!(
-				"{local_time}: [story] Requests - {requests}, Stories - {count}, Dropped - {dropped}, Remaining - {remaining}"
-			);
-
-			let mut users = users_clone.write().expect("Failed to lock data");
-			let count = users.len();
-			let requests = users.iter().map(|(_, user)| user.requests).sum::<u32>();
-			users.retain(|_, user| user.timestamp + TTL > time);
-			let remaining = users.len();
-			let dropped = count - remaining;
-			println!(
-				"{local_time}: [user]  Requests - {requests}, Users   - {count}, Dropped - {dropped}, Remaining - {remaining}"
-			);
-
-			let mut blogs = blogs_clone.write().expect("Failed to lock data");
-			let count = blogs.len();
-			let requests = blogs.iter().map(|(_, blog)| blog.requests).sum::<u32>();
-			blogs.retain(|_, blog| blog.timestamp + TTL > time);
-			let remaining = blogs.len();
-			let dropped = count - remaining;
-			println!(
-				"{local_time}: [blog]  Requests - {requests}, Blogs   - {count}, Dropped - {dropped}, Remaining - {remaining}"
-			);
+				"{local_time} <- (requests, dropped, remaining) -> {stories}, {users}, {blogs}"
+			)
 		}
 	});
 
