@@ -53,8 +53,8 @@ struct OEmbed {
 	provider_name: String,
 	provider_url: String,
 	title: String,
-	author_name: String,
-	author_url: String,
+	author_name: Option<String>,
+	author_url: Option<String>,
 	cache_age: u32,
 	html: String,
 }
@@ -65,6 +65,7 @@ struct User {
 	name: String,
 	requests: u32,
 	color: String,
+	o_embed: OEmbed,
 	timestamp: u128,
 	bio_bbcode: String,
 	profile_pic_256_url: Option<String>,
@@ -76,6 +77,7 @@ struct Blog {
 	title: String,
 	requests: u32,
 	author_id: u32,
+	o_embed: OEmbed,
 	timestamp: u128,
 	story_id: Option<u32>,
 	content_bbcode: String,
@@ -134,11 +136,19 @@ async fn get_story(
 	}
 }
 
-#[get("/oembed/story/{id}")]
+#[get("/oembed/{type}/{id}")]
 async fn oembed_story(
-	path: web::Path<String>, data: web::Data<Arc<RwLock<HashMap<u32, Story>>>>,
+	path: web::Path<(String, String)>, data: web::Data<Arc<RwLock<HashMap<u32, Story>>>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
-	let ident = path.into_inner().parse::<u32>().unwrap();
+	let endpoint = path.clone().0;
+	let ident = path.into_inner().1.parse::<u32>().unwrap();
+	match endpoint.as_str() {
+		"story" => {}
+		"user" => {}
+		"blog" => {}
+		"error" => {}
+		_ => {}
+	}
 	let stories = data.read().map_err(|_| "Failed to lock data")?;
 	if let Some(story) = stories.get(&ident) {
 		Ok(HttpResponse::Ok()
@@ -371,25 +381,15 @@ async fn request_story(
 		}
 	});
 	let story = api.data;
-	let embed = OEmbed {
-		r#type: String::from(""),
-		version: 1,
-		provider_name: String::from("Fimfiction"),
-		provider_url: String::from("https://www.fimfiction.net/"),
-		title: story.attributes.title.replace('"', "&quot;"),
-		author_name: author.clone().unwrap().name,
-		author_url: author.clone().unwrap().url,
-		cache_age: 86_400,
-		html: String::default(),
-	};
+	let title = story.attributes.title.replace('"', "&quot;");
 	let story = Story {
 		id: story.id.parse::<u32>().unwrap(),
 		link: story.meta.url,
-		title: embed.title.clone(),
+		title: title.clone(),
 		requests: 1,
 		color: story.attributes.color.hex,
-		author: author.unwrap(),
-		o_embed: embed,
+		author: author.clone().unwrap(),
+		o_embed: create_o_embed(title, author, false),
 		timestamp: unix_time().unwrap(),
 		short_description: story.attributes.short_description.replace('"', "&quot;"),
 		cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
@@ -406,11 +406,13 @@ async fn request_user(
 	let image = (!api.data.attributes.avatar.r64.ends_with("none_64.png"))
 		.then_some(api.data.attributes.avatar.r256);
 	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
+	let name = api.data.attributes.name.replace('"', "&quot;");
 	let user = User {
 		link: api.data.meta.url,
-		name: api.data.attributes.name.replace('"', "&quot;"),
+		name: name.clone(),
 		requests: 1,
 		color: api.data.attributes.color.hex,
+		o_embed: create_o_embed(name, None, false),
 		timestamp: unix_time().unwrap(),
 		bio_bbcode: re
 			.replace_all(&api.data.attributes.bio, "")
@@ -447,17 +449,43 @@ async fn request_blog(
 			break;
 		}
 	}
+	let title = api.data.attributes.title;
 	let blog = Blog {
 		link: api.data.meta.url,
-		title: api.data.attributes.title,
+		title: title.clone(),
 		requests: 1,
 		author_id: api.data.relationships.author.data.id.parse()?,
+		o_embed: create_o_embed(title, None, false),
 		timestamp: unix_time().unwrap(),
 		story_id,
 		content_bbcode: text.join("\n"),
 		date_published: api.data.attributes.date_posted,
 	};
 	Ok(blog)
+}
+
+fn create_o_embed(title: String, author: Option<Author>, error: bool) -> OEmbed {
+	let (name, url) = match error {
+		false => (
+			String::from("Fimfiction"),
+			String::from("https://www.fimfiction.net/"),
+		),
+		true => (
+			String::from("Fixfiction"),
+			String::from("https://www.fixfiction.net/"),
+		),
+	};
+	OEmbed {
+		r#type: String::from("rich"),
+		version: 1,
+		provider_name: name,
+		provider_url: url,
+		title: title.replace('"', "&quot;"),
+		author_name: author.clone().map(|author| author.name),
+		author_url: author.map(|author| author.url),
+		cache_age: 86_400,
+		html: String::default(),
+	}
 }
 
 fn story_template(story: &Story) -> String {
