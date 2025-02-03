@@ -125,46 +125,9 @@ async fn get_story(
 		drop(stories);
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [story] cache miss: {ident}");
-		let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{ident}");
-		let response = handle_request(&api, &fimfic).await.unwrap();
-		let api = response.json::<StoryApi>().await.unwrap();
-		let author = api.included.iter().find_map(|author| {
-			if author.id == api.data.relationships.author.data.id {
-				let author = Author {
-					url: author.meta.url.clone(),
-					name: author.attributes.name.replace('"', "&quot;"),
-				};
-				Some(author)
-			} else {
-				None
-			}
-		});
-		let story = api.data;
-		let embed = OEmbed {
-			r#type: String::from(""),
-			version: 1,
-			provider_name: String::from("Fimfiction"),
-			provider_url: String::from("https://www.fimfiction.net/"),
-			title: story.attributes.title.replace('"', "&quot;"),
-			author_name: author.clone().unwrap().name,
-			author_url: author.clone().unwrap().url,
-			cache_age: 86_400,
-			html: String::default(),
-		};
-		let story = Story {
-			id: story.id.parse::<u32>().unwrap(),
-			link: story.meta.url,
-			title: embed.title.clone(),
-			requests: 1,
-			color: story.attributes.color.hex,
-			author: author.unwrap(),
-			o_embed: embed,
-			timestamp: unix_time().unwrap(),
-			short_description: story.attributes.short_description.replace('"', "&quot;"),
-			cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
-		};
+		let story = request_story(ident, api).await?;
 		let mut stories = data.write().map_err(|_| "Failed to lock data")?;
-		stories.insert(story.id, story.clone());
+		stories.insert(ident, story.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(story_template(&story)))
@@ -388,6 +351,50 @@ async fn sleep(
 
 fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 	Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())
+}
+
+async fn request_story(
+	id: u32, api: web::Data<Arc<FimficRequest>>,
+) -> Result<Story, Box<dyn std::error::Error>> {
+	let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
+	let response = handle_request(&api, &fimfic).await.unwrap();
+	let api = response.json::<StoryApi>().await.unwrap();
+	let author = api.included.iter().find_map(|author| {
+		if author.id == api.data.relationships.author.data.id {
+			let author = Author {
+				url: author.meta.url.clone(),
+				name: author.attributes.name.replace('"', "&quot;"),
+			};
+			Some(author)
+		} else {
+			None
+		}
+	});
+	let story = api.data;
+	let embed = OEmbed {
+		r#type: String::from(""),
+		version: 1,
+		provider_name: String::from("Fimfiction"),
+		provider_url: String::from("https://www.fimfiction.net/"),
+		title: story.attributes.title.replace('"', "&quot;"),
+		author_name: author.clone().unwrap().name,
+		author_url: author.clone().unwrap().url,
+		cache_age: 86_400,
+		html: String::default(),
+	};
+	let story = Story {
+		id: story.id.parse::<u32>().unwrap(),
+		link: story.meta.url,
+		title: embed.title.clone(),
+		requests: 1,
+		color: story.attributes.color.hex,
+		author: author.unwrap(),
+		o_embed: embed,
+		timestamp: unix_time().unwrap(),
+		short_description: story.attributes.short_description.replace('"', "&quot;"),
+		cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
+	};
+	Ok(story)
 }
 
 async fn request_user(
