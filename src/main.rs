@@ -84,6 +84,14 @@ struct Blog {
 	date_published: String,
 }
 
+#[derive(Debug, Clone)]
+struct AppState {
+	api: FimficRequest,
+	stories: Arc<RwLock<HashMap<u32, Story>>>,
+	users: Arc<RwLock<HashMap<u32, User>>>,
+	blogs: Arc<RwLock<HashMap<u32, Blog>>>,
+}
+
 macro_rules! garbage_collector {
 	($fun:ident, $T:ty, $name:literal) => {
 		fn $fun(
@@ -108,14 +116,13 @@ garbage_collector!(blog_cleanup, Blog, "blog");
 
 #[get("/story/{id:.*}")]
 async fn get_story(
-	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
-	data: web::Data<Arc<RwLock<HashMap<u32, Story>>>>,
+	path: web::Path<String>, data: web::Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let mut stories = data.write().map_err(|_| "Failed to lock data")?;
+	let mut stories = data.stories.write().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut story) = stories.get_mut(&ident) {
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [story] cache hit:  {ident}");
@@ -127,8 +134,8 @@ async fn get_story(
 		drop(stories);
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [story] cache miss: {ident}");
-		let story = request_story(ident, api).await?;
-		let mut stories = data.write().map_err(|_| "Failed to lock data")?;
+		let story = request_story(ident, &data.api).await?;
+		let mut stories = data.stories.write().map_err(|_| "Failed to lock data")?;
 		stories.insert(ident, story.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
@@ -138,7 +145,7 @@ async fn get_story(
 
 #[get("/oembed/{type}/{id}")]
 async fn oembed_story(
-	path: web::Path<(String, String)>, data: web::Data<Arc<RwLock<HashMap<u32, Story>>>>,
+	path: web::Path<(String, String)>, data: web::Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let endpoint = path.clone().0;
 	let ident = path.into_inner().1.parse::<u32>().unwrap();
@@ -149,7 +156,7 @@ async fn oembed_story(
 		"error" => {}
 		_ => {}
 	}
-	let stories = data.read().map_err(|_| "Failed to lock data")?;
+	let stories = data.stories.read().map_err(|_| "Failed to lock data")?;
 	if let Some(story) = stories.get(&ident) {
 		Ok(HttpResponse::Ok()
 			.content_type("application/json+oembed")
@@ -161,14 +168,13 @@ async fn oembed_story(
 
 #[get("/user/{id:.*}")]
 async fn get_user(
-	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
-	data: web::Data<Arc<RwLock<HashMap<u32, User>>>>,
+	path: web::Path<String>, data: web::Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let mut users = data.write().map_err(|_| "Failed to lock data")?;
+	let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut user) = users.get_mut(&ident) {
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [user]  cache hit:  {ident}");
@@ -180,8 +186,8 @@ async fn get_user(
 		drop(users);
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [user]  cache miss: {ident}");
-		let user = request_user(ident, api).await?;
-		let mut users = data.write().map_err(|_| "Failed to lock data")?;
+		let user = request_user(ident, &data.api).await?;
+		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
 		users.insert(ident, user.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
@@ -191,24 +197,22 @@ async fn get_user(
 
 #[get("/blog/{id:.*}")]
 async fn get_blog(
-	path: web::Path<String>, api: web::Data<Arc<FimficRequest>>,
-	blog_data: web::Data<Arc<RwLock<HashMap<u32, Blog>>>>,
-	user_data: web::Data<Arc<RwLock<HashMap<u32, User>>>>,
+	path: web::Path<String>, data: web::Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let mut blogs = blog_data.write().map_err(|_| "Failed to lock data")?;
+	let mut blogs = data.blogs.write().map_err(|_| "Failed to lock data")?;
 	if let Some(ref mut blog) = blogs.get_mut(&ident) {
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [blog]  cache hit:  {ident}");
 		blog.requests += 1;
-		let users = user_data.read().map_err(|_| "Failed to lock data")?;
+		let users = data.users.read().map_err(|_| "Failed to lock data")?;
 		let user = if let Some(user) = users.get(&blog.author_id) {
 			user.clone()
 		} else {
-			request_user(blog.author_id, api).await?
+			request_user(blog.author_id, &data.api).await?
 		};
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
@@ -217,14 +221,14 @@ async fn get_blog(
 		drop(blogs);
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [blog]  cache miss: {ident}");
-		let blog = request_blog(ident, api.clone()).await?;
-		let users = user_data.read().map_err(|_| "Failed to lock data")?;
+		let blog = request_blog(ident, &data.api).await?;
+		let users = data.users.read().map_err(|_| "Failed to lock data")?;
 		let user = if let Some(user) = users.get(&blog.author_id) {
 			user.clone()
 		} else {
-			request_user(blog.author_id, api).await?
+			request_user(blog.author_id, &data.api).await?
 		};
-		let mut blogs = blog_data.write().map_err(|_| "Failed to lock data")?;
+		let mut blogs = data.blogs.write().map_err(|_| "Failed to lock data")?;
 		blogs.insert(ident, blog.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
@@ -246,16 +250,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		interval_max: Duration::from_secs(120),
 		timeout: Duration::from_secs(10),
 	};
-	let api = Arc::new(api);
 
-	let stories = Arc::new(RwLock::new(HashMap::<u32, Story>::new()));
-	let stories_clone = stories.clone();
+	let app_data = AppState {
+		api: api.clone(),
+		stories: Arc::new(RwLock::new(HashMap::<u32, Story>::new())),
+		users: Arc::new(RwLock::new(HashMap::<u32, User>::new())),
+		blogs: Arc::new(RwLock::new(HashMap::<u32, Blog>::new())),
+	};
 
-	let users = Arc::new(RwLock::new(HashMap::<u32, User>::new()));
-	let users_clone = users.clone();
-
-	let blogs = Arc::new(RwLock::new(HashMap::<u32, Blog>::new()));
-	let blogs_clone = blogs.clone();
+	let state_clone = app_data.clone();
 
 	// Seconds between garbage collection.
 	const GC: u64 = 3600;
@@ -267,9 +270,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			tokio::time::sleep(Duration::from_secs(GC)).await;
 			let time = unix_time().unwrap() - TTL;
 			let local_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-			let stories = story_cleanup(stories_clone.clone(), time).unwrap();
-			let users = user_cleanup(users_clone.clone(), time).unwrap();
-			let blogs = blog_cleanup(blogs_clone.clone(), time).unwrap();
+			let stories = story_cleanup(state_clone.stories.clone(), time).unwrap();
+			let users = user_cleanup(state_clone.users.clone(), time).unwrap();
+			let blogs = blog_cleanup(state_clone.blogs.clone(), time).unwrap();
 			println!(
 				"{local_time} <- (requests, dropped, remaining) -> {stories}, {users}, {blogs}"
 			)
@@ -278,10 +281,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	HttpServer::new(move || {
 		App::new()
-			.app_data(Data::new(api.clone()))
-			.app_data(Data::new(stories.clone()))
-			.app_data(Data::new(users.clone()))
-			.app_data(Data::new(blogs.clone()))
+			.app_data(Data::new(Arc::new(app_data.clone())))
 			.wrap(
 				Cors::default()
 					.allow_any_origin()
@@ -363,11 +363,9 @@ fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 	Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())
 }
 
-async fn request_story(
-	id: u32, api: web::Data<Arc<FimficRequest>>,
-) -> Result<Story, Box<dyn std::error::Error>> {
+async fn request_story(id: u32, api: &FimficRequest) -> Result<Story, Box<dyn std::error::Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
-	let response = handle_request(&api, &fimfic).await.unwrap();
+	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<StoryApi>().await.unwrap();
 	let author = api.included.iter().find_map(|author| {
 		if author.id == api.data.relationships.author.data.id {
@@ -397,11 +395,9 @@ async fn request_story(
 	Ok(story)
 }
 
-async fn request_user(
-	id: u32, api: web::Data<Arc<FimficRequest>>,
-) -> Result<User, Box<dyn std::error::Error>> {
+async fn request_user(id: u32, api: &FimficRequest) -> Result<User, Box<dyn std::error::Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-	let response = handle_request(&api, &fimfic).await.unwrap();
+	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<UserApi>().await.unwrap();
 	let image = (!api.data.attributes.avatar.r64.ends_with("none_64.png"))
 		.then_some(api.data.attributes.avatar.r256);
@@ -423,13 +419,11 @@ async fn request_user(
 	Ok(user)
 }
 
-async fn request_blog(
-	id: u32, api: web::Data<Arc<FimficRequest>>,
-) -> Result<Blog, Box<dyn std::error::Error>> {
+async fn request_blog(id: u32, api: &FimficRequest) -> Result<Blog, Box<dyn std::error::Error>> {
 	let fimfic = format!(
 		"https://www.fimfiction.net/api/v2/blog-posts/{id}?fields[blog_post]=title,date_posted,content,num_views,num_comments,author,tagged_story"
 	);
-	let response = handle_request(&api, &fimfic).await.unwrap();
+	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<BlogApi>().await?;
 	let story_id = (api.data.relationships.tagged_story.data.id != "0")
 		.then_some(api.data.relationships.tagged_story.data.id.parse()?);
