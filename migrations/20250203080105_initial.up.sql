@@ -19,8 +19,8 @@ create table authors (
 	stories integer not null,
 	blogs integer not null,
 	profile_pic_256 text,
-	color_hex char(6) not null,
-	date_cached timestamptz not null default current_timestamp,
+	color_hex varchar(6) not null,
+	date_cached timestamptz not null default current_timestamp
 );
 
 create table stories (
@@ -28,10 +28,10 @@ create table stories (
 	title text not null,
 	short_description text not null,
 	cover_medium_url text,
-	color_hex char(6) not null,
+	color_hex varchar(6) not null,
 	views integer not null,
-	words: integer not null.
-	chapters: integer not null,
+	words integer not null,
+	chapters integer not null,
 	comments integer not null,
 	completion_status completion_status not null,
 	content_rating content_rating not null,
@@ -66,7 +66,7 @@ create table blogs (
 	comments integer not null,
 	views integer not null,
 	author_id integer not null,
-	story_id integer,
+	story_id integer null,
 	date_cached timestamptz not null default current_timestamp,
 
 	constraint blogs_author_id_fk foreign key (author_id)
