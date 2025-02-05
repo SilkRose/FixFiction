@@ -426,9 +426,8 @@ async fn request_user(
 async fn request_blog(
 	id: u32, api: web::Data<Arc<FimficRequest>>,
 ) -> Result<Blog, Box<dyn std::error::Error>> {
-	// title,intro,date_posted,content,content_html,num_views,num_comments,site_post,site_post_tag,tags,author,tagged_story
 	let fimfic = format!(
-		"https://www.fimfiction.net/api/v2/blog-posts/{id}?fields[blog_post]=title,date_posted,content,author,tagged_story"
+		"https://www.fimfiction.net/api/v2/blog-posts/{id}?fields[blog_post]=title,date_posted,content,num_views,num_comments,author,tagged_story"
 	);
 	let response = handle_request(&api, &fimfic).await.unwrap();
 	let api = response.json::<BlogApi>().await?;
