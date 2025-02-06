@@ -62,6 +62,7 @@ struct OEmbed {
 
 #[derive(Debug, Clone)]
 struct User {
+	id: u32,
 	link: String,
 	name: String,
 	requests: u32,
@@ -74,6 +75,7 @@ struct User {
 
 #[derive(Debug, Clone)]
 struct Blog {
+	id: u32,
 	link: String,
 	title: String,
 	requests: u32,
@@ -146,28 +148,28 @@ async fn get_story(
 	}
 }
 
-#[get("/oembed/{type}/{id}")]
-async fn oembed_story(
-	path: web::Path<(String, String)>, data: web::Data<Arc<AppState>>,
-) -> Result<impl Responder, Box<dyn std::error::Error>> {
-	let endpoint = path.clone().0;
-	let ident = path.into_inner().1.parse::<u32>().unwrap();
-	match endpoint.as_str() {
-		"story" => {}
-		"user" => {}
-		"blog" => {}
-		"error" => {}
-		_ => {}
-	}
-	let stories = data.stories.read().map_err(|_| "Failed to lock data")?;
-	if let Some(story) = stories.get(&ident) {
-		Ok(HttpResponse::Ok()
-			.content_type("application/json+oembed")
-			.json(story.o_embed.clone()))
-	} else {
-		Ok(HttpResponse::NotFound().finish())
-	}
+macro_rules! o_embed {
+	($endpoint:literal, $fun:ident, $items:ident) => {
+		#[get($endpoint)]
+		async fn $fun(
+			path: web::Path<String>, data: web::Data<Arc<AppState>>,
+		) -> Result<impl Responder, Box<dyn std::error::Error>> {
+			let ident = path.into_inner().parse::<u32>().unwrap();
+			let items = data.$items.read().map_err(|_| "Failed to lock data")?;
+			if let Some(item) = items.get(&ident) {
+				Ok(HttpResponse::Ok()
+					.content_type("application/json+oembed")
+					.json(item.o_embed.clone()))
+			} else {
+				Ok(HttpResponse::NotFound().finish())
+			}
+		}
+	};
 }
+
+o_embed!("/oembed/story/{id}", oembed_story, stories);
+o_embed!("/oembed/user/{id}", oembed_user, users);
+o_embed!("/oembed/blog/{id}", oembed_blog, blogs);
 
 #[get("/user/{id:.*}")]
 async fn get_user(
@@ -291,7 +293,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.service(get_story)
 			.service(oembed_story)
 			.service(get_user)
+			.service(oembed_user)
 			.service(get_blog)
+			.service(oembed_blog)
 	})
 	.bind(("0.0.0.0", 7669))? // pony
 	.run()
@@ -425,13 +429,19 @@ async fn request_blog(id: u32, api: &FimficRequest) -> Result<(Blog, User), Box<
 	}
 	let author = api.included.first().unwrap();
 	let user = response_to_user(author.clone())?;
+	let author = Author {
+		id: author.id.parse()?,
+		url: user.clone().link,
+		name: user.clone().name,
+	};
 	let title = api.data.attributes.title;
 	let blog = Blog {
+		id,
 		link: api.data.meta.url,
 		title: title.clone(),
 		requests: 1,
-		author_id: author.id.parse()?,
-		o_embed: create_o_embed(title, None, false),
+		author_id: author.id,
+		o_embed: create_o_embed(title, Some(author), false),
 		timestamp: unix_time().unwrap(),
 		story_id,
 		content_bbcode: text.join("\n"),
@@ -446,6 +456,7 @@ fn response_to_user(data: UserData) -> Result<User, Box<dyn std::error::Error>> 
 	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
 	let name = data.attributes.name.replace('"', "&quot;");
 	let user = User {
+		id: data.id.parse()?,
 		link: data.meta.url,
 		name: name.clone(),
 		requests: 1,
@@ -564,12 +575,14 @@ fn user_template(user: &User) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
+		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/user/{}" title="{name}" />
 	</head>
 	<body></body>
 	</html>"#,
 			user.color,
 			user.bio_bbcode,
 			image,
+			user.id,
 			name = user.name,
 			link = user.link
 		),
@@ -588,11 +601,13 @@ fn user_template(user: &User) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
+		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/user/{}" title="{name}" />
 	</head>
 	<body></body>
 	</html>"#,
 			user.color,
 			user.bio_bbcode,
+			user.id,
 			name = user.name,
 			link = user.link
 		),
@@ -608,7 +623,7 @@ fn blog_template(blog: &Blog, user: &User) -> String {
 		<meta name="theme-color" content="\#{}" />
 		<link rel="canonical" href="{link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{}" />
+		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
 		<meta property="og:image" content="{}" />
 		<meta property="og:url" content="{link}" />
@@ -618,16 +633,18 @@ fn blog_template(blog: &Blog, user: &User) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
+		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/blog/{}" title="{title}" />
 	</head>
 	<body></body>
 	</html>"#,
 			user.color,
-			blog.title,
 			blog.content_bbcode,
 			image,
 			user.link,
 			blog.date_published,
-			link = blog.link
+			blog.id,
+			link = blog.link,
+			title = blog.title,
 		),
 		None => format!(
 			r#"<!DOCTYPE html>
@@ -636,7 +653,7 @@ fn blog_template(blog: &Blog, user: &User) -> String {
 		<meta name="theme-color" content="\#{}" />
 		<link rel="canonical" href="{link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{}" />
+		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
 		<meta property="og:url" content="{link}" />
 		<meta property="og:type" content="article" />
@@ -645,15 +662,17 @@ fn blog_template(blog: &Blog, user: &User) -> String {
 		<meta property="og:site_name" content="Fimfiction" />
 		<meta property="twitter:site" content="fimfiction" />
 		<meta property="twitter:card" content="summary" />
+		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/blog/{}" title="{title}" />
 	</head>
 	<body></body>
 	</html>"#,
 			user.color,
-			blog.title,
 			blog.content_bbcode,
 			user.link,
 			blog.date_published,
-			link = blog.link
+			blog.id,
+			link = blog.link,
+			title = blog.title,
 		),
 	}
 }
