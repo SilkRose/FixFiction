@@ -328,7 +328,6 @@ async fn handle_request(
 		.await;
 		match res {
 			Ok(Ok(response)) => {
-				sleep(start_time, request.interval).await?;
 				return Ok(response);
 			}
 			Ok(Err(error)) => {
