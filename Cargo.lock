@@ -1754,7 +1754,7 @@ dependencies = [
 [[package]]
 name = "pony"
 version = "0.0.0"
-source = "git+https://github.com/SilkRose/Pony#9576ba860cec4de41e77eb9e2767eda8140dc810"
+source = "git+https://github.com/SilkRose/Pony#4551ef3b4de06950aee94fe47cb8765df7f8ce90"
 dependencies = [
  "camino",
  "git2",
@@ -2557,9 +2557,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.19"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1ed1f98e3fdc28d6d910e6737ae6ab1a93bf1985935a1193e68f93eeb68d24e"
+checksum = "cd87a5cdd6ffab733b2f74bc4fd7ee5fff6634124999ac278c35fc78c6120148"
 dependencies = [
  "serde",
  "serde_spanned",

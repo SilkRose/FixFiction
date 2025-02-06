@@ -4,7 +4,7 @@ use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Local;
 use pony::fimfiction_api::blog::BlogApi;
 use pony::fimfiction_api::story::StoryApi;
-use pony::fimfiction_api::user::UserApi;
+use pony::fimfiction_api::user::{UserApi, UserData};
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
@@ -42,6 +42,7 @@ struct Story {
 
 #[derive(Debug, Clone)]
 struct Author {
+	id: u32,
 	url: String,
 	name: String,
 }
@@ -134,7 +135,9 @@ async fn get_story(
 		drop(stories);
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [story] cache miss: {ident}");
-		let story = request_story(ident, &data.api).await?;
+		let (story, user) = request_story(ident, &data.api).await?;
+		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
+		users.insert(story.author.id, user.clone());
 		let mut stories = data.stories.write().map_err(|_| "Failed to lock data")?;
 		stories.insert(ident, story.clone());
 		Ok(HttpResponse::Ok()
@@ -221,13 +224,9 @@ async fn get_blog(
 		drop(blogs);
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [blog]  cache miss: {ident}");
-		let blog = request_blog(ident, &data.api).await?;
-		let users = data.users.read().map_err(|_| "Failed to lock data")?;
-		let user = if let Some(user) = users.get(&blog.author_id) {
-			user.clone()
-		} else {
-			request_user(blog.author_id, &data.api).await?
-		};
+		let (blog, user) = request_blog(ident, &data.api).await?;
+		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
+		users.insert(blog.author_id, user.clone());
 		let mut blogs = data.blogs.write().map_err(|_| "Failed to lock data")?;
 		blogs.insert(ident, blog.clone());
 		Ok(HttpResponse::Ok()
@@ -362,21 +361,21 @@ fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 	Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())
 }
 
-async fn request_story(id: u32, api: &FimficRequest) -> Result<Story, Box<dyn std::error::Error>> {
+async fn request_story(id: u32, api: &FimficRequest) -> Result<(Story, User), Box<dyn Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
 	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<StoryApi>().await.unwrap();
-	let author = api.included.iter().find_map(|author| {
-		if author.id == api.data.relationships.author.data.id {
-			let author = Author {
-				url: author.meta.url.clone(),
-				name: author.attributes.name.replace('"', "&quot;"),
-			};
-			Some(author)
-		} else {
-			None
-		}
-	});
+	let author = api
+		.included
+		.iter()
+		.find(|author| author.id == api.data.relationships.author.data.id)
+		.unwrap();
+	let user = response_to_user(author.clone())?;
+	let author = Author {
+		id: author.id.parse()?,
+		url: user.clone().link,
+		name: user.clone().name,
+	};
 	let story = api.data;
 	let title = story.attributes.title.replace('"', "&quot;");
 	let story = Story {
@@ -385,42 +384,25 @@ async fn request_story(id: u32, api: &FimficRequest) -> Result<Story, Box<dyn st
 		title: title.clone(),
 		requests: 1,
 		color: story.attributes.color.hex,
-		author: author.clone().unwrap(),
-		o_embed: create_o_embed(title, author, false),
+		author: author.clone(),
+		o_embed: create_o_embed(title, Some(author), false),
 		timestamp: unix_time().unwrap(),
 		short_description: story.attributes.short_description.replace('"', "&quot;"),
 		cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
 	};
-	Ok(story)
+	Ok((story, user))
 }
 
 async fn request_user(id: u32, api: &FimficRequest) -> Result<User, Box<dyn std::error::Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
 	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<UserApi>().await.unwrap();
-	let image = (!api.data.attributes.avatar.r64.ends_with("none_64.png"))
-		.then_some(api.data.attributes.avatar.r256);
-	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
-	let name = api.data.attributes.name.replace('"', "&quot;");
-	let user = User {
-		link: api.data.meta.url,
-		name: name.clone(),
-		requests: 1,
-		color: api.data.attributes.color.hex,
-		o_embed: create_o_embed(name, None, false),
-		timestamp: unix_time().unwrap(),
-		bio_bbcode: re
-			.replace_all(&api.data.attributes.bio, "")
-			.to_string()
-			.replace('"', "&quot;"),
-		profile_pic_256_url: image,
-	};
-	Ok(user)
+	Ok(response_to_user(api.data)?)
 }
 
-async fn request_blog(id: u32, api: &FimficRequest) -> Result<Blog, Box<dyn std::error::Error>> {
+async fn request_blog(id: u32, api: &FimficRequest) -> Result<(Blog, User), Box<dyn Error>> {
 	let fimfic = format!(
-		"https://www.fimfiction.net/api/v2/blog-posts/{id}?fields[blog_post]=title,date_posted,content,num_views,num_comments,author,tagged_story"
+		"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
 	);
 	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<BlogApi>().await?;
@@ -441,19 +423,42 @@ async fn request_blog(id: u32, api: &FimficRequest) -> Result<Blog, Box<dyn std:
 			break;
 		}
 	}
+	let author = api.included.first().unwrap();
+	let user = response_to_user(author.clone())?;
 	let title = api.data.attributes.title;
 	let blog = Blog {
 		link: api.data.meta.url,
 		title: title.clone(),
 		requests: 1,
-		author_id: api.data.relationships.author.data.id.parse()?,
+		author_id: author.id.parse()?,
 		o_embed: create_o_embed(title, None, false),
 		timestamp: unix_time().unwrap(),
 		story_id,
 		content_bbcode: text.join("\n"),
 		date_published: api.data.attributes.date_posted,
 	};
-	Ok(blog)
+	Ok((blog, user))
+}
+
+fn response_to_user(data: UserData) -> Result<User, Box<dyn std::error::Error>> {
+	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
+		.then_some(data.attributes.avatar.r256);
+	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
+	let name = data.attributes.name.replace('"', "&quot;");
+	let user = User {
+		link: data.meta.url,
+		name: name.clone(),
+		requests: 1,
+		color: data.attributes.color.hex,
+		o_embed: create_o_embed(name, None, false),
+		timestamp: unix_time().unwrap(),
+		bio_bbcode: re
+			.replace_all(&data.attributes.bio, "")
+			.to_string()
+			.replace('"', "&quot;"),
+		profile_pic_256_url: image,
+	};
+	Ok(user)
 }
 
 fn create_o_embed(title: String, author: Option<Author>, error: bool) -> OEmbed {
