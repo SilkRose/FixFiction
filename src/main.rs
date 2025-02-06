@@ -54,7 +54,9 @@ struct OEmbed {
 	provider_name: String,
 	provider_url: String,
 	title: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	author_name: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	author_url: Option<String>,
 	cache_age: u32,
 	html: String,
