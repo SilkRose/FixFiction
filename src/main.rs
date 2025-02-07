@@ -121,6 +121,7 @@ async fn get_story(
 	path: web::Path<String>, data: web::Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
+	let link = format!("https://www.fimfiction.net/story/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
@@ -130,7 +131,7 @@ async fn get_story(
 		println!("{local_time}: [story] cache hit:  {ident}");
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(story_template(story)))
+			.body(story_template(story, link)))
 	} else {
 		drop(stories);
 		println!("{local_time}: [story] cache miss: {ident}");
@@ -141,7 +142,7 @@ async fn get_story(
 		stories.insert(ident, story.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(story_template(&story)))
+			.body(story_template(&story, link)))
 	}
 }
 
@@ -173,6 +174,7 @@ async fn get_user(
 	path: web::Path<String>, data: web::Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
+	let link = format!("https://www.fimfiction.net/user/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
@@ -182,7 +184,7 @@ async fn get_user(
 		println!("{local_time}: [user]  cache hit:  {ident}");
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(user_template(user)))
+			.body(user_template(user, link)))
 	} else {
 		drop(users);
 		println!("{local_time}: [user]  cache miss: {ident}");
@@ -191,7 +193,7 @@ async fn get_user(
 		users.insert(ident, user.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(user_template(&user)))
+			.body(user_template(&user, link)))
 	}
 }
 
@@ -200,6 +202,7 @@ async fn get_blog(
 	path: web::Path<String>, data: web::Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
+	let link = format!("https://www.fimfiction.net/blog/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
@@ -217,7 +220,7 @@ async fn get_blog(
 		};
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(blog_template(blog, &user)))
+			.body(blog_template(blog, &user, link)))
 	} else {
 		drop(blogs);
 		println!("{local_time}: [blog]  cache miss: {ident}");
@@ -228,7 +231,7 @@ async fn get_blog(
 		blogs.insert(ident, blog.clone());
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(blog_template(&blog, &user)))
+			.body(blog_template(&blog, &user, link)))
 	}
 }
 
@@ -486,19 +489,19 @@ fn create_o_embed(title: String, author: Option<Author>, error: bool) -> OEmbed 
 	}
 }
 
-fn story_template(story: &Story) -> String {
+fn story_template(story: &Story, link: String) -> String {
 	match &story.cover_medium_url {
 		Some(cover) => format!(
 			r#"<!DOCTYPE html>
 	<html lang="en">
 	<head>
 		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{link}" />
+		<link rel="canonical" href="{story_link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
 		<meta property="og:image" content="{}" />
-		<meta property="og:url" content="{link}" />
+		<meta property="og:url" content="{story_link}" />
 		<meta property="og:type" content="book" />
 		<meta property="book:author" content="{}" />
 		<meta property="og:site_name" content="Fimfiction" />
@@ -515,18 +518,18 @@ fn story_template(story: &Story) -> String {
 			story.id,
 			story.author.name,
 			title = story.title,
-			link = story.link,
+			story_link = story.link,
 		),
 		None => format!(
 			r#"<!DOCTYPE html>
 	<html lang="en">
 	<head>
 		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{link}" />
+		<link rel="canonical" href="{story_link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
-		<meta property="og:url" content="{link}" />
+		<meta property="og:url" content="{story_link}" />
 		<meta property="og:type" content="book" />
 		<meta property="book:author" content="{}" />
 		<meta property="og:site_name" content="Fimfiction" />
@@ -542,24 +545,24 @@ fn story_template(story: &Story) -> String {
 			story.id,
 			story.author.name,
 			title = story.title,
-			link = story.link,
+			story_link = story.link,
 		),
 	}
 }
 
-fn user_template(user: &User) -> String {
+fn user_template(user: &User, link: String) -> String {
 	match &user.profile_pic_256_url {
 		Some(image) => format!(
 			r#"<!DOCTYPE html>
 	<html lang="en">
 	<head>
 		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{link}" />
+		<link rel="canonical" href="{user_link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{name}" />
 		<meta property="og:description" content="{}" />
 		<meta property="og:image" content="{}" />
-		<meta property="og:url" content="{link}" />
+		<meta property="og:url" content="{user_link}" />
 		<meta property="og:type" content="profile" />
 		<meta property="profile:username" content="{name}" />
 		<meta property="og:site_name" content="Fimfiction" />
@@ -574,18 +577,18 @@ fn user_template(user: &User) -> String {
 			image,
 			user.id,
 			name = user.name,
-			link = user.link
+			user_link = user.link
 		),
 		None => format!(
 			r#"<!DOCTYPE html>
 	<html lang="en">
 	<head>
 		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{link}" />
+		<link rel="canonical" href="{user_link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{name}" />
 		<meta property="og:description" content="{}" />
-		<meta property="og:url" content="{link}" />
+		<meta property="og:url" content="{user_link}" />
 		<meta property="og:type" content="profile" />
 		<meta property="profile:username" content="{name}" />
 		<meta property="og:site_name" content="Fimfiction" />
@@ -599,24 +602,24 @@ fn user_template(user: &User) -> String {
 			user.bio_bbcode,
 			user.id,
 			name = user.name,
-			link = user.link
+			user_link = user.link
 		),
 	}
 }
 
-fn blog_template(blog: &Blog, user: &User) -> String {
+fn blog_template(blog: &Blog, user: &User, link: String) -> String {
 	match &user.profile_pic_256_url {
 		Some(image) => format!(
 			r#"<!DOCTYPE html>
 	<html lang="en">
 	<head>
 		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{link}" />
+		<link rel="canonical" href="{blog_link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
 		<meta property="og:image" content="{}" />
-		<meta property="og:url" content="{link}" />
+		<meta property="og:url" content="{blog_link}" />
 		<meta property="og:type" content="article" />
 		<meta property="article:author" content="{}" />
 		<meta property="article:published_time" content="{}" />
@@ -633,7 +636,7 @@ fn blog_template(blog: &Blog, user: &User) -> String {
 			user.link,
 			blog.date_published,
 			blog.id,
-			link = blog.link,
+			blog_link = blog.link,
 			title = blog.title,
 		),
 		None => format!(
@@ -641,11 +644,11 @@ fn blog_template(blog: &Blog, user: &User) -> String {
 	<html lang="en">
 	<head>
 		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{link}" />
+		<link rel="canonical" href="{blog_link}" />
 		<meta http-equiv="refresh" content="0;url={link}" />
 		<meta property="og:title" content="{title}" />
 		<meta property="og:description" content="{}" />
-		<meta property="og:url" content="{link}" />
+		<meta property="og:url" content="{blog_link}" />
 		<meta property="og:type" content="article" />
 		<meta property="article:author" content="{}" />
 		<meta property="article:published_time" content="{}" />
@@ -661,7 +664,7 @@ fn blog_template(blog: &Blog, user: &User) -> String {
 			user.link,
 			blog.date_published,
 			blog.id,
-			link = blog.link,
+			blog_link = blog.link,
 			title = blog.title,
 		),
 	}
