@@ -15,6 +15,7 @@ create table authors (
 	id integer not null primary key,
 	name text not null,
 	bio text not null,
+	link text not null,
 	followers integer not null,
 	stories integer not null,
 	blogs integer not null,
