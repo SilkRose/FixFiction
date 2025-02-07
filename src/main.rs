@@ -2,6 +2,7 @@ use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Local;
+use dotenvy::dotenv;
 use pony::fimfiction_api::blog::BlogApi;
 use pony::fimfiction_api::story::StoryApi;
 use pony::fimfiction_api::user::{UserApi, UserData};
@@ -259,6 +260,8 @@ async fn get_blog(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+	dotenv()?;
+
 	// API Bearer token is required to scrape the data.
 	let token = &env::args().collect::<Vec<_>>()[1];
 
@@ -283,6 +286,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	};
 
 	let state_clone = app_data.clone();
+
+	let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
+	let db_pool = sqlx::postgres::PgPoolOptions::new()
+		.max_connections(16)
+		.connect(&database_url)
+		.await
+		.expect("database should open");
 
 	// Seconds between garbage collection.
 	const GC: u64 = 3600;
@@ -309,6 +319,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	HttpServer::new(move || {
 		App::new()
+			.app_data(Data::new(db_pool.clone()))
 			.app_data(Data::new(Arc::new(app_data.clone())))
 			.wrap(
 				Cors::default()
