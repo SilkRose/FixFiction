@@ -31,7 +31,6 @@ struct Story {
 	id: u32,
 	link: String,
 	title: String,
-	requests: u32,
 	color: String,
 	author: Author,
 	o_embed: OEmbed,
@@ -67,7 +66,6 @@ struct User {
 	id: u32,
 	link: String,
 	name: String,
-	requests: u32,
 	color: String,
 	o_embed: OEmbed,
 	timestamp: u128,
@@ -80,7 +78,6 @@ struct Blog {
 	id: u32,
 	link: String,
 	title: String,
-	requests: u32,
 	author_id: u32,
 	o_embed: OEmbed,
 	timestamp: u128,
@@ -104,12 +101,12 @@ macro_rules! garbage_collector {
 		) -> Result<String, Box<dyn std::error::Error>> {
 			let mut data = data.write().expect("Failed to lock data");
 			let total = data.len();
-			let requests = data.iter().map(|(_, item)| item.requests).sum::<u32>();
+			//let requests = data.iter().map(|(_, item)| item.requests).sum::<u32>();
 			data.retain(|_, story| story.timestamp > time);
-			data.iter_mut().for_each(|(_, item)| item.requests = 0);
+			//data.iter_mut().for_each(|(_, item)| item.requests = 0);
 			let remaining = data.len();
 			let dropped = total - remaining;
-			let text = format!("{}: ({requests}, {dropped}, {remaining})", $name);
+			let text = format!("{}: ({dropped}, {remaining})", $name);
 			Ok(text)
 		}
 	};
@@ -127,17 +124,15 @@ async fn get_story(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let mut stories = data.stories.write().map_err(|_| "Failed to lock data")?;
-	if let Some(ref mut story) = stories.get_mut(&ident) {
-		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+	let stories = data.stories.read().map_err(|_| "Failed to lock data")?;
+	if let Some(story) = stories.get(&ident) {
 		println!("{local_time}: [story] cache hit:  {ident}");
-		story.requests += 1;
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(story_template(story)))
 	} else {
 		drop(stories);
-		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [story] cache miss: {ident}");
 		let (story, user) = request_story(ident, &data.api).await?;
 		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
@@ -181,17 +176,15 @@ async fn get_user(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
-	if let Some(ref mut user) = users.get_mut(&ident) {
-		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+	let users = data.users.read().map_err(|_| "Failed to lock data")?;
+	if let Some(user) = users.get(&ident) {
 		println!("{local_time}: [user]  cache hit:  {ident}");
-		user.requests += 1;
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
 			.body(user_template(user)))
 	} else {
 		drop(users);
-		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [user]  cache miss: {ident}");
 		let user = request_user(ident, &data.api).await?;
 		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
@@ -210,15 +203,16 @@ async fn get_blog(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
-	let mut blogs = data.blogs.write().map_err(|_| "Failed to lock data")?;
-	if let Some(ref mut blog) = blogs.get_mut(&ident) {
+	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+	let blogs = data.blogs.read().map_err(|_| "Failed to lock data")?;
+	if let Some(blog) = blogs.get(&ident) {
 		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [blog]  cache hit:  {ident}");
-		blog.requests += 1;
 		let users = data.users.read().map_err(|_| "Failed to lock data")?;
 		let user = if let Some(user) = users.get(&blog.author_id) {
 			user.clone()
 		} else {
+			drop(users);
 			request_user(blog.author_id, &data.api).await?
 		};
 		Ok(HttpResponse::Ok()
@@ -226,7 +220,6 @@ async fn get_blog(
 			.body(blog_template(blog, &user)))
 	} else {
 		drop(blogs);
-		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 		println!("{local_time}: [blog]  cache miss: {ident}");
 		let (blog, user) = request_blog(ident, &data.api).await?;
 		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
@@ -276,9 +269,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			let stories = story_cleanup(state_clone.stories.clone(), time).unwrap();
 			let users = user_cleanup(state_clone.users.clone(), time).unwrap();
 			let blogs = blog_cleanup(state_clone.blogs.clone(), time).unwrap();
-			println!(
-				"{local_time} <- (requests, dropped, remaining) -> {stories}, {users}, {blogs}"
-			)
+			println!("{local_time} <- (dropped, remaining) -> {stories}, {users}, {blogs}")
 		}
 	});
 
@@ -388,7 +379,6 @@ async fn request_story(id: u32, api: &FimficRequest) -> Result<(Story, User), Bo
 		id: story.id.parse::<u32>().unwrap(),
 		link: story.meta.url,
 		title: title.clone(),
-		requests: 1,
 		color: story.attributes.color.hex,
 		author: author.clone(),
 		o_embed: create_o_embed(title, Some(author), false),
@@ -441,7 +431,6 @@ async fn request_blog(id: u32, api: &FimficRequest) -> Result<(Blog, User), Box<
 		id,
 		link: api.data.meta.url,
 		title: title.clone(),
-		requests: 1,
 		author_id: author.id,
 		o_embed: create_o_embed(title, Some(author), false),
 		timestamp: unix_time().unwrap(),
@@ -461,7 +450,6 @@ fn response_to_user(data: UserData) -> Result<User, Box<dyn std::error::Error>> 
 		id: data.id.parse()?,
 		link: data.meta.url,
 		name: name.clone(),
-		requests: 1,
 		color: data.attributes.color.hex,
 		o_embed: create_o_embed(name, None, false),
 		timestamp: unix_time().unwrap(),
