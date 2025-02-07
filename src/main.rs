@@ -84,7 +84,7 @@ struct Blog {
 	author_id: u32,
 	o_embed: OEmbed,
 	timestamp: u128,
-	story_id: Option<u32>,
+	_story_id: Option<u32>,
 	content_bbcode: String,
 	date_published: String,
 }
@@ -403,7 +403,7 @@ async fn request_user(id: u32, api: &FimficRequest) -> Result<User, Box<dyn std:
 	let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
 	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<UserApi>().await.unwrap();
-	Ok(response_to_user(api.data)?)
+	response_to_user(api.data)
 }
 
 async fn request_blog(id: u32, api: &FimficRequest) -> Result<(Blog, User), Box<dyn Error>> {
@@ -445,7 +445,7 @@ async fn request_blog(id: u32, api: &FimficRequest) -> Result<(Blog, User), Box<
 		author_id: author.id,
 		o_embed: create_o_embed(title, Some(author), false),
 		timestamp: unix_time().unwrap(),
-		story_id,
+		_story_id: story_id,
 		content_bbcode: text.join("\n"),
 		date_published: api.data.attributes.date_posted,
 	};
