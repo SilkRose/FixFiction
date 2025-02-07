@@ -294,6 +294,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		.await
 		.expect("database should open");
 
+	sqlx::migrate!("./migrations").run(&db_pool).await?;
+
 	// Seconds between garbage collection.
 	const GC: u64 = 3600;
 	// Milliseconds to keep a story cached.
