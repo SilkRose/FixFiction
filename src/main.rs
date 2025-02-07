@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
@@ -90,23 +91,35 @@ struct Blog {
 struct AppState {
 	api: FimficRequest,
 	stories: Arc<RwLock<HashMap<u32, Story>>>,
+	stories_meta: MetaData,
 	users: Arc<RwLock<HashMap<u32, User>>>,
+	users_meta: MetaData,
 	blogs: Arc<RwLock<HashMap<u32, Blog>>>,
+	blogs_meta: MetaData,
+}
+
+#[derive(Clone, Debug, Default)]
+struct MetaData {
+	fixfic_requests: Arc<AtomicU32>,
+	fimfic_requests: Arc<AtomicU32>,
+	rate_limit_limit: Arc<AtomicU32>,
+	rate_limit_remaining: Arc<AtomicU32>,
+	rate_limit_reset: Arc<AtomicU32>,
 }
 
 macro_rules! garbage_collector {
 	($fun:ident, $T:ty, $name:literal) => {
 		fn $fun(
-			data: Arc<RwLock<HashMap<u32, $T>>>, time: u128,
+			data: Arc<RwLock<HashMap<u32, $T>>>, meta: &MetaData, time: u128,
 		) -> Result<String, Box<dyn std::error::Error>> {
 			let mut data = data.write().expect("Failed to lock data");
 			let total = data.len();
-			//let requests = data.iter().map(|(_, item)| item.requests).sum::<u32>();
 			data.retain(|_, story| story.timestamp > time);
-			//data.iter_mut().for_each(|(_, item)| item.requests = 0);
+			let requests = &meta.fixfic_requests.load(Ordering::Acquire);
+			meta.fixfic_requests.store(0, Ordering::Release);
 			let remaining = data.len();
 			let dropped = total - remaining;
-			let text = format!("{}: ({dropped}, {remaining})", $name);
+			let text = format!("{}: ({requests}, {dropped}, {remaining})", $name);
 			Ok(text)
 		}
 	};
@@ -125,6 +138,9 @@ async fn get_story(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
+	data.stories_meta
+		.fixfic_requests
+		.fetch_add(1, Ordering::AcqRel);
 	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 	let stories = data.stories.read().map_err(|_| "Failed to lock data")?;
 	if let Some(story) = stories.get(&ident) {
@@ -135,7 +151,7 @@ async fn get_story(
 	} else {
 		drop(stories);
 		println!("{local_time}: [story] cache miss: {ident}");
-		let (story, user) = request_story(ident, &data.api).await?;
+		let (story, user) = request_story(ident, &data.api, &data.stories_meta).await?;
 		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
 		users.insert(story.author.id, user.clone());
 		let mut stories = data.stories.write().map_err(|_| "Failed to lock data")?;
@@ -178,6 +194,9 @@ async fn get_user(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
+	data.users_meta
+		.fixfic_requests
+		.fetch_add(1, Ordering::AcqRel);
 	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 	let users = data.users.read().map_err(|_| "Failed to lock data")?;
 	if let Some(user) = users.get(&ident) {
@@ -188,7 +207,7 @@ async fn get_user(
 	} else {
 		drop(users);
 		println!("{local_time}: [user]  cache miss: {ident}");
-		let user = request_user(ident, &data.api).await?;
+		let user = request_user(ident, &data.api, &data.users_meta).await?;
 		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
 		users.insert(ident, user.clone());
 		Ok(HttpResponse::Ok()
@@ -206,6 +225,9 @@ async fn get_blog(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<u32>().unwrap();
+	data.blogs_meta
+		.fixfic_requests
+		.fetch_add(1, Ordering::AcqRel);
 	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 	let blogs = data.blogs.read().map_err(|_| "Failed to lock data")?;
 	if let Some(blog) = blogs.get(&ident) {
@@ -216,7 +238,7 @@ async fn get_blog(
 			user.clone()
 		} else {
 			drop(users);
-			request_user(blog.author_id, &data.api).await?
+			request_user(blog.author_id, &data.api, &data.users_meta).await?
 		};
 		Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
@@ -224,7 +246,7 @@ async fn get_blog(
 	} else {
 		drop(blogs);
 		println!("{local_time}: [blog]  cache miss: {ident}");
-		let (blog, user) = request_blog(ident, &data.api).await?;
+		let (blog, user) = request_blog(ident, &data.api, &data.blogs_meta).await?;
 		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
 		users.insert(blog.author_id, user.clone());
 		let mut blogs = data.blogs.write().map_err(|_| "Failed to lock data")?;
@@ -253,8 +275,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let app_data = AppState {
 		api: api.clone(),
 		stories: Arc::new(RwLock::new(HashMap::<u32, Story>::new())),
+		stories_meta: MetaData::default(),
 		users: Arc::new(RwLock::new(HashMap::<u32, User>::new())),
+		users_meta: MetaData::default(),
 		blogs: Arc::new(RwLock::new(HashMap::<u32, Blog>::new())),
+		blogs_meta: MetaData::default(),
 	};
 
 	let state_clone = app_data.clone();
@@ -269,10 +294,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			tokio::time::sleep(Duration::from_secs(GC)).await;
 			let time = unix_time().unwrap() - TTL;
 			let local_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-			let stories = story_cleanup(state_clone.stories.clone(), time).unwrap();
-			let users = user_cleanup(state_clone.users.clone(), time).unwrap();
-			let blogs = blog_cleanup(state_clone.blogs.clone(), time).unwrap();
-			println!("{local_time} <- (dropped, remaining) -> {stories}, {users}, {blogs}")
+			let stories =
+				story_cleanup(state_clone.stories.clone(), &state_clone.stories_meta, time)
+					.unwrap();
+			let users =
+				user_cleanup(state_clone.users.clone(), &state_clone.users_meta, time).unwrap();
+			let blogs =
+				blog_cleanup(state_clone.blogs.clone(), &state_clone.blogs_meta, time).unwrap();
+			println!(
+				"{local_time} <- (requests, dropped, remaining) -> {stories}, {users}, {blogs}"
+			)
 		}
 	});
 
@@ -311,7 +342,7 @@ fn setup_api_headers(token: &str) -> Result<HeaderMap, Box<dyn Error>> {
 }
 
 async fn handle_request(
-	request: &FimficRequest, url: &str,
+	request: &FimficRequest, url: &str, meta: &MetaData,
 ) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
 	let mut interval = request.interval;
 	loop {
@@ -327,6 +358,10 @@ async fn handle_request(
 		.await;
 		match res {
 			Ok(Ok(response)) => {
+				let limit = response.headers().get("x-rate-limit-limit");
+				let remaining = response.headers().get("x-rate-limit-remaining");
+				let reset = response.headers().get("x-rate-limit-reset");
+				println!("limit: {limit:?}, remaining: {remaining:?}, reset: {reset:?}");
 				return Ok(response);
 			}
 			Ok(Err(error)) => {
@@ -361,9 +396,11 @@ fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 	Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())
 }
 
-async fn request_story(id: u32, api: &FimficRequest) -> Result<(Story, User), Box<dyn Error>> {
+async fn request_story(
+	id: u32, api: &FimficRequest, meta: &MetaData,
+) -> Result<(Story, User), Box<dyn Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
-	let response = handle_request(api, &fimfic).await.unwrap();
+	let response = handle_request(api, &fimfic, meta).await.unwrap();
 	let api = response.json::<StoryApi>().await.unwrap();
 	let author = api
 		.included
@@ -392,18 +429,22 @@ async fn request_story(id: u32, api: &FimficRequest) -> Result<(Story, User), Bo
 	Ok((story, user))
 }
 
-async fn request_user(id: u32, api: &FimficRequest) -> Result<User, Box<dyn std::error::Error>> {
+async fn request_user(
+	id: u32, api: &FimficRequest, meta: &MetaData,
+) -> Result<User, Box<dyn std::error::Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-	let response = handle_request(api, &fimfic).await.unwrap();
+	let response = handle_request(api, &fimfic, meta).await.unwrap();
 	let api = response.json::<UserApi>().await.unwrap();
 	response_to_user(api.data)
 }
 
-async fn request_blog(id: u32, api: &FimficRequest) -> Result<(Blog, User), Box<dyn Error>> {
+async fn request_blog(
+	id: u32, api: &FimficRequest, meta: &MetaData,
+) -> Result<(Blog, User), Box<dyn Error>> {
 	let fimfic = format!(
 		"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
 	);
-	let response = handle_request(api, &fimfic).await.unwrap();
+	let response = handle_request(api, &fimfic, meta).await.unwrap();
 	let api = response.json::<BlogApi>().await?;
 	let story_id = (api.data.relationships.tagged_story.data.id != "0")
 		.then_some(api.data.relationships.tagged_story.data.id.parse()?);
