@@ -1,0 +1,5 @@
+# Tell GitHub Linguist to track SQL files
+*.sql linguist-detectable=true
+
+# Auto detect text files and perform LF normalization
+* text=auto
