@@ -1,7 +1,7 @@
 use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use chrono::Local;
+use chrono::{DateTime, Local, Utc};
 use dotenvy::dotenv;
 use pony::fimfiction_api::blog::BlogApi;
 use pony::fimfiction_api::story::StoryApi;
@@ -10,6 +10,7 @@ use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -73,6 +74,20 @@ struct User {
 	timestamp: u128,
 	bio_bbcode: String,
 	profile_pic_256_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct UserDB {
+	id: i32,
+	name: String,
+	bio: String,
+	link: String,
+	followers: i32,
+	stories: i32,
+	blogs: i32,
+	profile_pic_256: Option<String>,
+	color_hex: String,
+	date_cached: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -188,33 +203,57 @@ o_embed!("/oembed/blog/{id}", oembed_blog, blogs);
 
 #[get("/user/{id:.*}")]
 async fn get_user(
-	path: web::Path<String>, data: web::Data<Arc<AppState>>,
-) -> Result<impl Responder, Box<dyn std::error::Error>> {
+	path: web::Path<String>, data: web::Data<Arc<AppState>>, db: web::Data<Pool<Postgres>>,
+) -> Result<impl Responder, Box<dyn Error>> {
 	let ident = path.into_inner();
 	let link = format!("https://www.fimfiction.net/user/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
-	let ident = ident.parse::<u32>().unwrap();
+	let ident = ident.parse::<i32>().unwrap();
 	data.users_meta
 		.fixfic_requests
 		.fetch_add(1, Ordering::AcqRel);
 	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-	let users = data.users.read().map_err(|_| "Failed to lock data")?;
-	if let Some(user) = users.get(&ident) {
-		println!("{local_time}: [user]  cache hit:  {ident}");
-		Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(user_template(user, link)))
+	let user = sqlx::query_as!(UserDB, "SELECT * FROM authors WHERE id = $1 LIMIT 1", ident)
+		.fetch_optional(&**db)
+		.await?;
+	if let Some(user) = user {
+		//
 	} else {
-		drop(users);
-		println!("{local_time}: [user]  cache miss: {ident}");
-		let user = request_user(ident, &data.api, &data.users_meta).await?;
-		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
-		users.insert(ident, user.clone());
-		Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(user_template(&user, link)))
+		let fimfic = format!("https://www.fimfiction.net/api/v2/users/{ident}");
+		let response = handle_request(&data.api, &fimfic, &data.blogs_meta).await;
+		let api = response.unwrap().json::<UserApi<i32>>().await?;
+		let image = (!api.data.attributes.avatar.r64.ends_with("none_64.png"))
+			.then_some(api.data.attributes.avatar.r256);
+		let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
+		let name = api.data.attributes.name.replace('"', "&quot;");
+		let bio = re
+			.replace_all(&api.data.attributes.bio, "")
+			.to_string()
+			.replace('"', "&quot;");
+		let user = sqlx::query_as!(
+			UserDB,
+			"INSERT INTO Authors 
+				(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
+			VALUES
+				($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			RETURNING *;",
+			ident,
+			name,
+			bio,
+			api.data.meta.url,
+			api.data.attributes.num_followers,
+			api.data.attributes.num_stories,
+			api.data.attributes.num_blog_posts,
+			image,
+			api.data.attributes.color.hex.trim_start_matches("#")
+		)
+		.fetch_one(&**db)
+		.await?;
 	}
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(""))
 }
 
 #[get("/blog/{id:.*}")]
