@@ -1,7 +1,7 @@
-drop table if exists blogs;
-drop table if exists chapters;
-drop table if exists stories;
-drop table if exists authors;
+DROP TABLE IF EXISTS Blogs;
+DROP TABLE IF EXISTS Chapters;
+DROP TABLE IF EXISTS Stories;
+DROP TABLE IF EXISTS Authors;
 
-drop type if exists content_rating;
-drop type if exists completion_status;
+DROP TYPE IF EXISTS content_rating;
+DROP TYPE IF EXISTS completion_status;

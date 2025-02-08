@@ -1,78 +1,78 @@
-create type completion_status as enum (
+CREATE TYPE completion_status AS enum (
 	'incomplete',
 	'complete',
 	'hiatus',
 	'cancelled'
 );
 
-create type content_rating as enum (
+CREATE TYPE content_rating AS enum (
 	'everyone',
 	'teen',
 	'mature'
 );
 
-create table authors (
-	id integer not null primary key,
-	name text not null,
-	bio text not null,
-	link text not null,
-	followers integer not null,
-	stories integer not null,
-	blogs integer not null,
-	profile_pic_256 text,
-	color_hex varchar(6) not null,
-	date_cached timestamptz not null default current_timestamp
+CREATE TABLE IF NOT EXISTS Authors (
+	id              integer     NOT NULL PRIMARY KEY,
+	name            text        NOT NULL,
+	bio             text        NOT NULL,
+	link            text        NOT NULL,
+	followers       integer     NOT NULL,
+	stories         integer     NOT NULL,
+	blogs           integer     NOT NULL,
+	profile_pic_256 text        NULL,
+	color_hex       char(6)     NOT NULL,
+	date_cached     timestamptz NOT NULL DEFAULT now()
 );
 
-create table stories (
-	id integer not null primary key,
-	title text not null,
-	short_description text not null,
-	cover_medium_url text,
-	color_hex varchar(6) not null,
-	views integer not null,
-	words integer not null,
-	chapters integer not null,
-	comments integer not null,
-	completion_status completion_status not null,
-	content_rating content_rating not null,
-	likes integer not null,
-	dislikes integer not null,
-	author_id integer not null,
-	date_cached timestamptz not null default current_timestamp,
+CREATE TABLE IF NOT EXISTS Stories (
+	id                integer           NOT NULL PRIMARY KEY,
+	title             text              NOT NULL,
+	short_description text              NOT NULL,
+	cover_medium_url  text              NULL,
+	color_hex         char(6)           NOT NULL,
+	views             integer           NOT NULL,
+	words             integer           NOT NULL,
+	chapters          integer           NOT NULL,
+	comments          integer           NOT NULL,
+	completion_status completion_status NOT NULL,
+	content_rating    content_rating    NOT NULL,
+	likes             integer           NOT NULL,
+	dislikes          integer           NOT NULL,
+	author_id         integer           NOT NULL,
+	date_cached       timestamptz       NOT NULL DEFAULT now(),
 
-	constraint stories_author_id_fk foreign key (author_id)
-		references authors (id)
+	CONSTRAINT stories_author_id_fk FOREIGN KEY (author_id)
+		REFERENCES Authors (id)
 );
 
-create table chapters (
-	story_id integer not null,
-	chapter_num integer not null,
-	title text not null,
-	content text not null,
-	views integer not null,
-	words integer not null,
-	date_cached timestamptz not null default current_timestamp,
+CREATE TABLE IF NOT EXISTS Chapters (
+	story_id    integer     NOT NULL,
+	chapter_num integer     NOT NULL,
+	title       text        NOT NULL,
+	content     text        NOT NULL,
+	views       integer     NOT NULL,
+	words       integer     NOT NULL,
+	date_cached timestamptz NOT NULL DEFAULT now(),
 
-	constraint chapter_story_id_fk foreign key (story_id)
-		references stories (id),
+	CONSTRAINT chapter_story_id_fk FOREIGN KEY (story_id)
+		REFERENCES Stories (id),
 
-	constraint chapters_pk primary key (story_id, chapter_num)
+	CONSTRAINT chapters_pk PRIMARY KEY (story_id, chapter_num)
 );
 
-create table blogs (
-	id integer not null primary key,
-	title text not null,
-	content text not null,
-	comments integer not null,
-	views integer not null,
-	author_id integer not null,
-	story_id integer null,
-	date_cached timestamptz not null default current_timestamp,
+CREATE TABLE IF NOT EXISTS Blogs (
+	id          integer     NOT NULL PRIMARY KEY,
+	title       text        NOT NULL,
+	content     text        NOT NULL,
+	comments    integer     NOT NULL,
+	views       integer     NOT NULL,
+	author_id   integer     NOT NULL,
+	story_id    integer     NULL,
+	date_cached timestamptz NOT NULL DEFAULT now(),
 
-	constraint blogs_author_id_fk foreign key (author_id)
-		references authors (id),
+	CONSTRAINT blogs_author_id_fk FOREIGN KEY (author_id)
+		REFERENCES Authors (id),
 
-	constraint blogs_story_id_fk foreign key (story_id)
-		references stories (id)
+	CONSTRAINT blogs_story_id_fk FOREIGN KEY (story_id)
+		REFERENCES Stories (id)
 );
