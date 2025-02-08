@@ -1,13 +1,13 @@
-create table colors (
-	name text not null primary key,
-	color char(6) not null
+CREATE TABLE IF NOT EXISTS Colors (
+	name  text    NOT NULL PRIMARY KEY,
+	color char(6) NOT NULL
 );
 
-insert into colors
+INSERT INTO Colors
 	(name, color)
 	-- Colors taken from: https://gist.github.com/curran/b236990081a24761f7000567094914e0
 	-- Can also be found: https://developer.mozilla.org/en-US/docs/Web/CSS/named-color
-values
+VALUES
 	-- CSS Level 1
 	('black', '000000'),
 	('silver', 'c0c0c0'),

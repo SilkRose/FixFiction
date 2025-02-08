@@ -1,1 +1,1 @@
-drop table if exists colors;
+DROP TABLE IF EXISTS colors;
