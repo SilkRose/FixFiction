@@ -480,6 +480,14 @@ async fn request_blog_db(
 					(id, title, content, comments, views, author_id, story_id)
 				VALUES
 					($1, $2, $3, $4, $5, $6, $7)
+				ON CONFLICT(id) DO UPDATE SET
+					title = EXCLUDED.title,
+					content = EXCLUDED.content,
+					comments = EXCLUDED.comments,
+					views = EXCLUDED.views,
+					author_id = EXCLUDED.author_id,
+					story_id = EXCLUDED.story_id,
+					date_cached = now()
 				RETURNING *;",
 				api.data.id.parse::<i32>()?,
 				clean_content(api.data.attributes.title),
@@ -546,22 +554,26 @@ async fn response_to_user_db(
 ) -> Result<UserDB, Box<dyn Error>> {
 	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
 		.then_some(data.attributes.avatar.r256.clone());
-	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
-	let name = data.attributes.name.replace('"', "&quot;");
-	let bio = re
-		.replace_all(&data.attributes.bio, "")
-		.to_string()
-		.replace('"', "&quot;");
 	let user = sqlx::query_as!(
 		UserDB,
 		"INSERT INTO Authors 
 			(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
 		VALUES
 			($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT(id) DO UPDATE SET
+			name = EXCLUDED.name,
+			bio = EXCLUDED.bio,
+			link = EXCLUDED.link,
+			followers = EXCLUDED.followers,
+			stories = EXCLUDED.stories,
+			blogs = EXCLUDED.blogs,
+			profile_pic_256 = EXCLUDED.profile_pic_256,
+			color_hex = EXCLUDED.color_hex,
+			date_cached = now()
 		RETURNING *;",
 		data.id.parse::<i32>()?,
-		name,
-		bio,
+		clean_content(data.attributes.name.clone()),
+		clean_content(data.attributes.bio.clone()),
 		data.meta.url,
 		data.attributes.num_followers,
 		data.attributes.num_stories,
