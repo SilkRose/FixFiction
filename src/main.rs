@@ -1,5 +1,5 @@
 use actix_cors::Cors;
-use actix_web::web::Data;
+use actix_web::web::{Data, Path};
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use chrono::{DateTime, Local, Utc};
 use dotenvy::dotenv;
@@ -104,6 +104,18 @@ struct Blog {
 }
 
 #[derive(Debug, Clone)]
+struct BlogDB {
+	id: i32,
+	title: String,
+	content: String,
+	comments: i32,
+	views: i32,
+	author_id: i32,
+	story_id: Option<i32>,
+	date_cached: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone)]
 struct AppState {
 	api: FimficRequest,
 	stories: Arc<RwLock<HashMap<u32, Story>>>,
@@ -203,7 +215,7 @@ o_embed!("/oembed/blog/{id}", oembed_blog, blogs);
 
 #[get("/user/{id:.*}")]
 async fn get_user(
-	path: web::Path<String>, data: web::Data<Arc<AppState>>, db: web::Data<Pool<Postgres>>,
+	path: Path<String>, data: Data<Arc<AppState>>, db: Data<Pool<Postgres>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let ident = path.into_inner();
 	let link = format!("https://www.fimfiction.net/user/{ident}");
@@ -218,43 +230,17 @@ async fn get_user(
 
 #[get("/blog/{id:.*}")]
 async fn get_blog(
-	path: web::Path<String>, data: web::Data<Arc<AppState>>,
+	path: web::Path<String>, data: web::Data<Arc<AppState>>, db: Data<Pool<Postgres>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
 	let link = format!("https://www.fimfiction.net/blog/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
-	let ident = ident.parse::<u32>().unwrap();
-	data.blogs_meta
-		.fixfic_requests
-		.fetch_add(1, Ordering::AcqRel);
-	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-	let blogs = data.blogs.read().map_err(|_| "Failed to lock data")?;
-	if let Some(blog) = blogs.get(&ident) {
-		let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-		println!("{local_time}: [blog]  cache hit:  {ident}");
-		let users = data.users.read().map_err(|_| "Failed to lock data")?;
-		let user = if let Some(user) = users.get(&blog.author_id) {
-			user.clone()
-		} else {
-			drop(users);
-			request_user(blog.author_id, &data.api, &data.users_meta).await?
-		};
-		Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(blog_template(blog, &user, link)))
-	} else {
-		drop(blogs);
-		println!("{local_time}: [blog]  cache miss: {ident}");
-		let (blog, user) = request_blog(ident, &data.api, &data.blogs_meta).await?;
-		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
-		users.insert(blog.author_id, user.clone());
-		let mut blogs = data.blogs.write().map_err(|_| "Failed to lock data")?;
-		blogs.insert(ident, blog.clone());
-		Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(blog_template(&blog, &user, link)))
-	}
+	let ident = ident.parse::<i32>().unwrap();
+	let blog = request_blog_db(ident, &data.api, db).await?;
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(format!("{blog:?}")))
 }
 
 #[tokio::main]
@@ -462,56 +448,76 @@ async fn request_user_db(
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
 			let response = handle_request(api, &fimfic).await.unwrap();
 			let api = response.json::<UserApi<i32>>().await.unwrap();
-			response_to_user_db(id, api.data, db).await
+			response_to_user_db(&api.data, db).await
 		}
 	}
 }
 
-async fn request_blog(
-	id: u32, api: &FimficRequest, meta: &MetaData,
-) -> Result<(Blog, User), Box<dyn Error>> {
-	let fimfic = format!(
-		"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
-	);
-	let response = handle_request(api, &fimfic).await.unwrap();
-	let api = response.json::<BlogApi>().await?;
-	let story_id = (api.data.relationships.tagged_story.data.id != "0")
-		.then_some(api.data.relationships.tagged_story.data.id.parse()?);
-	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
-	let content = re
-		.replace_all(&api.data.attributes.content, "")
-		.to_string()
-		.replace('"', "&quot;");
+async fn request_blog_db(
+	id: i32, api: &FimficRequest, db: Data<Pool<Postgres>>,
+) -> Result<BlogDB, Box<dyn std::error::Error>> {
+	let blog = sqlx::query_as!(BlogDB, "SELECT * FROM Blogs WHERE id = $1 LIMIT 1", id)
+		.fetch_optional(&**db)
+		.await?;
+	match blog {
+		Some(blog) => {
+			let user = request_user_db(blog.author_id, api, db).await?;
+			Ok(blog)
+		}
+		None => {
+			let fimfic = format!(
+				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
+			);
+			let response = handle_request(api, &fimfic).await.unwrap();
+			let api = response.json::<BlogApi<i32>>().await?;
+			let author = api.included.first().unwrap();
+			let user = response_to_user_db(author, db.clone()).await?;
+			let story_id = (api.data.relationships.tagged_story.data.id != "0")
+				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);
+			let blog = sqlx::query_as!(
+				BlogDB,
+				"INSERT INTO Blogs 
+					(id, title, content, comments, views, author_id, story_id)
+				VALUES
+					($1, $2, $3, $4, $5, $6, $7)
+				RETURNING *;",
+				api.data.id.parse::<i32>()?,
+				clean_content(api.data.attributes.title),
+				trim_content(api.data.attributes.content, true),
+				api.data.attributes.num_comments,
+				api.data.attributes.num_views,
+				user.id,
+				story_id,
+			)
+			.fetch_one(&**db)
+			.await?;
+			Ok(blog)
+		}
+	}
+}
+
+fn trim_content(content: String, clean: bool) -> String {
 	let mut text = vec![];
 	let mut chars = 0;
 	for line in content.lines() {
-		if chars + line.len() < 512 - 1 {
+		if chars + line.len() < 512 {
 			text.push(line);
-			chars += line.len();
+			chars += line.len() + 1;
 		} else {
 			break;
 		}
 	}
-	let author = api.included.first().unwrap();
-	let user = response_to_user(author.clone())?;
-	let author = Author {
-		id: author.id.parse()?,
-		url: user.clone().link,
-		name: user.clone().name,
-	};
-	let title = api.data.attributes.title;
-	let blog = Blog {
-		id,
-		link: api.data.meta.url,
-		title: title.clone(),
-		author_id: author.id,
-		o_embed: create_o_embed(title, Some(author), false),
-		timestamp: unix_time().unwrap(),
-		_story_id: story_id,
-		content_bbcode: text.join("\n"),
-		date_published: api.data.attributes.date_posted,
-	};
-	Ok((blog, user))
+	match clean {
+		true => clean_content(text.join("\n")),
+		false => text.join("\n"),
+	}
+}
+
+fn clean_content(content: String) -> String {
+	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
+	re.replace_all(&content, "")
+		.to_string()
+		.replace('"', "&quot;")
 }
 
 fn response_to_user(data: UserData) -> Result<User, Box<dyn std::error::Error>> {
@@ -536,10 +542,10 @@ fn response_to_user(data: UserData) -> Result<User, Box<dyn std::error::Error>> 
 }
 
 async fn response_to_user_db(
-	id: i32, data: UserData<i32>, db: Data<Pool<Postgres>>,
+	data: &UserData<i32>, db: Data<Pool<Postgres>>,
 ) -> Result<UserDB, Box<dyn Error>> {
 	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
-		.then_some(data.attributes.avatar.r256);
+		.then_some(data.attributes.avatar.r256.clone());
 	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
 	let name = data.attributes.name.replace('"', "&quot;");
 	let bio = re
@@ -549,11 +555,11 @@ async fn response_to_user_db(
 	let user = sqlx::query_as!(
 		UserDB,
 		"INSERT INTO Authors 
-				(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
-			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			RETURNING *;",
-		id,
+			(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING *;",
+		data.id.parse::<i32>()?,
 		name,
 		bio,
 		data.meta.url,
