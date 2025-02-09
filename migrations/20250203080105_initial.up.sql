@@ -1,16 +1,3 @@
-CREATE TYPE completion_status AS enum (
-	'incomplete',
-	'complete',
-	'hiatus',
-	'cancelled'
-);
-
-CREATE TYPE content_rating AS enum (
-	'everyone',
-	'teen',
-	'mature'
-);
-
 CREATE TABLE IF NOT EXISTS Authors (
 	id              integer     NOT NULL PRIMARY KEY,
 	name            text        NOT NULL,
@@ -25,21 +12,21 @@ CREATE TABLE IF NOT EXISTS Authors (
 );
 
 CREATE TABLE IF NOT EXISTS Stories (
-	id                integer           NOT NULL PRIMARY KEY,
-	title             text              NOT NULL,
-	short_description text              NOT NULL,
-	cover_medium_url  text              NULL,
-	color_hex         char(6)           NOT NULL,
-	views             integer           NOT NULL,
-	words             integer           NOT NULL,
-	chapters          integer           NOT NULL,
-	comments          integer           NOT NULL,
-	completion_status completion_status NOT NULL,
-	content_rating    content_rating    NOT NULL,
-	likes             integer           NOT NULL,
-	dislikes          integer           NOT NULL,
-	author_id         integer           NOT NULL,
-	date_cached       timestamptz       NOT NULL DEFAULT now(),
+	id                integer     NOT NULL PRIMARY KEY,
+	title             text        NOT NULL,
+	short_description text        NOT NULL,
+	cover_medium_url  text        NULL,
+	color_hex         char(6)     NOT NULL,
+	views             integer     NOT NULL,
+	words             integer     NOT NULL,
+	chapters          integer     NOT NULL,
+	comments          integer     NOT NULL,
+	completion_status integer     NOT NULL,
+	content_rating    integer     NOT NULL,
+	likes             integer     NOT NULL,
+	dislikes          integer     NOT NULL,
+	author_id         integer     NOT NULL,
+	date_cached       timestamptz NOT NULL DEFAULT now(),
 
 	CONSTRAINT stories_author_id_fk FOREIGN KEY (author_id)
 		REFERENCES Authors (id)
