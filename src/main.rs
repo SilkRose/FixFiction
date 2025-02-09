@@ -210,50 +210,10 @@ async fn get_user(
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<i32>().unwrap();
-	data.users_meta
-		.fixfic_requests
-		.fetch_add(1, Ordering::AcqRel);
-	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-	let user = sqlx::query_as!(UserDB, "SELECT * FROM authors WHERE id = $1 LIMIT 1", ident)
-		.fetch_optional(&**db)
-		.await?;
-	if let Some(user) = user {
-		//
-	} else {
-		let fimfic = format!("https://www.fimfiction.net/api/v2/users/{ident}");
-		let response = handle_request(&data.api, &fimfic, &data.blogs_meta).await;
-		let api = response.unwrap().json::<UserApi<i32>>().await?;
-		let image = (!api.data.attributes.avatar.r64.ends_with("none_64.png"))
-			.then_some(api.data.attributes.avatar.r256);
-		let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
-		let name = api.data.attributes.name.replace('"', "&quot;");
-		let bio = re
-			.replace_all(&api.data.attributes.bio, "")
-			.to_string()
-			.replace('"', "&quot;");
-		let user = sqlx::query_as!(
-			UserDB,
-			"INSERT INTO Authors 
-				(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
-			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			RETURNING *;",
-			ident,
-			name,
-			bio,
-			api.data.meta.url,
-			api.data.attributes.num_followers,
-			api.data.attributes.num_stories,
-			api.data.attributes.num_blog_posts,
-			image,
-			api.data.attributes.color.hex.trim_start_matches("#")
-		)
-		.fetch_one(&**db)
-		.await?;
-	}
+	let user = request_user_db(ident, &data.api, db).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(""))
+		.body(format!("{user:?}")))
 }
 
 #[get("/blog/{id:.*}")]
@@ -394,7 +354,7 @@ fn setup_api_headers(token: &str) -> Result<HeaderMap, Box<dyn Error>> {
 }
 
 async fn handle_request(
-	request: &FimficRequest, url: &str, meta: &MetaData,
+	request: &FimficRequest, url: &str,
 ) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
 	let mut interval = request.interval;
 	loop {
@@ -452,7 +412,7 @@ async fn request_story(
 	id: u32, api: &FimficRequest, meta: &MetaData,
 ) -> Result<(Story, User), Box<dyn Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
-	let response = handle_request(api, &fimfic, meta).await.unwrap();
+	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<StoryApi>().await.unwrap();
 	let author = api
 		.included
@@ -485,9 +445,26 @@ async fn request_user(
 	id: u32, api: &FimficRequest, meta: &MetaData,
 ) -> Result<User, Box<dyn std::error::Error>> {
 	let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-	let response = handle_request(api, &fimfic, meta).await.unwrap();
+	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<UserApi>().await.unwrap();
 	response_to_user(api.data)
+}
+
+async fn request_user_db(
+	id: i32, api: &FimficRequest, db: Data<Pool<Postgres>>,
+) -> Result<UserDB, Box<dyn std::error::Error>> {
+	let user = sqlx::query_as!(UserDB, "SELECT * FROM Authors WHERE id = $1 LIMIT 1", id)
+		.fetch_optional(&**db)
+		.await?;
+	match user {
+		Some(user) => Ok(user),
+		None => {
+			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
+			let response = handle_request(api, &fimfic).await.unwrap();
+			let api = response.json::<UserApi<i32>>().await.unwrap();
+			response_to_user_db(id, api.data, db).await
+		}
+	}
 }
 
 async fn request_blog(
@@ -496,7 +473,7 @@ async fn request_blog(
 	let fimfic = format!(
 		"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
 	);
-	let response = handle_request(api, &fimfic, meta).await.unwrap();
+	let response = handle_request(api, &fimfic).await.unwrap();
 	let api = response.json::<BlogApi>().await?;
 	let story_id = (api.data.relationships.tagged_story.data.id != "0")
 		.then_some(api.data.relationships.tagged_story.data.id.parse()?);
@@ -555,6 +532,39 @@ fn response_to_user(data: UserData) -> Result<User, Box<dyn std::error::Error>> 
 			.replace('"', "&quot;"),
 		profile_pic_256_url: image,
 	};
+	Ok(user)
+}
+
+async fn response_to_user_db(
+	id: i32, data: UserData<i32>, db: Data<Pool<Postgres>>,
+) -> Result<UserDB, Box<dyn Error>> {
+	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
+		.then_some(data.attributes.avatar.r256);
+	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
+	let name = data.attributes.name.replace('"', "&quot;");
+	let bio = re
+		.replace_all(&data.attributes.bio, "")
+		.to_string()
+		.replace('"', "&quot;");
+	let user = sqlx::query_as!(
+		UserDB,
+		"INSERT INTO Authors 
+				(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
+			VALUES
+				($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			RETURNING *;",
+		id,
+		name,
+		bio,
+		data.meta.url,
+		data.attributes.num_followers,
+		data.attributes.num_stories,
+		data.attributes.num_blog_posts,
+		image,
+		data.attributes.color.hex.trim_start_matches("#")
+	)
+	.fetch_one(&**db)
+	.await?;
 	Ok(user)
 }
 
