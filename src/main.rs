@@ -10,7 +10,7 @@ use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Type};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -29,6 +29,48 @@ struct FimficRequest {
 	timeout: Duration,
 }
 
+#[derive(Debug, Clone, Type)]
+#[sqlx(type_name = "content_rating")]
+#[repr(i32)]
+enum ContentRating {
+	Everyone = 1,
+	Teen = 2,
+	Mature = 3,
+}
+
+impl From<i32> for ContentRating {
+	fn from(value: i32) -> Self {
+		match value {
+			1 => ContentRating::Everyone,
+			2 => ContentRating::Teen,
+			3 => ContentRating::Mature,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
+}
+
+#[derive(Debug, Clone, Type)]
+#[sqlx(type_name = "completion_status")]
+#[repr(i32)]
+enum CompletionStatus {
+	Incomplete = 1,
+	Complete = 2,
+	Hiatus = 3,
+	Cancelled = 4,
+}
+
+impl From<i32> for CompletionStatus {
+	fn from(value: i32) -> Self {
+		match value {
+			1 => CompletionStatus::Incomplete,
+			2 => CompletionStatus::Complete,
+			3 => CompletionStatus::Hiatus,
+			4 => CompletionStatus::Cancelled,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
+}
+
 #[derive(Debug, Clone)]
 struct Story {
 	id: u32,
@@ -40,6 +82,25 @@ struct Story {
 	timestamp: u128,
 	short_description: String,
 	cover_medium_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct StoryDB {
+	id: i32,
+	title: String,
+	short_description: String,
+	cover_medium_url: Option<String>,
+	color_hex: String,
+	views: i32,
+	words: i32,
+	chapters: i32,
+	comments: i32,
+	completion_status: CompletionStatus,
+	content_rating: ContentRating,
+	likes: i32,
+	dislikes: i32,
+	author_id: i32,
+	date_cached: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -427,13 +488,22 @@ async fn request_story(
 	Ok((story, user))
 }
 
-async fn request_user(
-	id: u32, api: &FimficRequest, meta: &MetaData,
-) -> Result<User, Box<dyn std::error::Error>> {
-	let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-	let response = handle_request(api, &fimfic).await.unwrap();
-	let api = response.json::<UserApi>().await.unwrap();
-	response_to_user(api.data)
+async fn request_story_db(
+	id: i32, api: &FimficRequest, db: Data<Pool<Postgres>>,
+) -> Result<StoryDB, Box<dyn std::error::Error>> {
+	let story = sqlx::query_as!(StoryDB, "SELECT * FROM Stories WHERE id = $1 LIMIT 1", id)
+		.fetch_optional(&**db)
+		.await?;
+	match story {
+		Some(story) => {
+			let user = request_user_db(story.author_id, api, db).await?;
+			Ok(story)
+		}
+		None => {
+			// Need to finish story DB code.
+			todo!()
+		}
+	}
 }
 
 async fn request_user_db(
