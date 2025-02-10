@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS Stories (
 	date_cached       timestamptz       NOT NULL DEFAULT now(),
 
 	CONSTRAINT stories_author_id_fk FOREIGN KEY (author_id)
-		REFERENCES Authors (id)
+		REFERENCES Authors (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Chapters (
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS Chapters (
 	date_cached timestamptz NOT NULL DEFAULT now(),
 
 	CONSTRAINT chapter_story_id_fk FOREIGN KEY (story_id)
-		REFERENCES Stories (id),
+		REFERENCES Stories (id) ON DELETE CASCADE,
 
 	CONSTRAINT chapters_pk PRIMARY KEY (story_id, chapter_num)
 );
@@ -71,8 +71,8 @@ CREATE TABLE IF NOT EXISTS Blogs (
 	date_cached timestamptz NOT NULL DEFAULT now(),
 
 	CONSTRAINT blogs_author_id_fk FOREIGN KEY (author_id)
-		REFERENCES Authors (id),
+		REFERENCES Authors (id) ON DELETE CASCADE,
 
 	CONSTRAINT blogs_story_id_fk FOREIGN KEY (story_id)
-		REFERENCES Stories (id)
+		REFERENCES Stories (id) ON DELETE CASCADE
 );
