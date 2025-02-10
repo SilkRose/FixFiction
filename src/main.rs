@@ -124,6 +124,7 @@ struct Blog {
 	views: i32,
 	author_id: i32,
 	story_id: Option<i32>,
+	date_published: String,
 	date_cached: DateTime<Utc>,
 }
 
@@ -446,9 +447,9 @@ async fn request_blog(
 			let blog = sqlx::query_as!(
 				Blog,
 				"INSERT INTO Blogs 
-					(id, title, content, comments, views, author_id, story_id)
+					(id, title, content, comments, views, author_id, story_id, date_published)
 				VALUES
-					($1, $2, $3, $4, $5, $6, $7)
+					($1, $2, $3, $4, $5, $6, $7, $8)
 				ON CONFLICT(id) DO UPDATE SET
 					title = EXCLUDED.title,
 					content = EXCLUDED.content,
@@ -456,6 +457,7 @@ async fn request_blog(
 					views = EXCLUDED.views,
 					author_id = EXCLUDED.author_id,
 					story_id = EXCLUDED.story_id,
+					date_published = EXCLUDED.date_published,
 					date_cached = now()
 				RETURNING *;",
 				api.data.id.parse::<i32>()?,
@@ -465,6 +467,7 @@ async fn request_blog(
 				api.data.attributes.num_views,
 				user.id,
 				story_id,
+				api.data.attributes.date_posted
 			)
 			.fetch_one(&app.db)
 			.await?;
@@ -616,9 +619,11 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 	text.push_str(&format!(
 		r#"<meta property="{property}" content="{content}" />"#
 	));
-	if let TemplateType::Blog(_blog, _, _) = data.clone() {
-		// TODO: Fix blog date published.
-		text.push_str(r#"<meta property="article:published_time" content="" />"#);
+	if let TemplateType::Blog(blog, _, _) = data.clone() {
+		text.push_str(&format!(
+			r#"<meta property="article:published_time" content="{}" />"#,
+			blog.date_published
+		));
 	}
 	text.push_str(r#"<meta property="og:site_name" content="Fimfiction" />"#);
 	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);

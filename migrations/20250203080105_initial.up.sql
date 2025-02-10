@@ -61,13 +61,14 @@ CREATE TABLE IF NOT EXISTS Chapters (
 );
 
 CREATE TABLE IF NOT EXISTS Blogs (
-	id          integer     NOT NULL PRIMARY KEY,
-	title       text        NOT NULL,
-	content     text        NOT NULL,
-	comments    integer     NOT NULL,
-	views       integer     NOT NULL,
-	author_id   integer     NOT NULL,
-	story_id    integer     NULL,
+	id             integer  NOT NULL PRIMARY KEY,
+	title          text     NOT NULL,
+	content        text     NOT NULL,
+	comments       integer  NOT NULL,
+	views          integer  NOT NULL,
+	author_id      integer  NOT NULL,
+	story_id       integer  NULL,
+	date_published text     NOT NULL,
 	date_cached timestamptz NOT NULL DEFAULT now(),
 
 	CONSTRAINT blogs_author_id_fk FOREIGN KEY (author_id)
