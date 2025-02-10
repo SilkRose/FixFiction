@@ -1,7 +1,7 @@
 use actix_cors::Cors;
 use actix_web::web::{Data, Path};
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use chrono::{DateTime, Local, Utc};
+use actix_web::{get, App, HttpResponse, HttpServer, Responder};
+use chrono::{DateTime, Utc};
 use dotenvy::dotenv;
 use pony::fimfiction_api::blog::BlogApi;
 use pony::fimfiction_api::story::StoryApi;
@@ -11,11 +11,9 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Type};
-use std::collections::HashMap;
 use std::env;
 use std::error::Error;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, LazyLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
@@ -27,6 +25,17 @@ enum ContentRating {
 	Mature,
 }
 
+impl From<String> for ContentRating {
+	fn from(value: String) -> Self {
+		match value.as_str() {
+			"everyone" => ContentRating::Everyone,
+			"teen" => ContentRating::Teen,
+			"mature" => ContentRating::Mature,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "completion_status", rename_all = "lowercase")]
 enum CompletionStatus {
@@ -34,6 +43,18 @@ enum CompletionStatus {
 	Complete,
 	Hiatus,
 	Cancelled,
+}
+
+impl From<String> for CompletionStatus {
+	fn from(value: String) -> Self {
+		match value.as_str() {
+			"incomplete" => CompletionStatus::Incomplete,
+			"complete" => CompletionStatus::Complete,
+			"hiatus" => CompletionStatus::Hiatus,
+			"cancelled" => CompletionStatus::Cancelled,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -48,19 +69,6 @@ struct FimficRequest {
 
 #[derive(Debug, Clone)]
 struct Story {
-	id: u32,
-	link: String,
-	title: String,
-	color: String,
-	author: Author,
-	o_embed: OEmbed,
-	timestamp: u128,
-	short_description: String,
-	cover_medium_url: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-struct StoryDB {
 	id: i32,
 	title: String,
 	short_description: String,
@@ -76,13 +84,6 @@ struct StoryDB {
 	dislikes: i32,
 	author_id: i32,
 	date_cached: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone)]
-struct Author {
-	id: u32,
-	url: String,
-	name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -102,18 +103,6 @@ struct OEmbed {
 
 #[derive(Debug, Clone)]
 struct User {
-	id: u32,
-	link: String,
-	name: String,
-	color: String,
-	o_embed: OEmbed,
-	timestamp: u128,
-	bio_bbcode: String,
-	profile_pic_256_url: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-struct UserDB {
 	id: i32,
 	name: String,
 	bio: String,
@@ -128,19 +117,6 @@ struct UserDB {
 
 #[derive(Debug, Clone)]
 struct Blog {
-	id: u32,
-	link: String,
-	title: String,
-	author_id: u32,
-	o_embed: OEmbed,
-	timestamp: u128,
-	_story_id: Option<u32>,
-	content_bbcode: String,
-	date_published: String,
-}
-
-#[derive(Debug, Clone)]
-struct BlogDB {
 	id: i32,
 	title: String,
 	content: String,
@@ -152,113 +128,97 @@ struct BlogDB {
 }
 
 #[derive(Debug, Clone)]
+enum TemplateType {
+	Story(Story, User),
+	User(User),
+	Blog(Blog, User, Option<Story>),
+}
+
+#[derive(Debug, Clone, Default)]
+struct Parameters {
+	cover: Option<Cover>,
+	color: Option<Color>,
+	refresh: bool,
+	stats: bool,
+}
+
+#[derive(Debug, Clone)]
+enum Cover {
+	Story,
+	User,
+	None,
+}
+
+#[derive(Debug, Clone)]
+enum Color {
+	Custom(String),
+	Default,
+	Story,
+	User,
+	None,
+}
+
+#[derive(Debug, Clone)]
 struct AppState {
 	api: FimficRequest,
-	stories: Arc<RwLock<HashMap<u32, Story>>>,
-	stories_meta: MetaData,
-	users: Arc<RwLock<HashMap<u32, User>>>,
-	users_meta: MetaData,
-	blogs: Arc<RwLock<HashMap<u32, Blog>>>,
-	blogs_meta: MetaData,
+	db: Pool<Postgres>,
 }
-
-#[derive(Clone, Debug, Default)]
-struct MetaData {
-	fixfic_requests: Arc<AtomicU32>,
-	fimfic_requests: Arc<AtomicU32>,
-	rate_limit_limit: Arc<AtomicU32>,
-	rate_limit_remaining: Arc<AtomicU32>,
-	rate_limit_reset: Arc<AtomicU32>,
-}
-
-macro_rules! garbage_collector {
-	($fun:ident, $T:ty, $name:literal) => {
-		fn $fun(
-			data: Arc<RwLock<HashMap<u32, $T>>>, meta: &MetaData, time: u128,
-		) -> Result<String, Box<dyn std::error::Error>> {
-			let mut data = data.write().expect("Failed to lock data");
-			let total = data.len();
-			data.retain(|_, story| story.timestamp > time);
-			let requests = &meta.fixfic_requests.load(Ordering::Acquire);
-			meta.fixfic_requests.store(0, Ordering::Release);
-			let remaining = data.len();
-			let dropped = total - remaining;
-			let text = format!("{}: ({requests}, {dropped}, {remaining})", $name);
-			Ok(text)
-		}
-	};
-}
-
-garbage_collector!(story_cleanup, Story, "story");
-garbage_collector!(user_cleanup, User, "user");
-garbage_collector!(blog_cleanup, Blog, "blog");
 
 #[get("/story/{id:.*}")]
 async fn get_story(
-	path: web::Path<String>, data: web::Data<Arc<AppState>>, db: Data<Pool<Postgres>>,
-) -> Result<impl Responder, Box<dyn std::error::Error>> {
+	path: Path<String>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
 	let ident = path.into_inner();
 	let link = format!("https://www.fimfiction.net/story/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<i32>().unwrap();
-	let story = request_story_db(ident, &data.api, db).await?;
+	let (story, user) = request_story(ident, &app).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(format!("{story:?}")))
+		.body(html_template(
+			TemplateType::Story(story, user),
+			Parameters::default(),
+			link,
+		)))
 }
-
-macro_rules! o_embed {
-	($endpoint:literal, $fun:ident, $items:ident) => {
-		#[get($endpoint)]
-		async fn $fun(
-			path: web::Path<String>, data: web::Data<Arc<AppState>>,
-		) -> Result<impl Responder, Box<dyn std::error::Error>> {
-			let ident = path.into_inner().parse::<u32>().unwrap();
-			let items = data.$items.read().map_err(|_| "Failed to lock data")?;
-			if let Some(item) = items.get(&ident) {
-				Ok(HttpResponse::Ok()
-					.content_type("application/json+oembed")
-					.json(item.o_embed.clone()))
-			} else {
-				Ok(HttpResponse::NotFound().finish())
-			}
-		}
-	};
-}
-
-o_embed!("/oembed/story/{id}", oembed_story, stories);
-o_embed!("/oembed/user/{id}", oembed_user, users);
-o_embed!("/oembed/blog/{id}", oembed_blog, blogs);
 
 #[get("/user/{id:.*}")]
 async fn get_user(
-	path: Path<String>, data: Data<Arc<AppState>>, db: Data<Pool<Postgres>>,
+	path: Path<String>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let ident = path.into_inner();
 	let link = format!("https://www.fimfiction.net/user/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<i32>().unwrap();
-	let user = request_user_db(ident, &data.api, db).await?;
+	let user = request_user(ident, &app).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(format!("{user:?}")))
+		.body(html_template(
+			TemplateType::User(user),
+			Parameters::default(),
+			link,
+		)))
 }
 
 #[get("/blog/{id:.*}")]
 async fn get_blog(
-	path: web::Path<String>, data: web::Data<Arc<AppState>>, db: Data<Pool<Postgres>>,
-) -> Result<impl Responder, Box<dyn std::error::Error>> {
+	path: Path<String>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
 	let ident = path.into_inner();
 	let link = format!("https://www.fimfiction.net/blog/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
 	let ident = ident.parse::<i32>().unwrap();
-	let blog = request_blog_db(ident, &data.api, db).await?;
+	let (blog, user, story) = request_blog(ident, &app).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(format!("{blog:?}")))
+		.body(html_template(
+			TemplateType::Blog(blog, user, story),
+			Parameters::default(),
+			link,
+		)))
 }
 
 #[tokio::main]
@@ -278,18 +238,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		timeout: Duration::from_secs(10),
 	};
 
-	let app_data = AppState {
-		api: api.clone(),
-		stories: Arc::new(RwLock::new(HashMap::<u32, Story>::new())),
-		stories_meta: MetaData::default(),
-		users: Arc::new(RwLock::new(HashMap::<u32, User>::new())),
-		users_meta: MetaData::default(),
-		blogs: Arc::new(RwLock::new(HashMap::<u32, Blog>::new())),
-		blogs_meta: MetaData::default(),
-	};
-
-	let state_clone = app_data.clone();
-
 	let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
 	let db_pool = sqlx::postgres::PgPoolOptions::new()
 		.max_connections(16)
@@ -299,32 +247,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	sqlx::migrate!("./migrations").run(&db_pool).await?;
 
-	// Seconds between garbage collection.
-	const GC: u64 = 3600;
-	// Milliseconds to keep a story cached.
-	const TTL: u128 = 86_400_000;
-
-	tokio::task::spawn(async move {
-		loop {
-			tokio::time::sleep(Duration::from_secs(GC)).await;
-			let time = unix_time().unwrap() - TTL;
-			let local_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-			let stories =
-				story_cleanup(state_clone.stories.clone(), &state_clone.stories_meta, time)
-					.unwrap();
-			let users =
-				user_cleanup(state_clone.users.clone(), &state_clone.users_meta, time).unwrap();
-			let blogs =
-				blog_cleanup(state_clone.blogs.clone(), &state_clone.blogs_meta, time).unwrap();
-			println!(
-				"{local_time} <- (requests, dropped, remaining) -> {stories}, {users}, {blogs}"
-			)
-		}
-	});
+	let app_data = AppState { api, db: db_pool };
 
 	HttpServer::new(move || {
 		App::new()
-			.app_data(Data::new(db_pool.clone()))
 			.app_data(Data::new(Arc::new(app_data.clone())))
 			.wrap(
 				Cors::default()
@@ -334,11 +260,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 					.max_age(3600),
 			)
 			.service(get_story)
-			.service(oembed_story)
 			.service(get_user)
-			.service(oembed_user)
 			.service(get_blog)
-			.service(oembed_blog)
 	})
 	.bind(("0.0.0.0", 7669))? // pony
 	.run()
@@ -413,43 +336,10 @@ fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 }
 
 async fn request_story(
-	id: u32, api: &FimficRequest, meta: &MetaData,
-) -> Result<(Story, User), Box<dyn Error>> {
-	let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
-	let response = handle_request(api, &fimfic).await.unwrap();
-	let api = response.json::<StoryApi>().await.unwrap();
-	let author = api
-		.included
-		.iter()
-		.find(|author| author.id == api.data.relationships.author.data.id)
-		.unwrap();
-	let user = response_to_user(author.clone())?;
-	let author = Author {
-		id: author.id.parse()?,
-		url: user.clone().link,
-		name: user.clone().name,
-	};
-	let story = api.data;
-	let title = story.attributes.title.replace('"', "&quot;");
-	let story = Story {
-		id: story.id.parse::<u32>().unwrap(),
-		link: story.meta.url,
-		title: title.clone(),
-		color: story.attributes.color.hex,
-		author: author.clone(),
-		o_embed: create_o_embed(title, Some(author), false),
-		timestamp: unix_time().unwrap(),
-		short_description: story.attributes.short_description.replace('"', "&quot;"),
-		cover_medium_url: story.attributes.cover_image.map(|cover| cover.medium),
-	};
-	Ok((story, user))
-}
-
-async fn request_story_db(
-	id: i32, api: &FimficRequest, db: Data<Pool<Postgres>>,
-) -> Result<StoryDB, Box<dyn std::error::Error>> {
+	id: i32, app: &AppState,
+) -> Result<(Story, User), Box<dyn std::error::Error>> {
 	let story = sqlx::query_as!(
-		StoryDB,
+		Story,
 		r#"SELECT
 		id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
 		completion_status AS "completion_status: CompletionStatus", content_rating AS "content_rating: ContentRating",
@@ -457,25 +347,25 @@ async fn request_story_db(
 		FROM Stories WHERE id = $1 LIMIT 1"#,
 		id
 	)
-	.fetch_optional(&**db)
+	.fetch_optional(&app.db)
 	.await?;
 	match story {
 		Some(story) => {
-			let user = request_user_db(story.author_id, api, db).await?;
-			Ok(story)
+			let user = request_user(story.author_id, app).await?;
+			Ok((story, user))
 		}
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
-			let response = handle_request(api, &fimfic).await.unwrap();
+			let response = handle_request(&app.api, &fimfic).await.unwrap();
 			let api = response.json::<StoryApi<i32>>().await.unwrap();
 			let author = api
 				.included
 				.iter()
 				.find(|author| author.id == api.data.relationships.author.data.id)
 				.unwrap();
-			let user = response_to_user_db(&author.clone(), db.clone()).await?;
+			let user = response_to_user(&author.clone(), &app.db).await?;
 			let story = sqlx::query_as!(
-				StoryDB,
+				Story,
 				r#"INSERT INTO Stories (
 				id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
 				completion_status, content_rating,
@@ -495,59 +385,57 @@ async fn request_story_db(
 				api.data.attributes.num_words,
 				api.data.attributes.num_chapters,
 				api.data.attributes.num_comments,
-				CompletionStatus::Complete as _,
-				ContentRating::Everyone as _,
+				CompletionStatus::from(api.data.attributes.completion_status) as _,
+				ContentRating::from(api.data.attributes.content_rating) as _,
 				api.data.attributes.num_likes,
 				api.data.attributes.num_dislikes,
 				user.id
 			)
-			.fetch_one(&**db)
+			.fetch_one(&app.db)
 			.await?;
-			Ok(story)
+			Ok((story, user))
 		}
 	}
 }
 
-async fn request_user_db(
-	id: i32, api: &FimficRequest, db: Data<Pool<Postgres>>,
-) -> Result<UserDB, Box<dyn std::error::Error>> {
-	let user = sqlx::query_as!(UserDB, "SELECT * FROM Authors WHERE id = $1 LIMIT 1", id)
-		.fetch_optional(&**db)
+async fn request_user(id: i32, app: &AppState) -> Result<User, Box<dyn std::error::Error>> {
+	let user = sqlx::query_as!(User, "SELECT * FROM Authors WHERE id = $1 LIMIT 1", id)
+		.fetch_optional(&app.db)
 		.await?;
 	match user {
 		Some(user) => Ok(user),
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-			let response = handle_request(api, &fimfic).await.unwrap();
+			let response = handle_request(&app.api, &fimfic).await.unwrap();
 			let api = response.json::<UserApi<i32>>().await.unwrap();
-			response_to_user_db(&api.data, db).await
+			response_to_user(&api.data, &app.db).await
 		}
 	}
 }
 
-async fn request_blog_db(
-	id: i32, api: &FimficRequest, db: Data<Pool<Postgres>>,
-) -> Result<BlogDB, Box<dyn std::error::Error>> {
-	let blog = sqlx::query_as!(BlogDB, "SELECT * FROM Blogs WHERE id = $1 LIMIT 1", id)
-		.fetch_optional(&**db)
+async fn request_blog(
+	id: i32, app: &AppState,
+) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
+	let blog = sqlx::query_as!(Blog, "SELECT * FROM Blogs WHERE id = $1 LIMIT 1", id)
+		.fetch_optional(&app.db)
 		.await?;
 	match blog {
 		Some(blog) => {
-			let user = request_user_db(blog.author_id, api, db).await?;
-			Ok(blog)
+			let user = request_user(blog.author_id, app).await?;
+			Ok((blog, user, None))
 		}
 		None => {
 			let fimfic = format!(
 				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
 			);
-			let response = handle_request(api, &fimfic).await.unwrap();
+			let response = handle_request(&app.api, &fimfic).await.unwrap();
 			let api = response.json::<BlogApi<i32>>().await?;
 			let author = api.included.first().unwrap();
-			let user = response_to_user_db(author, db.clone()).await?;
+			let user = response_to_user(author, &app.db).await?;
 			let story_id = (api.data.relationships.tagged_story.data.id != "0")
 				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);
 			let blog = sqlx::query_as!(
-				BlogDB,
+				Blog,
 				"INSERT INTO Blogs 
 					(id, title, content, comments, views, author_id, story_id)
 				VALUES
@@ -569,9 +457,15 @@ async fn request_blog_db(
 				user.id,
 				story_id,
 			)
-			.fetch_one(&**db)
+			.fetch_one(&app.db)
 			.await?;
-			Ok(blog)
+			let story = if let Some(story_id) = blog.story_id {
+				let (story, _) = request_story(story_id, app).await?;
+				Some(story)
+			} else {
+				None
+			};
+			Ok((blog, user, story))
 		}
 	}
 }
@@ -600,34 +494,13 @@ fn clean_content(content: String) -> String {
 		.replace('"', "&quot;")
 }
 
-fn response_to_user(data: UserData) -> Result<User, Box<dyn std::error::Error>> {
-	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
-		.then_some(data.attributes.avatar.r256);
-	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
-	let name = data.attributes.name.replace('"', "&quot;");
-	let user = User {
-		id: data.id.parse()?,
-		link: data.meta.url,
-		name: name.clone(),
-		color: data.attributes.color.hex,
-		o_embed: create_o_embed(name, None, false),
-		timestamp: unix_time().unwrap(),
-		bio_bbcode: re
-			.replace_all(&data.attributes.bio, "")
-			.to_string()
-			.replace('"', "&quot;"),
-		profile_pic_256_url: image,
-	};
-	Ok(user)
-}
-
-async fn response_to_user_db(
-	data: &UserData<i32>, db: Data<Pool<Postgres>>,
-) -> Result<UserDB, Box<dyn Error>> {
+async fn response_to_user(
+	data: &UserData<i32>, db: &Pool<Postgres>,
+) -> Result<User, Box<dyn Error>> {
 	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
 		.then_some(data.attributes.avatar.r256.clone());
 	let user = sqlx::query_as!(
-		UserDB,
+		User,
 		"INSERT INTO Authors 
 			(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
 		VALUES
@@ -653,212 +526,95 @@ async fn response_to_user_db(
 		image,
 		data.attributes.color.hex.trim_start_matches("#")
 	)
-	.fetch_one(&**db)
+	.fetch_one(db)
 	.await?;
 	Ok(user)
 }
 
-fn create_o_embed(title: String, author: Option<Author>, error: bool) -> OEmbed {
-	let (name, url) = match error {
-		false => (
-			String::from("Fimfiction"),
-			String::from("https://www.fimfiction.net/"),
-		),
-		true => (
-			String::from("Fixfiction"),
-			String::from("https://www.fixfiction.net/"),
-		),
+fn html_template(data: TemplateType, parameters: Parameters, link: String) -> String {
+	let mut text = String::new();
+	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
+	let color = match parameters.color {
+		Some(color) => match (data.clone(), color) {
+			(TemplateType::Story(story, _), Color::Default) => Some(story.color_hex),
+			(TemplateType::Story(story, _), Color::Story) => Some(story.color_hex),
+			(TemplateType::Story(_, user), Color::User) => Some(user.color_hex),
+			(TemplateType::Blog(_, user, story), Color::Story) => {
+				Some(story.map(|story| story.color_hex).unwrap_or(user.color_hex))
+			}
+			(TemplateType::Blog(_, user, _), _) => Some(user.color_hex),
+			(TemplateType::User(user), _) => Some(user.color_hex),
+			(_, Color::Custom(color)) => Some(color),
+			(_, Color::None) => None,
+		},
+		None => match data.clone() {
+			TemplateType::Story(story, _) => Some(story.color_hex),
+			TemplateType::User(user) => Some(user.color_hex),
+			TemplateType::Blog(_, user, _) => Some(user.color_hex),
+		},
 	};
-	OEmbed {
-		r#type: String::from("rich"),
-		version: 1,
-		provider_name: name,
-		provider_url: url,
-		title: title.replace('"', "&quot;"),
-		author_name: author.clone().map(|author| author.name),
-		author_url: author.map(|author| author.url),
-		cache_age: 86_400,
-		html: String::default(),
+	if let Some(color) = color {
+		text.push_str(&format!(
+			r#"<meta name="theme-color" content="\#{color}" />"#
+		));
 	}
-}
-
-fn story_template(story: &Story, link: String) -> String {
-	match &story.cover_medium_url {
-		Some(cover) => format!(
-			r#"<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{story_link}" />
-		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{title}" />
-		<meta property="og:description" content="{}" />
-		<meta property="og:image" content="{}" />
-		<meta property="og:url" content="{story_link}" />
-		<meta property="og:type" content="book" />
-		<meta property="book:author" content="{}" />
-		<meta property="og:site_name" content="Fimfiction" />
-		<meta property="twitter:site" content="fimfiction" />
-		<meta property="twitter:card" content="summary" />
-		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/story/{}" title="{}" />
-	</head>
-	<body></body>
-	</html>"#,
-			story.color,
-			story.short_description,
-			cover,
-			story.author.url,
-			story.id,
-			story.author.name,
-			title = story.title,
-			story_link = story.link,
-		),
-		None => format!(
-			r#"<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{story_link}" />
-		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{title}" />
-		<meta property="og:description" content="{}" />
-		<meta property="og:url" content="{story_link}" />
-		<meta property="og:type" content="book" />
-		<meta property="book:author" content="{}" />
-		<meta property="og:site_name" content="Fimfiction" />
-		<meta property="twitter:site" content="fimfiction" />
-		<meta property="twitter:card" content="summary" />
-		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/story/{}" title="{}" />
-	</head>
-	<body></body>
-	</html>"#,
-			story.color,
-			story.short_description,
-			story.author.url,
-			story.id,
-			story.author.name,
-			title = story.title,
-			story_link = story.link,
-		),
+	text.push_str(&format!(r#"<link rel="canonical" href="{link}" />"#));
+	text.push_str(&format!(
+		r#"<meta http-equiv="refresh" content="0;url={link}" />"#
+	));
+	let (title, description) = match data.clone() {
+		TemplateType::Story(story, _) => (story.title, story.short_description),
+		TemplateType::User(user) => (user.name, user.bio),
+		TemplateType::Blog(blog, _, _) => (blog.title, blog.content),
+	};
+	text.push_str(&format!(
+		r#"<meta property="og:title" content="{title}" />"#
+	));
+	text.push_str(&format!(
+		r#"<meta property="og:description" content="{description}" />"#
+	));
+	let cover = match parameters.cover {
+		Some(cover) => match (data.clone(), cover) {
+			(TemplateType::Story(story, _), Cover::Story) => story.cover_medium_url,
+			(TemplateType::Story(_, user), Cover::User) => user.profile_pic_256,
+			(TemplateType::User(user), Cover::Story | Cover::User) => user.profile_pic_256,
+			(TemplateType::Blog(_, user, _), Cover::User) => user.profile_pic_256,
+			(TemplateType::Blog(_, user, story), Cover::Story) => story
+				.map(|story| story.cover_medium_url)
+				.unwrap_or(user.profile_pic_256),
+			(_, Cover::None) => None,
+		},
+		None => match data.clone() {
+			TemplateType::Story(story, _) => story.cover_medium_url,
+			TemplateType::User(user) => user.profile_pic_256,
+			TemplateType::Blog(_, user, _) => user.profile_pic_256,
+		},
+	};
+	if let Some(cover) = cover {
+		text.push_str(&format!(
+			r#"<meta property="og:image" content="{cover}" />"#
+		));
 	}
-}
-
-fn user_template(user: &User, link: String) -> String {
-	match &user.profile_pic_256_url {
-		Some(image) => format!(
-			r#"<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{user_link}" />
-		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{name}" />
-		<meta property="og:description" content="{}" />
-		<meta property="og:image" content="{}" />
-		<meta property="og:url" content="{user_link}" />
-		<meta property="og:type" content="profile" />
-		<meta property="profile:username" content="{name}" />
-		<meta property="og:site_name" content="Fimfiction" />
-		<meta property="twitter:site" content="fimfiction" />
-		<meta property="twitter:card" content="summary" />
-		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/user/{}" title="{name}" />
-	</head>
-	<body></body>
-	</html>"#,
-			user.color,
-			user.bio_bbcode,
-			image,
-			user.id,
-			name = user.name,
-			user_link = user.link
-		),
-		None => format!(
-			r#"<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{user_link}" />
-		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{name}" />
-		<meta property="og:description" content="{}" />
-		<meta property="og:url" content="{user_link}" />
-		<meta property="og:type" content="profile" />
-		<meta property="profile:username" content="{name}" />
-		<meta property="og:site_name" content="Fimfiction" />
-		<meta property="twitter:site" content="fimfiction" />
-		<meta property="twitter:card" content="summary" />
-		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/user/{}" title="{name}" />
-	</head>
-	<body></body>
-	</html>"#,
-			user.color,
-			user.bio_bbcode,
-			user.id,
-			name = user.name,
-			user_link = user.link
-		),
+	text.push_str(&format!(r#"<meta property="og:url" content="{link}" />"#));
+	let (og_type, property, content) = match data.clone() {
+		TemplateType::Story(_, user) => ("book", "book:author", user.link),
+		TemplateType::User(user) => ("profile", "profile:username", user.name),
+		TemplateType::Blog(_, user, _) => ("article", "article:author", user.link),
+	};
+	text.push_str(&format!(
+		r#"<meta property="og:type" content="{og_type}" />"#
+	));
+	text.push_str(&format!(
+		r#"<meta property="{property}" content="{content}" />"#
+	));
+	if let TemplateType::Blog(_blog, _, _) = data.clone() {
+		// TODO: Fix blog date published.
+		text.push_str(r#"<meta property="article:published_time" content="" />"#);
 	}
-}
-
-fn blog_template(blog: &Blog, user: &User, link: String) -> String {
-	match &user.profile_pic_256_url {
-		Some(image) => format!(
-			r#"<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{blog_link}" />
-		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{title}" />
-		<meta property="og:description" content="{}" />
-		<meta property="og:image" content="{}" />
-		<meta property="og:url" content="{blog_link}" />
-		<meta property="og:type" content="article" />
-		<meta property="article:author" content="{}" />
-		<meta property="article:published_time" content="{}" />
-		<meta property="og:site_name" content="Fimfiction" />
-		<meta property="twitter:site" content="fimfiction" />
-		<meta property="twitter:card" content="summary" />
-		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/blog/{}" title="{title}" />
-	</head>
-	<body></body>
-	</html>"#,
-			user.color,
-			blog.content_bbcode,
-			image,
-			user.link,
-			blog.date_published,
-			blog.id,
-			blog_link = blog.link,
-			title = blog.title,
-		),
-		None => format!(
-			r#"<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta name="theme-color" content="\#{}" />
-		<link rel="canonical" href="{blog_link}" />
-		<meta http-equiv="refresh" content="0;url={link}" />
-		<meta property="og:title" content="{title}" />
-		<meta property="og:description" content="{}" />
-		<meta property="og:url" content="{blog_link}" />
-		<meta property="og:type" content="article" />
-		<meta property="article:author" content="{}" />
-		<meta property="article:published_time" content="{}" />
-		<meta property="og:site_name" content="Fimfiction" />
-		<meta property="twitter:site" content="fimfiction" />
-		<meta property="twitter:card" content="summary" />
-		<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed/blog/{}" title="{title}" />
-	</head>
-	<body></body>
-	</html>"#,
-			user.color,
-			blog.content_bbcode,
-			user.link,
-			blog.date_published,
-			blog.id,
-			blog_link = blog.link,
-			title = blog.title,
-		),
-	}
+	text.push_str(r#"<meta property="og:site_name" content="Fimfiction" />"#);
+	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);
+	text.push_str(r#"<meta property="twitter:card" content="summary" />"#);
+	// TODO: insert oEmbed here.
+	text.push_str(r#"</head><body></body></html>"#);
+	text
 }
