@@ -19,6 +19,23 @@ use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
+#[sqlx(type_name = "content_rating", rename_all = "lowercase")]
+enum ContentRating {
+	Everyone,
+	Teen,
+	Mature,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
+#[sqlx(type_name = "completion_status", rename_all = "lowercase")]
+enum CompletionStatus {
+	Incomplete,
+	Complete,
+	Hiatus,
+	Cancelled,
+}
+
 #[derive(Debug, Clone)]
 struct FimficRequest {
 	client: Client,
@@ -27,48 +44,6 @@ struct FimficRequest {
 	interval_step: Duration,
 	interval_max: Duration,
 	timeout: Duration,
-}
-
-#[derive(Debug, Clone, Type)]
-#[sqlx(type_name = "content_rating")]
-#[repr(i32)]
-enum ContentRating {
-	Everyone = 1,
-	Teen = 2,
-	Mature = 3,
-}
-
-impl From<i32> for ContentRating {
-	fn from(value: i32) -> Self {
-		match value {
-			1 => ContentRating::Everyone,
-			2 => ContentRating::Teen,
-			3 => ContentRating::Mature,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
-		}
-	}
-}
-
-#[derive(Debug, Clone, Type)]
-#[sqlx(type_name = "completion_status")]
-#[repr(i32)]
-enum CompletionStatus {
-	Incomplete = 1,
-	Complete = 2,
-	Hiatus = 3,
-	Cancelled = 4,
-}
-
-impl From<i32> for CompletionStatus {
-	fn from(value: i32) -> Self {
-		match value {
-			1 => CompletionStatus::Incomplete,
-			2 => CompletionStatus::Complete,
-			3 => CompletionStatus::Hiatus,
-			4 => CompletionStatus::Cancelled,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
-		}
-	}
 }
 
 #[derive(Debug, Clone)]
@@ -491,9 +466,17 @@ async fn request_story(
 async fn request_story_db(
 	id: i32, api: &FimficRequest, db: Data<Pool<Postgres>>,
 ) -> Result<StoryDB, Box<dyn std::error::Error>> {
-	let story = sqlx::query_as!(StoryDB, "SELECT * FROM Stories WHERE id = $1 LIMIT 1", id)
-		.fetch_optional(&**db)
-		.await?;
+	let story = sqlx::query_as!(
+		StoryDB,
+		r#"SELECT
+		id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
+		completion_status AS "completion_status: CompletionStatus", content_rating AS "content_rating: ContentRating",
+		likes, dislikes, author_id, date_cached
+		FROM Stories WHERE id = $1 LIMIT 1"#,
+		id
+	)
+	.fetch_optional(&**db)
+	.await?;
 	match story {
 		Some(story) => {
 			let user = request_user_db(story.author_id, api, db).await?;
