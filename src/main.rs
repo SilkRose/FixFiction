@@ -195,35 +195,17 @@ garbage_collector!(blog_cleanup, Blog, "blog");
 
 #[get("/story/{id:.*}")]
 async fn get_story(
-	path: web::Path<String>, data: web::Data<Arc<AppState>>,
+	path: web::Path<String>, data: web::Data<Arc<AppState>>, db: Data<Pool<Postgres>>,
 ) -> Result<impl Responder, Box<dyn std::error::Error>> {
 	let ident = path.into_inner();
 	let link = format!("https://www.fimfiction.net/story/{ident}");
 	let ident = ident.split('/').collect::<Vec<_>>();
 	let ident = ident.first().unwrap();
-	let ident = ident.parse::<u32>().unwrap();
-	data.stories_meta
-		.fixfic_requests
-		.fetch_add(1, Ordering::AcqRel);
-	let local_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-	let stories = data.stories.read().map_err(|_| "Failed to lock data")?;
-	if let Some(story) = stories.get(&ident) {
-		println!("{local_time}: [story] cache hit:  {ident}");
-		Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(story_template(story, link)))
-	} else {
-		drop(stories);
-		println!("{local_time}: [story] cache miss: {ident}");
-		let (story, user) = request_story(ident, &data.api, &data.stories_meta).await?;
-		let mut users = data.users.write().map_err(|_| "Failed to lock data")?;
-		users.insert(story.author.id, user.clone());
-		let mut stories = data.stories.write().map_err(|_| "Failed to lock data")?;
-		stories.insert(ident, story.clone());
-		Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(story_template(&story, link)))
-	}
+	let ident = ident.parse::<i32>().unwrap();
+	let story = request_story_db(ident, &data.api, db).await?;
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(format!("{story:?}")))
 }
 
 macro_rules! o_embed {
@@ -483,8 +465,45 @@ async fn request_story_db(
 			Ok(story)
 		}
 		None => {
-			// Need to finish story DB code.
-			todo!()
+			let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
+			let response = handle_request(api, &fimfic).await.unwrap();
+			let api = response.json::<StoryApi<i32>>().await.unwrap();
+			let author = api
+				.included
+				.iter()
+				.find(|author| author.id == api.data.relationships.author.data.id)
+				.unwrap();
+			let user = response_to_user_db(&author.clone(), db.clone()).await?;
+			let story = sqlx::query_as!(
+				StoryDB,
+				r#"INSERT INTO Stories (
+				id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
+				completion_status, content_rating,
+				likes, dislikes, author_id)
+				VALUES
+					($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+				RETURNING 
+					id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
+					completion_status AS "completion_status: CompletionStatus", content_rating AS "content_rating: ContentRating",
+					likes, dislikes, author_id, date_cached"#,
+				id,
+				api.data.attributes.title,
+				api.data.attributes.short_description,
+				api.data.attributes.cover_image.map(|cover| cover.medium),
+				api.data.attributes.color.hex.trim_start_matches("#"),
+				api.data.attributes.num_views,
+				api.data.attributes.num_words,
+				api.data.attributes.num_chapters,
+				api.data.attributes.num_comments,
+				CompletionStatus::Complete as _,
+				ContentRating::Everyone as _,
+				api.data.attributes.num_likes,
+				api.data.attributes.num_dislikes,
+				user.id
+			)
+			.fetch_one(&**db)
+			.await?;
+			Ok(story)
 		}
 	}
 }
