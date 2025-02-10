@@ -1,5 +1,5 @@
 use actix_cors::Cors;
-use actix_web::web::{Data, Path};
+use actix_web::web::{Data, Path, Query};
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
 use chrono::{DateTime, Utc};
 use dotenvy::dotenv;
@@ -221,6 +221,14 @@ async fn get_blog(
 		)))
 }
 
+#[get("/oembed")]
+async fn oembed(query: Query<OEmbed>) -> Result<impl Responder, Box<dyn Error>> {
+	let embed = query.into_inner();
+	Ok(HttpResponse::Ok()
+		.content_type("application/json+oembed")
+		.json(embed))
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 	dotenv()?;
@@ -262,6 +270,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.service(get_story)
 			.service(get_user)
 			.service(get_blog)
+			.service(oembed)
 	})
 	.bind(("0.0.0.0", 7669))? // pony
 	.run()
