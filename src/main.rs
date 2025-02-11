@@ -197,11 +197,12 @@ struct AppState {
 
 #[get("/story/{id:.*}")]
 async fn get_story(
-	path: Path<String>, app: Data<Arc<AppState>>,
+	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let path = path.into_inner();
-	let (id, link, params) = parse_parameters(&path, &app.db).await?;
-	let link = format!("https://www.fimfiction.net/story/{link}");
+	let mut params = query.into_inner();
+	let id = parse_parameters(&path, &mut params, &app.db).await?;
+	let link = format!("https://www.fimfiction.net/story/{path}");
 	let (story, user) = request_story(id, &app).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
@@ -214,11 +215,12 @@ async fn get_story(
 
 #[get("/user/{id:.*}")]
 async fn get_user(
-	path: Path<String>, app: Data<Arc<AppState>>,
+	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let path = path.into_inner();
-	let (id, link, params) = parse_parameters(&path, &app.db).await?;
-	let link = format!("https://www.fimfiction.net/user/{link}");
+	let mut params = query.into_inner();
+	let id = parse_parameters(&path, &mut params, &app.db).await?;
+	let link = format!("https://www.fimfiction.net/user/{path}");
 	let user = request_user(id, &app).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
@@ -227,11 +229,12 @@ async fn get_user(
 
 #[get("/blog/{id:.*}")]
 async fn get_blog(
-	path: Path<String>, app: Data<Arc<AppState>>,
+	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let path = path.into_inner();
-	let (id, link, params) = parse_parameters(&path, &app.db).await?;
-	let link = format!("https://www.fimfiction.net/blog/{link}");
+	let mut params = query.into_inner();
+	let id = parse_parameters(&path, &mut params, &app.db).await?;
+	let link = format!("https://www.fimfiction.net/blog/{path}");
 	let (blog, user, story) = request_blog(id, &app).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
@@ -251,44 +254,24 @@ async fn oembed(query: Query<OEmbed>) -> Result<impl Responder, Box<dyn Error>> 
 }
 
 async fn parse_parameters(
-	req: &str, db: &Pool<Postgres>,
-) -> Result<(i32, String, Parameters), Box<dyn Error>> {
-	let binding = req.to_string();
+	path: &str, params: &mut Parameters, db: &Pool<Postgres>,
+) -> Result<i32, Box<dyn Error>> {
+	let binding = path.to_string();
 	let id = binding.split('/').collect::<Vec<_>>();
 	let id = id.first().unwrap();
 	let id = id.parse::<i32>().unwrap();
-	let parts = binding.split("/h=").collect::<Vec<_>>();
-	if parts.len() == 1 {
-		return Ok((id, parts[0].to_string(), Parameters::default()));
-	}
-	let mut params = Parameters::default();
-	for param in parts[1].split(",") {
-		match param {
-			"stats" => params.stats = true,
-			"refresh" => params.refresh = true,
-			"image-none" => params.cover = Some(Cover::None),
-			"image-story" => params.cover = Some(Cover::Story),
-			"image-user" => params.cover = Some(Cover::User),
-			"color-self" => params.color = Some(Color::Default),
-			"color-none" => params.color = Some(Color::None),
-			"color-user" => params.color = Some(Color::User),
-			"color-story" => params.color = Some(Color::Story),
-			_ if param.starts_with("color-") => {
-				let color = param.strip_prefix("color-").unwrap().to_string();
-				let db_color = query!("SELECT color FROM Colors WHERE name = $1 LIMIT 1;", color)
-					.fetch_optional(db)
-					.await?;
-				if let Some(color) = db_color {
-					params.color = Some(Color::Custom(color.color));
-				} else {
-					// TODO: Verify color is hex code.
-					params.color = Some(Color::Custom(color));
-				}
-			}
-			_ => {}
+	if let Some(Color::Custom(color)) = &params.color {
+		let db_color = query!("SELECT color FROM Colors WHERE name = $1 LIMIT 1;", color)
+			.fetch_optional(db)
+			.await?;
+		if let Some(color) = db_color {
+			params.color = Some(Color::Custom(color.color));
+		} else {
+			// TODO: Verify color is hex code.
+			params.color = Some(Color::Custom(color.to_string()));
 		}
 	}
-	Ok((id, parts[0].to_string(), params))
+	Ok(id)
 }
 
 #[tokio::main]
