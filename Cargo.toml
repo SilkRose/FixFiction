@@ -25,6 +25,7 @@ sqlx = { version = "0.8.3", features = [
 	"chrono",
 ] }
 tokio = { version = "1.43.0", features = ["full"] }
+url = { version = "2.5.4" }
 
 [profile.dev]
 opt-level = 0

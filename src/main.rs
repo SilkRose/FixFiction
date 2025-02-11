@@ -16,6 +16,7 @@ use std::error::Error;
 use std::sync::{Arc, LazyLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
+use url::form_urlencoded;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "content_rating", rename_all = "lowercase")]
@@ -628,7 +629,27 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 	text.push_str(r#"<meta property="og:site_name" content="Fimfiction" />"#);
 	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);
 	text.push_str(r#"<meta property="twitter:card" content="summary" />"#);
-	// TODO: insert oEmbed here.
+	let mut encode = form_urlencoded::Serializer::new(String::new());
+	encode.append_pair("type", "rich");
+	encode.append_pair("version", "1");
+	encode.append_pair("provider_name", "Fimfiction");
+	encode.append_pair("provider_url", "https://www.fimfiction.net/");
+	encode.append_pair("title", &title);
+	match data {
+		TemplateType::Story(_, user) => {
+			encode.append_pair("author_name", &user.name);
+			encode.append_pair("author_url", &user.link);
+		}
+		TemplateType::Blog(_, user, _) => {
+			encode.append_pair("author_name", &user.name);
+			encode.append_pair("author_url", &user.link);
+		}
+		_ => {}
+	}
+	encode.append_pair("cache_age", "86400");
+	encode.append_pair("html", "");
+	let encode = encode.finish();
+	text.push_str(&format!(r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{title}" />"#));
 	text.push_str(r#"</head><body></body></html>"#);
 	text
 }
