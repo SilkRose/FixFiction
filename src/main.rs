@@ -136,28 +136,57 @@ enum TemplateType {
 	Blog(Blog, User, Option<Story>),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
 struct Parameters {
 	cover: Option<Cover>,
 	color: Option<Color>,
+	#[serde(default)]
 	refresh: bool,
+	#[serde(default)]
 	stats: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "lowercase", try_from = "String")]
 enum Cover {
 	Story,
 	User,
 	None,
 }
 
-#[derive(Debug, Clone)]
+impl TryFrom<String> for Cover {
+	type Error = &'static str;
+	fn try_from(value: String) -> Result<Self, Self::Error> {
+		match value.as_str() {
+			"story" => Ok(Cover::Story),
+			"user" => Ok(Cover::User),
+			"none" => Ok(Cover::None),
+			_ => Err("invalid cover value"),
+		}
+	}
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "lowercase", try_from = "String")]
 enum Color {
 	Custom(String),
 	Default,
 	Story,
 	User,
 	None,
+}
+
+impl From<String> for Color {
+	fn from(value: String) -> Self {
+		match value.as_str() {
+			"default" => Color::Default,
+			"story" => Color::Story,
+			"user" => Color::User,
+			"none" => Color::None,
+			_ => Color::Custom(value),
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
