@@ -352,10 +352,12 @@ async fn request_story(
 	let story = sqlx::query_as!(
 		Story,
 		r#"SELECT
-		id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
-		completion_status AS "completion_status: CompletionStatus", content_rating AS "content_rating: ContentRating",
-		likes, dislikes, author_id, date_cached
-		FROM Stories WHERE id = $1 LIMIT 1"#,
+			id, title, short_description, cover_medium_url,
+			color_hex, views, words, chapters, comments,
+			completion_status AS "completion_status: CompletionStatus",
+			content_rating AS "content_rating: ContentRating",
+			likes, dislikes, author_id, date_cached
+		FROM Stories WHERE id = $1 LIMIT 1;"#,
 		id
 	)
 	.fetch_optional(&app.db)
@@ -378,15 +380,18 @@ async fn request_story(
 			let story = sqlx::query_as!(
 				Story,
 				r#"INSERT INTO Stories (
-				id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
-				completion_status, content_rating,
-				likes, dislikes, author_id)
+					id, title, short_description, cover_medium_url,
+					color_hex, views, words, chapters, comments,
+					completion_status, content_rating,
+					likes, dislikes, author_id)
 				VALUES
 					($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 				RETURNING 
-					id, title, short_description, cover_medium_url, color_hex, views, words, chapters, comments,
-					completion_status AS "completion_status: CompletionStatus", content_rating AS "content_rating: ContentRating",
-					likes, dislikes, author_id, date_cached"#,
+					id, title, short_description, cover_medium_url,
+					color_hex, views, words, chapters, comments,
+					completion_status AS "completion_status: CompletionStatus",
+					content_rating AS "content_rating: ContentRating",
+					likes, dislikes, author_id, date_cached;"#,
 				id,
 				api.data.attributes.title,
 				api.data.attributes.short_description,
@@ -410,9 +415,17 @@ async fn request_story(
 }
 
 async fn request_user(id: i32, app: &AppState) -> Result<User, Box<dyn std::error::Error>> {
-	let user = sqlx::query_as!(User, "SELECT * FROM Authors WHERE id = $1 LIMIT 1", id)
-		.fetch_optional(&app.db)
-		.await?;
+	let user = sqlx::query_as!(
+		User,
+		"SELECT
+			id, name, bio, link, followers,
+			stories, blogs, profile_pic_256,
+			color_hex, date_cached
+		FROM Authors WHERE id = $1 LIMIT 1;",
+		id
+	)
+	.fetch_optional(&app.db)
+	.await?;
 	match user {
 		Some(user) => Ok(user),
 		None => {
@@ -427,9 +440,17 @@ async fn request_user(id: i32, app: &AppState) -> Result<User, Box<dyn std::erro
 async fn request_blog(
 	id: i32, app: &AppState,
 ) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
-	let blog = sqlx::query_as!(Blog, "SELECT * FROM Blogs WHERE id = $1 LIMIT 1", id)
-		.fetch_optional(&app.db)
-		.await?;
+	let blog = sqlx::query_as!(
+		Blog,
+		"SELECT
+			id, title, content, comments, views,
+			author_id, story_id, date_published,
+			date_cached
+		FROM Blogs WHERE id = $1 LIMIT 1;",
+		id
+	)
+	.fetch_optional(&app.db)
+	.await?;
 	match blog {
 		Some(blog) => {
 			let user = request_user(blog.author_id, app).await?;
@@ -448,7 +469,8 @@ async fn request_blog(
 			let blog = sqlx::query_as!(
 				Blog,
 				"INSERT INTO Blogs 
-					(id, title, content, comments, views, author_id, story_id, date_published)
+					(id, title, content, comments, views,
+					author_id, story_id, date_published)
 				VALUES
 					($1, $2, $3, $4, $5, $6, $7, $8)
 				ON CONFLICT(id) DO UPDATE SET
@@ -460,7 +482,10 @@ async fn request_blog(
 					story_id = EXCLUDED.story_id,
 					date_published = EXCLUDED.date_published,
 					date_cached = now()
-				RETURNING *;",
+				RETURNING
+					id, title, content, comments, views,
+					author_id, story_id, date_published,
+					date_cached;",
 				api.data.id.parse::<i32>()?,
 				clean_content(api.data.attributes.title),
 				trim_content(api.data.attributes.content, true),
@@ -515,7 +540,8 @@ async fn response_to_user(
 	let user = sqlx::query_as!(
 		User,
 		"INSERT INTO Authors 
-			(id, name, bio, link, followers, stories, blogs, profile_pic_256, color_hex)
+			(id, name, bio, link, followers, stories,
+			blogs, profile_pic_256, color_hex)
 		VALUES
 			($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT(id) DO UPDATE SET
@@ -528,7 +554,10 @@ async fn response_to_user(
 			profile_pic_256 = EXCLUDED.profile_pic_256,
 			color_hex = EXCLUDED.color_hex,
 			date_cached = now()
-		RETURNING *;",
+		RETURNING
+			id, name, bio, link, followers,
+			stories, blogs, profile_pic_256,
+			color_hex, date_cached;",
 		data.id.parse::<i32>()?,
 		clean_content(data.attributes.name.clone()),
 		clean_content(data.attributes.bio.clone()),
