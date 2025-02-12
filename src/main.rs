@@ -698,16 +698,16 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	let color = match parameters.color {
 		Some(color) => match (data.clone(), color) {
-			(TemplateType::Story(story, _), Color::Default) => Some(story.color_hex),
-			(TemplateType::Story(story, _), Color::Story) => Some(story.color_hex),
+			(_, Color::None) => None,
+			(_, Color::Custom(color)) => Some(color),
 			(TemplateType::Story(_, user), Color::User) => Some(user.color_hex),
+			(TemplateType::Story(story, _), Color::Story) => Some(story.color_hex),
+			(TemplateType::Story(story, _), Color::Default) => Some(story.color_hex),
 			(TemplateType::Blog(_, user, story), Color::Story) => {
 				Some(story.map(|story| story.color_hex).unwrap_or(user.color_hex))
 			}
 			(TemplateType::Blog(_, user, _), _) => Some(user.color_hex),
 			(TemplateType::User(user), _) => Some(user.color_hex),
-			(_, Color::Custom(color)) => Some(color),
-			(_, Color::None) => None,
 		},
 		None => match data.clone() {
 			TemplateType::Story(story, _) => Some(story.color_hex),
