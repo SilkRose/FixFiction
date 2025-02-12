@@ -469,6 +469,21 @@ async fn request_story(
 					likes, dislikes, author_id)
 				VALUES
 					($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+				ON CONFLICT(id) DO UPDATE SET
+					title = EXCLUDED.title,
+					short_description = EXCLUDED.short_description,
+					cover_medium_url = EXCLUDED.cover_medium_url,
+					color_hex = EXCLUDED.color_hex,
+					views = EXCLUDED.views,
+					words = EXCLUDED.words,
+					chapters = EXCLUDED.chapters,
+					comments = EXCLUDED.comments,
+					completion_status = EXCLUDED.completion_status,
+					content_rating = EXCLUDED.content_rating,
+					likes = EXCLUDED.likes,
+					dislikes = EXCLUDED.dislikes,
+					author_id = EXCLUDED.author_id,
+					date_cached = now()
 				RETURNING 
 					id, title, short_description, cover_medium_url,
 					color_hex, views, words, chapters, comments,
