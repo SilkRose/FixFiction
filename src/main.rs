@@ -280,6 +280,18 @@ async fn parse_parameters(
 	Ok(id)
 }
 
+macro_rules! prune_db {
+	($query:literal, $time:ident, $db:ident) => {
+		query!($query, $time).execute(&$db).await.unwrap()
+	};
+}
+
+macro_rules! count_rows {
+	($query:literal, $db:ident) => {
+		query!($query).fetch_one(&$db).await.unwrap().count.unwrap()
+	};
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 	dotenv()?;
@@ -314,24 +326,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	tokio::task::spawn(async move {
 		loop {
 			tokio::time::sleep(Duration::from_secs(GC)).await;
-			let time = Utc::now().checked_sub_signed(TimeDelta::seconds(TTL));
-			query!(
-				"CALL garbage_collector(ARRAY['Blogs', 'Authors', 'Stories'], $1);",
-				time.unwrap()
-			)
-			.execute(&db_clone)
-			.await
-			.unwrap();
-			let counts = query!("SELECT count_rows(ARRAY['Blogs', 'Authors', 'Stories']);")
-				.fetch_one(&db_clone)
-				.await
-				.unwrap()
-				.count_rows
+			let time = Utc::now()
+				.checked_sub_signed(TimeDelta::seconds(TTL))
 				.unwrap();
-			println!(
-				"blogs: {}, users: {}, stories: {}",
-				counts[0], counts[1], counts[2]
-			)
+			prune_db!("DELETE FROM Blogs WHERE date_cached < $1", time, db_clone);
+			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
+			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);
+			let blogs = count_rows!("SELECT count(*) FROM Blogs;", db_clone);
+			let users = count_rows!("SELECT count(*) FROM Authors;", db_clone);
+			let stories = count_rows!("SELECT count(*) FROM Stories;", db_clone);
+			let time = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+			println!("{time}: stories: {stories}, users: {users}, blogs: {blogs}");
 		}
 	});
 

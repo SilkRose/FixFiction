@@ -1,2 +1,0 @@
-DROP PROCEDURE IF EXISTS garbage_collector;
-DROP FUNCTION IF EXISTS count_rows;
