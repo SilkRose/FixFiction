@@ -536,8 +536,13 @@ async fn request_blog(
 	.await?;
 	match blog {
 		Some(blog) => {
-			let user = request_user(blog.author_id, app).await?;
-			Ok((blog, user, None))
+			let (story, user) = if let Some(story_id) = blog.story_id {
+				let (story, user) = request_story(story_id, app).await?;
+				(Some(story), user)
+			} else {
+				(None, request_user(blog.author_id, app).await?)
+			};
+			Ok((blog, user, story))
 		}
 		None => {
 			let fimfic = format!(
@@ -546,7 +551,6 @@ async fn request_blog(
 			let response = handle_request(&app.api, &fimfic).await.unwrap();
 			let api = response.json::<BlogApi<i32>>().await?;
 			let author = api.included.first().unwrap();
-			let user = response_to_user(author, &app.db).await?;
 			let story_id = (api.data.relationships.tagged_story.data.id != "0")
 				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);
 			let blog = sqlx::query_as!(
@@ -574,17 +578,17 @@ async fn request_blog(
 				trim_content(api.data.attributes.content, true),
 				api.data.attributes.num_comments,
 				api.data.attributes.num_views,
-				user.id,
+				author.id.parse::<i32>()?,
 				story_id,
 				api.data.attributes.date_posted
 			)
 			.fetch_one(&app.db)
 			.await?;
-			let story = if let Some(story_id) = blog.story_id {
-				let (story, _) = request_story(story_id, app).await?;
-				Some(story)
+			let (story, user) = if let Some(story_id) = blog.story_id {
+				let (story, user) = request_story(story_id, app).await?;
+				(Some(story), user)
 			} else {
-				None
+				(None, response_to_user(author, &app.db).await?)
 			};
 			Ok((blog, user, story))
 		}
