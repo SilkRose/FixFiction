@@ -194,6 +194,9 @@ impl From<String> for Color {
 struct AppState {
 	api: FimficRequest,
 	db: Pool<Postgres>,
+	gc_interval: u64,
+	cache_max_age: i64,
+	cache_recache_age: i64,
 }
 
 #[get("/story/{id:.*}")]
@@ -319,16 +322,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	sqlx::migrate!("./migrations").run(&db_pool).await?;
 
 	let db_clone = db_pool.clone();
-
-	const GC: u64 = 3600;
-	const TTL: i64 = 86400;
+	let app_data = AppState {
+		api,
+		db: db_pool,
+		gc_interval: 3600,
+		cache_max_age: 86400,
+		cache_recache_age: 60,
+	};
 
 	tokio::task::spawn(async move {
 		loop {
-			tokio::time::sleep(Duration::from_secs(GC)).await;
-			let time = Utc::now()
-				.checked_sub_signed(TimeDelta::seconds(TTL))
-				.unwrap();
+			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
+			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
 			prune_db!("DELETE FROM Blogs WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);
@@ -339,8 +344,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			println!("{time}: stories: {stories}, users: {users}, blogs: {blogs}");
 		}
 	});
-
-	let app_data = AppState { api, db: db_pool };
 
 	HttpServer::new(move || {
 		App::new()
@@ -445,6 +448,11 @@ async fn request_story(
 	)
 	.fetch_optional(&app.db)
 	.await?;
+	let story = story.and_then(|story| {
+		(story.date_cached
+			>= Utc::now().checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))?)
+		.then_some(story)
+	});
 	match story {
 		Some(story) => {
 			let user = request_user(story.author_id, app).await?;
@@ -524,6 +532,11 @@ async fn request_user(id: i32, app: &AppState) -> Result<User, Box<dyn std::erro
 	)
 	.fetch_optional(&app.db)
 	.await?;
+	let user = user.and_then(|user| {
+		(user.date_cached
+			>= Utc::now().checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))?)
+		.then_some(user)
+	});
 	match user {
 		Some(user) => Ok(user),
 		None => {
@@ -549,6 +562,11 @@ async fn request_blog(
 	)
 	.fetch_optional(&app.db)
 	.await?;
+	let blog = blog.and_then(|blog| {
+		(blog.date_cached
+			>= Utc::now().checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))?)
+		.then_some(blog)
+	});
 	match blog {
 		Some(blog) => {
 			let (story, user) = if let Some(story_id) = blog.story_id {
