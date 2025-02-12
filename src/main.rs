@@ -646,7 +646,7 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 	};
 	if let Some(color) = color {
 		text.push_str(&format!(
-			r#"<meta name="theme-color" content="\#{color}" />"#
+			r##"<meta name="theme-color" content="#{color}" />"##
 		));
 	}
 	text.push_str(&format!(r#"<link rel="canonical" href="{link}" />"#));
