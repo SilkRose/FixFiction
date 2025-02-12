@@ -271,7 +271,7 @@ async fn parse_parameters(
 			params.color = color
 				.as_bytes()
 				.chunks(2)
-				.all(|hex| u8::from_str_radix(unsafe { str::from_utf8_unchecked(hex) }, 16).is_ok())
+				.all(|hex| u8::from_str_radix(str::from_utf8(hex).unwrap(), 16).is_ok())
 				.then_some(Color::Custom(color.to_string()));
 		} else {
 			params.color = None;
