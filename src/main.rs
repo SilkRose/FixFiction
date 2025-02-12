@@ -1,7 +1,7 @@
 use actix_cors::Cors;
 use actix_web::web::{Data, Path, Query};
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use core::str;
 use dotenvy::dotenv;
 use pony::fimfiction_api::blog::BlogApi;
@@ -305,6 +305,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		.expect("database should open");
 
 	sqlx::migrate!("./migrations").run(&db_pool).await?;
+
+	let db_clone = db_pool.clone();
+
+	const GC: u64 = 3600;
+	const TTL: i64 = 86400;
+
+	tokio::task::spawn(async move {
+		loop {
+			tokio::time::sleep(Duration::from_secs(GC)).await;
+			let time = Utc::now().checked_sub_signed(TimeDelta::seconds(TTL));
+			query!(
+				"CALL garbage_collector(ARRAY['Blogs', 'Authors', 'Stories'], $1);",
+				time.unwrap()
+			)
+			.execute(&db_clone)
+			.await
+			.unwrap();
+			let counts = query!("SELECT count_rows(ARRAY['Blogs', 'Authors', 'Stories']);")
+				.fetch_one(&db_clone)
+				.await
+				.unwrap()
+				.count_rows
+				.unwrap();
+			println!(
+				"blogs: {}, users: {}, stories: {}",
+				counts[0], counts[1], counts[2]
+			)
+		}
+	});
 
 	let app_data = AppState { api, db: db_pool };
 
