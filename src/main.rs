@@ -2,6 +2,7 @@ use actix_cors::Cors;
 use actix_web::web::{Data, Path, Query};
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
 use chrono::{DateTime, Utc};
+use core::str;
 use dotenvy::dotenv;
 use pony::fimfiction_api::blog::BlogApi;
 use pony::fimfiction_api::story::StoryApi;
@@ -266,9 +267,14 @@ async fn parse_parameters(
 			.await?;
 		if let Some(color) = db_color {
 			params.color = Some(Color::Custom(color.color));
+		} else if color.len() == 6 && color.is_ascii() {
+			params.color = color
+				.as_bytes()
+				.chunks(2)
+				.all(|hex| u8::from_str_radix(unsafe { str::from_utf8_unchecked(hex) }, 16).is_ok())
+				.then_some(Color::Custom(color.to_string()));
 		} else {
-			// TODO: Verify color is hex code.
-			params.color = Some(Color::Custom(color.to_string()));
+			params.color = None;
 		}
 	}
 	Ok(id)
