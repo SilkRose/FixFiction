@@ -606,6 +606,12 @@ async fn request_blog(
 			let author = api.included.first().unwrap();
 			let story_id = (api.data.relationships.tagged_story.data.id != "0")
 				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);
+			let (story, user) = if let Some(story_id) = story_id {
+				let (story, user) = request_story(story_id, app, recache).await?;
+				(Some(story), user)
+			} else {
+				(None, response_to_user(author, &app.db).await?)
+			};
 			let blog = sqlx::query_as!(
 				Blog,
 				"INSERT INTO Blogs 
@@ -637,12 +643,6 @@ async fn request_blog(
 			)
 			.fetch_one(&app.db)
 			.await?;
-			let (story, user) = if let Some(story_id) = blog.story_id {
-				let (story, user) = request_story(story_id, app, recache).await?;
-				(Some(story), user)
-			} else {
-				(None, response_to_user(author, &app.db).await?)
-			};
 			Ok((blog, user, story))
 		}
 	}
