@@ -793,45 +793,44 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 			blog.date_posted
 		));
 	}
-	let site_name =
-		if parameters.stats {
-			match data.clone() {
-				TemplateType::Story(story, _) => {
-					let time = story.date_published.format("%a %b %e %Y").to_string();
-					let status = match story.completion_status {
-						CompletionStatus::Incomplete => "Incomplete 🔄",
-						CompletionStatus::Complete => "Complete ✅",
-						CompletionStatus::Hiatus => "Hiatus ⏸",
-						CompletionStatus::Cancelled => "Cancelled ❌",
-					};
-					let rating = match story.content_rating {
-						ContentRating::Everyone => "Everyone 🇪",
-						ContentRating::Teen => "Teen 🇹",
-						ContentRating::Mature => "Mature 🇲",
-					};
-					&format!(
-					"Fimfiction {time} 📅 {status} {rating}\n{} 👍 {} 👎 {} 📈 {} 💬 {} 📖 {} 📝",
+	let site_name = if parameters.stats {
+		match data.clone() {
+			TemplateType::Story(story, _) => {
+				let time = story.date_published.format("%a %b %e %Y").to_string();
+				let status = match story.completion_status {
+					CompletionStatus::Incomplete => "Incomplete 🔄",
+					CompletionStatus::Complete => "Complete ✅",
+					CompletionStatus::Hiatus => "Hiatus ⏸",
+					CompletionStatus::Cancelled => "Cancelled ❌",
+				};
+				let rating = match story.content_rating {
+					ContentRating::Everyone => "everyone 🇪",
+					ContentRating::Teen => "teen 🇹",
+					ContentRating::Mature => "mature 🇲",
+				};
+				&format!(
+					"Fimfiction - Published {time} 📅 Status: {status}\nRating: {rating} Likes: {} 👍 Dislikes: {} 👎 Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
 					story.likes, story.dislikes, story.views, story.comments, story.chapters, story.words
 				)
-				}
-				TemplateType::User(user) => {
-					let time = user.date_joined.format("%a %b %e %Y").to_string();
-					&format!(
-						"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
-						user.stories, user.blogs, user.followers
-					)
-				}
-				TemplateType::Blog(blog, _, _) => {
-					let time = blog.date_posted.format("%a %b %e %Y").to_string();
-					&format!(
-						"Fimfiction - Posted: {time} 📅\n{} 📈 {} 💬",
-						blog.views, blog.comments
-					)
-				}
 			}
-		} else {
-			"Fimfiction"
-		};
+			TemplateType::User(user) => {
+				let time = user.date_joined.format("%a %b %e %Y").to_string();
+				&format!(
+					"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
+					user.stories, user.blogs, user.followers
+				)
+			}
+			TemplateType::Blog(blog, _, _) => {
+				let time = blog.date_posted.format("%a %b %e %Y").to_string();
+				&format!(
+					"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬",
+					blog.views, blog.comments
+				)
+			}
+		}
+	} else {
+		"Fimfiction"
+	};
 	text.push_str(&format!(
 		r#"<meta property="og:site_name" content="{site_name}" />"#
 	));
