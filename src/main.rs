@@ -207,7 +207,7 @@ async fn get_story(
 	let mut params = query.into_inner();
 	let id = parse_parameters(&path, &mut params, &app.db).await?;
 	let link = format!("https://www.fimfiction.net/story/{path}");
-	let (story, user) = request_story(id, &app).await?;
+	let (story, user) = request_story(id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(html_template(
@@ -225,7 +225,7 @@ async fn get_user(
 	let mut params = query.into_inner();
 	let id = parse_parameters(&path, &mut params, &app.db).await?;
 	let link = format!("https://www.fimfiction.net/user/{path}");
-	let user = request_user(id, &app).await?;
+	let user = request_user(id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(html_template(TemplateType::User(user), params, link)))
@@ -239,7 +239,7 @@ async fn get_blog(
 	let mut params = query.into_inner();
 	let id = parse_parameters(&path, &mut params, &app.db).await?;
 	let link = format!("https://www.fimfiction.net/blog/{path}");
-	let (blog, user, story) = request_blog(id, &app).await?;
+	let (blog, user, story) = request_blog(id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(html_template(
@@ -433,7 +433,7 @@ fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
 }
 
 async fn request_story(
-	id: i32, app: &AppState,
+	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Story, User), Box<dyn std::error::Error>> {
 	let story = sqlx::query_as!(
 		Story,
@@ -448,14 +448,19 @@ async fn request_story(
 	)
 	.fetch_optional(&app.db)
 	.await?;
-	let story = story.and_then(|story| {
-		(story.date_cached
-			>= Utc::now().checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))?)
-		.then_some(story)
-	});
+
+	let story = match recache {
+		true => story.filter(|story| {
+			Utc::now()
+				.checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))
+				.is_some_and(|max_age| story.date_cached >= max_age)
+		}),
+		false => story,
+	};
+
 	match story {
 		Some(story) => {
-			let user = request_user(story.author_id, app).await?;
+			let user = request_user(story.author_id, app, recache).await?;
 			Ok((story, user))
 		}
 		None => {
@@ -520,7 +525,9 @@ async fn request_story(
 	}
 }
 
-async fn request_user(id: i32, app: &AppState) -> Result<User, Box<dyn std::error::Error>> {
+async fn request_user(
+	id: i32, app: &AppState, recache: bool,
+) -> Result<User, Box<dyn std::error::Error>> {
 	let user = sqlx::query_as!(
 		User,
 		"SELECT
@@ -532,11 +539,16 @@ async fn request_user(id: i32, app: &AppState) -> Result<User, Box<dyn std::erro
 	)
 	.fetch_optional(&app.db)
 	.await?;
-	let user = user.and_then(|user| {
-		(user.date_cached
-			>= Utc::now().checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))?)
-		.then_some(user)
-	});
+
+	let user = match recache {
+		true => user.filter(|user| {
+			Utc::now()
+				.checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))
+				.is_some_and(|max_age| user.date_cached >= max_age)
+		}),
+		false => user,
+	};
+
 	match user {
 		Some(user) => Ok(user),
 		None => {
@@ -549,7 +561,7 @@ async fn request_user(id: i32, app: &AppState) -> Result<User, Box<dyn std::erro
 }
 
 async fn request_blog(
-	id: i32, app: &AppState,
+	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
 	let blog = sqlx::query_as!(
 		Blog,
@@ -562,18 +574,23 @@ async fn request_blog(
 	)
 	.fetch_optional(&app.db)
 	.await?;
-	let blog = blog.and_then(|blog| {
-		(blog.date_cached
-			>= Utc::now().checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))?)
-		.then_some(blog)
-	});
+
+	let blog = match recache {
+		true => blog.filter(|blog| {
+			Utc::now()
+				.checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))
+				.is_some_and(|max_age| blog.date_cached >= max_age)
+		}),
+		false => blog,
+	};
+
 	match blog {
 		Some(blog) => {
 			let (story, user) = if let Some(story_id) = blog.story_id {
-				let (story, user) = request_story(story_id, app).await?;
+				let (story, user) = request_story(story_id, app, recache).await?;
 				(Some(story), user)
 			} else {
-				(None, request_user(blog.author_id, app).await?)
+				(None, request_user(blog.author_id, app, recache).await?)
 			};
 			Ok((blog, user, story))
 		}
@@ -618,7 +635,7 @@ async fn request_blog(
 			.fetch_one(&app.db)
 			.await?;
 			let (story, user) = if let Some(story_id) = blog.story_id {
-				let (story, user) = request_story(story_id, app).await?;
+				let (story, user) = request_story(story_id, app, recache).await?;
 				(Some(story), user)
 			} else {
 				(None, response_to_user(author, &app.db).await?)
