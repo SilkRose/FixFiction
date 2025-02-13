@@ -825,7 +825,7 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 					let time = blog.date_posted.format("%a %b %e %Y").to_string();
 					&format!(
 						"Fimfiction - Posted: {time} 📅\n{} 📈 {} 💬",
-						blog.comments, blog.views
+						blog.views, blog.comments
 					)
 				}
 			}
