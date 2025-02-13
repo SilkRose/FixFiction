@@ -270,11 +270,11 @@ async fn parse_parameters(
 			.await?;
 		if let Some(color) = db_color {
 			params.color = Some(Color::Custom(color.color));
-		} else if color.len() == 6 && color.is_ascii() {
+		} else if color.len() == 6 {
 			params.color = color
 				.as_bytes()
-				.chunks(2)
-				.all(|hex| u8::from_str_radix(str::from_utf8(hex).unwrap(), 16).is_ok())
+				.iter()
+				.all(|hex| hex.is_ascii_hexdigit())
 				.then_some(Color::Custom(color.to_string()));
 		} else {
 			params.color = None;
