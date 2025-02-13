@@ -85,6 +85,7 @@ struct Story {
 	likes: i32,
 	dislikes: i32,
 	author_id: i32,
+	date_published: DateTime<Utc>,
 	date_cached: DateTime<Utc>,
 }
 
@@ -114,6 +115,7 @@ struct User {
 	blogs: i32,
 	profile_pic_256: Option<String>,
 	color_hex: String,
+	date_joined: DateTime<Utc>,
 	date_cached: DateTime<Utc>,
 }
 
@@ -126,7 +128,7 @@ struct Blog {
 	views: i32,
 	author_id: i32,
 	story_id: Option<i32>,
-	date_published: String,
+	date_posted: DateTime<Utc>,
 	date_cached: DateTime<Utc>,
 }
 
@@ -442,7 +444,7 @@ async fn request_story(
 			color_hex, views, words, chapters, comments,
 			completion_status AS "completion_status: CompletionStatus",
 			content_rating AS "content_rating: ContentRating",
-			likes, dislikes, author_id, date_cached
+			likes, dislikes, author_id, date_published, date_cached
 		FROM Stories WHERE id = $1 LIMIT 1;"#,
 		id
 	)
@@ -479,9 +481,9 @@ async fn request_story(
 					id, title, short_description, cover_medium_url,
 					color_hex, views, words, chapters, comments,
 					completion_status, content_rating,
-					likes, dislikes, author_id)
+					likes, dislikes, author_id, date_published)
 				VALUES
-					($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+					($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 				ON CONFLICT(id) DO UPDATE SET
 					title = EXCLUDED.title,
 					short_description = EXCLUDED.short_description,
@@ -496,13 +498,14 @@ async fn request_story(
 					likes = EXCLUDED.likes,
 					dislikes = EXCLUDED.dislikes,
 					author_id = EXCLUDED.author_id,
+					date_published = EXCLUDED.date_published,
 					date_cached = now()
 				RETURNING 
 					id, title, short_description, cover_medium_url,
 					color_hex, views, words, chapters, comments,
 					completion_status AS "completion_status: CompletionStatus",
 					content_rating AS "content_rating: ContentRating",
-					likes, dislikes, author_id, date_cached;"#,
+					likes, dislikes, author_id, date_published, date_cached;"#,
 				id,
 				api.data.attributes.title,
 				api.data.attributes.short_description,
@@ -516,7 +519,8 @@ async fn request_story(
 				ContentRating::from(api.data.attributes.content_rating) as _,
 				api.data.attributes.num_likes,
 				api.data.attributes.num_dislikes,
-				user.id
+				user.id,
+				DateTime::parse_from_rfc3339(&api.data.attributes.date_published)?
 			)
 			.fetch_one(&app.db)
 			.await?;
@@ -533,7 +537,7 @@ async fn request_user(
 		"SELECT
 			id, name, bio, link, followers,
 			stories, blogs, profile_pic_256,
-			color_hex, date_cached
+			color_hex, date_joined, date_cached
 		FROM Authors WHERE id = $1 LIMIT 1;",
 		id
 	)
@@ -567,8 +571,7 @@ async fn request_blog(
 		Blog,
 		"SELECT
 			id, title, content, comments, views,
-			author_id, story_id, date_published,
-			date_cached
+			author_id, story_id, date_posted, date_cached
 		FROM Blogs WHERE id = $1 LIMIT 1;",
 		id
 	)
@@ -607,7 +610,7 @@ async fn request_blog(
 				Blog,
 				"INSERT INTO Blogs 
 					(id, title, content, comments, views,
-					author_id, story_id, date_published)
+					author_id, story_id, date_posted)
 				VALUES
 					($1, $2, $3, $4, $5, $6, $7, $8)
 				ON CONFLICT(id) DO UPDATE SET
@@ -617,11 +620,11 @@ async fn request_blog(
 					views = EXCLUDED.views,
 					author_id = EXCLUDED.author_id,
 					story_id = EXCLUDED.story_id,
-					date_published = EXCLUDED.date_published,
+					date_posted = EXCLUDED.date_posted,
 					date_cached = now()
 				RETURNING
 					id, title, content, comments, views,
-					author_id, story_id, date_published,
+					author_id, story_id, date_posted,
 					date_cached;",
 				api.data.id.parse::<i32>()?,
 				clean_content(api.data.attributes.title),
@@ -630,7 +633,7 @@ async fn request_blog(
 				api.data.attributes.num_views,
 				author.id.parse::<i32>()?,
 				story_id,
-				api.data.attributes.date_posted
+				DateTime::parse_from_rfc3339(&api.data.attributes.date_posted)?
 			)
 			.fetch_one(&app.db)
 			.await?;
@@ -678,9 +681,9 @@ async fn response_to_user(
 		User,
 		"INSERT INTO Authors 
 			(id, name, bio, link, followers, stories,
-			blogs, profile_pic_256, color_hex)
+			blogs, profile_pic_256, color_hex, date_joined)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT(id) DO UPDATE SET
 			name = EXCLUDED.name,
 			bio = EXCLUDED.bio,
@@ -690,11 +693,12 @@ async fn response_to_user(
 			blogs = EXCLUDED.blogs,
 			profile_pic_256 = EXCLUDED.profile_pic_256,
 			color_hex = EXCLUDED.color_hex,
+			date_joined = EXCLUDED.date_joined,
 			date_cached = now()
 		RETURNING
 			id, name, bio, link, followers,
 			stories, blogs, profile_pic_256,
-			color_hex, date_cached;",
+			color_hex, date_joined, date_cached;",
 		data.id.parse::<i32>()?,
 		clean_content(data.attributes.name.clone()),
 		clean_content(data.attributes.bio.clone()),
@@ -703,7 +707,8 @@ async fn response_to_user(
 		data.attributes.num_stories,
 		data.attributes.num_blog_posts,
 		image,
-		data.attributes.color.hex.trim_start_matches("#")
+		data.attributes.color.hex.trim_start_matches("#"),
+		DateTime::parse_from_rfc3339(&data.attributes.date_joined)?
 	)
 	.fetch_one(db)
 	.await?;
@@ -789,7 +794,7 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 	if let TemplateType::Blog(blog, _, _) = data.clone() {
 		text.push_str(&format!(
 			r#"<meta property="article:published_time" content="{}" />"#,
-			blog.date_published
+			blog.date_posted
 		));
 	}
 	text.push_str(r#"<meta property="og:site_name" content="Fimfiction" />"#);
