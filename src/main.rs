@@ -797,13 +797,54 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 			blog.date_posted
 		));
 	}
-	text.push_str(r#"<meta property="og:site_name" content="Fimfiction" />"#);
+	let site_name =
+		if parameters.stats {
+			match data.clone() {
+				TemplateType::Story(story, _) => {
+					let time = story.date_published.format("%a %b %e %Y").to_string();
+					let status = match story.completion_status {
+						CompletionStatus::Incomplete => "Incomplete 🔄",
+						CompletionStatus::Complete => "Complete ✅",
+						CompletionStatus::Hiatus => "Hiatus ⏸",
+						CompletionStatus::Cancelled => "Cancelled ❌",
+					};
+					let rating = match story.content_rating {
+						ContentRating::Everyone => "Everyone 🇪",
+						ContentRating::Teen => "Teen 🇹",
+						ContentRating::Mature => "Mature 🇲",
+					};
+					&format!(
+					"Fimfiction {time} 📅 {status} {rating}\n{} 👍 {} 👎 {} 📈 {} 💬 {} 📖 {} 📝",
+					story.likes, story.dislikes, story.views, story.comments, story.chapters, story.words
+				)
+				}
+				TemplateType::User(user) => {
+					let time = user.date_joined.format("%a %b %e %Y").to_string();
+					&format!(
+						"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
+						user.stories, user.blogs, user.followers
+					)
+				}
+				TemplateType::Blog(blog, _, _) => {
+					let time = blog.date_posted.format("%a %b %e %Y").to_string();
+					&format!(
+						"Fimfiction - Posted: {time} 📅\n{} 📈 {} 💬",
+						blog.comments, blog.views
+					)
+				}
+			}
+		} else {
+			"Fimfiction"
+		};
+	text.push_str(&format!(
+		r#"<meta property="og:site_name" content="{site_name}" />"#
+	));
 	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);
 	text.push_str(r#"<meta property="twitter:card" content="summary" />"#);
 	let mut encode = form_urlencoded::Serializer::new(String::new());
 	encode.append_pair("type", "rich");
 	encode.append_pair("version", "1");
-	encode.append_pair("provider_name", "Fimfiction");
+	encode.append_pair("provider_name", site_name);
 	encode.append_pair("provider_url", "https://www.fimfiction.net/");
 	encode.append_pair("title", &title);
 	match data {
