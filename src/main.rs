@@ -150,7 +150,7 @@ struct Parameters {
 	stats: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase", try_from = "String")]
 enum Cover {
 	Story,
@@ -174,7 +174,6 @@ impl TryFrom<String> for Cover {
 #[serde(rename_all = "lowercase", try_from = "String")]
 enum Color {
 	Custom(String),
-	Default,
 	Story,
 	User,
 	None,
@@ -183,7 +182,6 @@ enum Color {
 impl From<String> for Color {
 	fn from(value: String) -> Self {
 		match value.as_str() {
-			"default" => Color::Default,
 			"story" => Color::Story,
 			"user" => Color::User,
 			"none" => Color::None,
@@ -720,7 +718,6 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 			(_, Color::Custom(color)) => Some(color),
 			(TemplateType::Story(_, user), Color::User) => Some(user.color_hex),
 			(TemplateType::Story(story, _), Color::Story) => Some(story.color_hex),
-			(TemplateType::Story(story, _), Color::Default) => Some(story.color_hex),
 			(TemplateType::Blog(_, user, story), Color::Story) => {
 				Some(story.map(|story| story.color_hex).unwrap_or(user.color_hex))
 			}
@@ -730,7 +727,12 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 		None => match data.clone() {
 			TemplateType::Story(story, _) => Some(story.color_hex),
 			TemplateType::User(user) => Some(user.color_hex),
-			TemplateType::Blog(_, user, _) => Some(user.color_hex),
+			TemplateType::Blog(_, user, story) => Some(match parameters.cover {
+				Some(Cover::Story) => story
+					.as_ref()
+					.map_or(user.color_hex, |story| story.color_hex.clone()),
+				_ => user.color_hex,
+			}),
 		},
 	};
 	if let Some(color) = color {
