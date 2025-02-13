@@ -810,10 +810,15 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 					ContentRating::Teen => "Teen 🇹",
 					ContentRating::Mature => "Mature 🇲",
 				};
+				let likes_dislikes = if story.likes == -1 && story.dislikes == -1 {
+					String::new()
+				} else {
+					format!("Likes: {} 👍 Dislikes: {} 👎 ", story.likes, story.dislikes)
+				};
 				&format!(
-					"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} Likes: {} 👍 Dislikes: {} 👎 Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
-					story.likes, story.dislikes, story.views, story.comments, story.chapters, story.words
-				)
+					"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} {likes_dislikes}Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
+					story.views, story.comments, story.chapters, story.words
+			  )
 			}
 			TemplateType::User(user) => {
 				let time = user.date_joined.format("%a %b %e %Y").to_string();
