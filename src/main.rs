@@ -804,12 +804,12 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 					CompletionStatus::Cancelled => "Cancelled ❌",
 				};
 				let rating = match story.content_rating {
-					ContentRating::Everyone => "everyone 🇪",
-					ContentRating::Teen => "teen 🇹",
-					ContentRating::Mature => "mature 🇲",
+					ContentRating::Everyone => "Everyone 🇪",
+					ContentRating::Teen => "Teen 🇹",
+					ContentRating::Mature => "Mature 🇲",
 				};
 				&format!(
-					"Fimfiction - Published {time} 📅 Status: {status}\nRating: {rating} Likes: {} 👍 Dislikes: {} 👎 Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
+					"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} Likes: {} 👍 Dislikes: {} 👎 Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
 					story.likes, story.dislikes, story.views, story.comments, story.chapters, story.words
 				)
 			}
