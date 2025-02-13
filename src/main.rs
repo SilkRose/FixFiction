@@ -396,10 +396,6 @@ async fn handle_request(
 		.await;
 		match res {
 			Ok(Ok(response)) => {
-				let limit = response.headers().get("x-rate-limit-limit");
-				let remaining = response.headers().get("x-rate-limit-remaining");
-				let reset = response.headers().get("x-rate-limit-reset");
-				println!("limit: {limit:?}, remaining: {remaining:?}, reset: {reset:?}");
 				return Ok(response);
 			}
 			Ok(Err(error)) => {
