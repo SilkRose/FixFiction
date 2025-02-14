@@ -712,6 +712,8 @@ async fn response_to_user(
 fn html_template(data: TemplateType, parameters: Parameters, link: String) -> String {
 	let mut text = String::new();
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
+	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
+	text.push_str("<!-- Pinkie Pie is best pony! -->");
 	let color = match parameters.color {
 		Some(color) => match (data.clone(), color) {
 			(_, Color::None) => None,
