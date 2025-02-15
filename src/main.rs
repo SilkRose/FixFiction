@@ -727,8 +727,11 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 			(TemplateType::User(user), _) => Some(user.color_hex),
 		},
 		None => match data.clone() {
-			TemplateType::Story(story, _) => Some(story.color_hex),
 			TemplateType::User(user) => Some(user.color_hex),
+			TemplateType::Story(story, user) => Some(match parameters.cover {
+				Some(Cover::User) => user.color_hex,
+				_ => story.color_hex,
+			}),
 			TemplateType::Blog(_, user, story) => Some(match parameters.cover {
 				Some(Cover::Story) => story
 					.as_ref()
