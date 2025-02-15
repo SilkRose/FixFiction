@@ -142,6 +142,7 @@ enum TemplateType {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 struct Parameters {
+	#[serde(alias = "image")]
 	cover: Option<Cover>,
 	color: Option<Color>,
 	#[serde(default)]
