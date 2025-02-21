@@ -1,6 +1,6 @@
 use actix_cors::Cors;
 use actix_web::web::{Data, Path, Query};
-use actix_web::{get, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use core::str;
 use dotenvy::dotenv;
@@ -8,10 +8,10 @@ use pony::fimfiction_api::blog::BlogApi;
 use pony::fimfiction_api::story::StoryApi;
 use pony::fimfiction_api::user::{UserApi, UserData};
 use regex::Regex;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
-use sqlx::{query, Pool, Postgres, Type};
+use sqlx::{Pool, Postgres, Type, query};
 use std::env;
 use std::error::Error;
 use std::sync::{Arc, LazyLock};
@@ -824,7 +824,7 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 				&format!(
 					"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} {likes_dislikes}Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
 					story.views, story.comments, story.chapters, story.words
-			  )
+				)
 			}
 			TemplateType::User(user) => {
 				let time = user.date_joined.format("%a %b %e %Y").to_string();
