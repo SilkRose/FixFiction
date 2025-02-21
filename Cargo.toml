@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Service to fix FIMFiction embeds."
 repository = "https://github.com/SilkRose/FixFiction"
 authors = ["Silk Rose", "Meadowsys"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 publish = false
 
