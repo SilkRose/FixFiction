@@ -5,18 +5,18 @@ use chrono::{DateTime, TimeDelta, Utc};
 use core::str;
 use dotenvy::dotenv;
 use pony::fimfiction_api::blog::BlogApi;
+use pony::fimfiction_api::fimfic_api_headers;
 use pony::fimfiction_api::story::StoryApi;
 use pony::fimfiction_api::user::{UserApi, UserData};
+use pony::http::{Request, api_get_request};
 use regex::Regex;
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
-use reqwest::{Client, Response};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Type, query};
 use std::env;
 use std::error::Error;
 use std::sync::{Arc, LazyLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::time::timeout;
+use std::time::Duration;
 use url::form_urlencoded;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
@@ -57,16 +57,6 @@ impl From<String> for CompletionStatus {
 			_ => unreachable!(), // This should never happen, but still want to add something here later.
 		}
 	}
-}
-
-#[derive(Debug, Clone)]
-struct FimficRequest {
-	client: Client,
-	headers: HeaderMap,
-	interval: Duration,
-	interval_step: Duration,
-	interval_max: Duration,
-	timeout: Duration,
 }
 
 #[derive(Debug, Clone)]
@@ -193,7 +183,7 @@ impl From<String> for Color {
 
 #[derive(Debug, Clone)]
 struct AppState {
-	api: FimficRequest,
+	api: Request,
 	db: Pool<Postgres>,
 	gc_interval: u64,
 	cache_max_age: i64,
@@ -304,13 +294,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	let token = env::var("BEARER_TOKEN").expect("BEARER_TOKEN should be set");
 
 	// API and site request structs, client, headers, and time intervals.
-	let api = FimficRequest {
+	let api = Request {
 		client: Client::new(),
-		headers: setup_api_headers(&token)?,
+		headers: fimfic_api_headers(Some("FixFiction"), &token)?,
 		interval: Duration::from_millis(500),
 		interval_step: Duration::from_secs(2),
 		interval_max: Duration::from_secs(120),
 		timeout: Duration::from_secs(10),
+		max_tries: 4,
 	};
 
 	let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
@@ -368,67 +359,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-fn setup_api_headers(token: &str) -> Result<HeaderMap, Box<dyn Error>> {
-	let mut headers = HeaderMap::new();
-	headers.insert(
-		AUTHORIZATION,
-		HeaderValue::from_str(&format!("Bearer {}", token))?,
-	);
-	headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-	Ok(headers)
-}
-
-async fn handle_request(
-	request: &FimficRequest, url: &str,
-) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
-	let mut interval = request.interval;
-	loop {
-		let start_time = unix_time()?;
-		let res = timeout(
-			request.timeout,
-			request
-				.client
-				.get(url)
-				.headers(request.headers.clone())
-				.send(),
-		)
-		.await;
-		match res {
-			Ok(Ok(response)) => {
-				return Ok(response);
-			}
-			Ok(Err(error)) => {
-				println!("Request failed: {error}");
-			}
-			Err(error) => {
-				println!("Request timed out: {error}");
-			}
-		}
-		sleep(start_time, interval).await?;
-		interval = if interval < request.interval_max {
-			interval + request.interval_step
-		} else {
-			request.interval_max
-		};
-	}
-}
-
-async fn sleep(
-	start_time: u128, interval: Duration,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-	let current_time = unix_time()?;
-	let elapsed_time = Duration::from_millis((current_time - start_time).try_into()?);
-	if elapsed_time > interval {
-		return Ok(());
-	};
-	tokio::time::sleep(interval - elapsed_time).await;
-	Ok(())
-}
-
-fn unix_time() -> Result<u128, Box<dyn std::error::Error + Send + Sync>> {
-	Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())
-}
-
 async fn request_story(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Story, User), Box<dyn std::error::Error>> {
@@ -462,7 +392,7 @@ async fn request_story(
 		}
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
-			let response = handle_request(&app.api, &fimfic).await.unwrap();
+			let response = api_get_request(&app.api, &fimfic).await.unwrap();
 			let api = response.json::<StoryApi<i32>>().await.unwrap();
 			let author = api
 				.included
@@ -515,7 +445,12 @@ async fn request_story(
 				api.data.attributes.num_likes,
 				api.data.attributes.num_dislikes,
 				user.id,
-				DateTime::parse_from_rfc3339(&api.data.attributes.date_published)?
+				DateTime::parse_from_rfc3339(
+					&api.data
+						.attributes
+						.date_published
+						.expect("All published stories should be published.")
+				)?
 			)
 			.fetch_one(&app.db)
 			.await?;
@@ -552,7 +487,7 @@ async fn request_user(
 		Some(user) => Ok(user),
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-			let response = handle_request(&app.api, &fimfic).await.unwrap();
+			let response = api_get_request(&app.api, &fimfic).await.unwrap();
 			let api = response.json::<UserApi<i32>>().await.unwrap();
 			response_to_user(&api.data, &app.db).await
 		}
@@ -596,7 +531,7 @@ async fn request_blog(
 			let fimfic = format!(
 				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
 			);
-			let response = handle_request(&app.api, &fimfic).await.unwrap();
+			let response = api_get_request(&app.api, &fimfic).await.unwrap();
 			let api = response.json::<BlogApi<i32>>().await?;
 			let author = api.included.first().unwrap();
 			let story_id = (api.data.relationships.tagged_story.data.id != "0")
