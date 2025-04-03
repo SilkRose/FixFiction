@@ -9,22 +9,22 @@ license = "MIT"
 publish = false
 
 [dependencies]
-actix-cors = { version = "0.7.0" }
-actix-web = { version = "4.9.0" }
-chrono = { version = "0.4.39" }
+actix-cors = { version = "0.7.1" }
+actix-web = { version = "4.10.2" }
+chrono = { version = "0.4.40" }
 dotenvy = { version = "0.15.7" }
 pony = { git = "https://github.com/SilkRose/Pony" }
 regex = { version = "1.11.1" }
-reqwest = { version = "0.12.12", features = ["json"] }
-serde = { version = "1.0.218", features = ["derive"] }
-serde_json = { version = "1.0.139", features = ["preserve_order"] }
+reqwest = { version = "0.12.15", features = ["json"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { version = "1.0.140", features = ["preserve_order"] }
 sqlx = { version = "0.8.3", features = [
 	"runtime-tokio",
 	"tls-rustls",
 	"postgres",
 	"chrono",
 ] }
-tokio = { version = "1.43.0", features = ["full"] }
+tokio = { version = "1.44.1", features = ["full"] }
 url = { version = "2.5.4" }
 
 [profile.dev]
