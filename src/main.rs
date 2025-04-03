@@ -301,12 +301,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	dotenv()?;
 
 	// API Bearer token is required to scrape the data.
-	let token = &env::args().collect::<Vec<_>>()[1];
+	let token = env::var("BEARER_TOKEN").expect("BEARER_TOKEN should be set");
 
 	// API and site request structs, client, headers, and time intervals.
 	let api = FimficRequest {
 		client: Client::new(),
-		headers: setup_api_headers(token)?,
+		headers: setup_api_headers(&token)?,
 		interval: Duration::from_millis(500),
 		interval_step: Duration::from_secs(2),
 		interval_max: Duration::from_secs(120),
