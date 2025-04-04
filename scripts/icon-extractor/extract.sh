@@ -11,7 +11,7 @@ echo "Extracting font-awesome icons..."
 	exit 1
 }
 echo "Colorizing icons..."
-./colirize.sh || {
+./colorize.sh || {
 	echo "Failed to Colorize icons."
 	exit 1
 }

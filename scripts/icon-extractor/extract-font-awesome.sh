@@ -19,5 +19,5 @@ icons="bolt book bookmark certificate check times clock-o cog exclamation eye fi
 
 mkdir -p Svg/font-awesome/
 for icon in $icons; do
-	cp -a "FontAwesome/white/svg/$icon.svg" "Svg/font-awesome/fa-$icon.svg"
+	sed "s/#fff/#ffffff/g" "FontAwesome/white/svg/$icon.svg" > "Svg/font-awesome/fa-$icon.svg"
 done
