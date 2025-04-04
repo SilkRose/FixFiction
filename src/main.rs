@@ -122,13 +122,6 @@ struct Blog {
 	date_cached: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone)]
-enum TemplateType {
-	Story(Story, User),
-	User(User),
-	Blog(Blog, User, Option<Story>),
-}
-
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 struct Parameters {
@@ -201,11 +194,7 @@ async fn get_story(
 	let (story, user) = request_story(id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(html_template(
-			TemplateType::Story(story, user),
-			params,
-			link,
-		)))
+		.body(story_html_template(story, user, params, link)))
 }
 
 #[get("/user/{id:.*}")]
@@ -219,7 +208,7 @@ async fn get_user(
 	let user = request_user(id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(html_template(TemplateType::User(user), params, link)))
+		.body(user_html_template(user, params, link)))
 }
 
 #[get("/blog/{id:.*}")]
@@ -233,11 +222,7 @@ async fn get_blog(
 	let (blog, user, story) = request_blog(id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(html_template(
-			TemplateType::Blog(blog, user, story),
-			params,
-			link,
-		)))
+		.body(blog_html_template(blog, user, story, params, link)))
 }
 
 #[get("/oembed")]
@@ -645,36 +630,19 @@ async fn response_to_user(
 	Ok(user)
 }
 
-fn html_template(data: TemplateType, parameters: Parameters, link: String) -> String {
+fn story_html_template(story: Story, user: User, parameters: Parameters, link: String) -> String {
 	let mut text = String::new();
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
 	text.push_str("<!-- Pinkie Pie is best pony! -->");
 	let color = match parameters.color {
-		Some(color) => match (data.clone(), color) {
-			(_, Color::None) => None,
-			(_, Color::Custom(color)) => Some(color),
-			(TemplateType::Story(_, user), Color::User) => Some(user.color_hex),
-			(TemplateType::Story(story, _), Color::Story) => Some(story.color_hex),
-			(TemplateType::Blog(_, user, story), Color::Story) => {
-				Some(story.map(|story| story.color_hex).unwrap_or(user.color_hex))
-			}
-			(TemplateType::Blog(_, user, _), _) => Some(user.color_hex),
-			(TemplateType::User(user), _) => Some(user.color_hex),
+		Some(color) => match color {
+			Color::None => None,
+			Color::Custom(color) => Some(color),
+			Color::User => Some(user.color_hex),
+			Color::Story => Some(story.color_hex),
 		},
-		None => match data.clone() {
-			TemplateType::User(user) => Some(user.color_hex),
-			TemplateType::Story(story, user) => Some(match parameters.cover {
-				Some(Cover::User) => user.color_hex,
-				_ => story.color_hex,
-			}),
-			TemplateType::Blog(_, user, story) => Some(match parameters.cover {
-				Some(Cover::Story) => story
-					.as_ref()
-					.map_or(user.color_hex, |story| story.color_hex.clone()),
-				_ => user.color_hex,
-			}),
-		},
+		None => Some(story.color_hex),
 	};
 	if let Some(color) = color {
 		text.push_str(&format!(
@@ -685,33 +653,21 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 	text.push_str(&format!(
 		r#"<meta http-equiv="refresh" content="0;url={link}" />"#
 	));
-	let (title, description) = match data.clone() {
-		TemplateType::Story(story, _) => (story.title, story.short_description),
-		TemplateType::User(user) => (user.name, user.bio),
-		TemplateType::Blog(blog, _, _) => (blog.title, blog.content),
-	};
 	text.push_str(&format!(
-		r#"<meta property="og:title" content="{title}" />"#
+		r#"<meta property="og:title" content="{}" />"#,
+		story.title
 	));
 	text.push_str(&format!(
-		r#"<meta property="og:description" content="{description}" />"#
+		r#"<meta property="og:description" content="{}" />"#,
+		story.short_description
 	));
 	let cover = match parameters.cover {
-		Some(cover) => match (data.clone(), cover) {
-			(TemplateType::Story(story, _), Cover::Story) => story.cover_medium_url,
-			(TemplateType::Story(_, user), Cover::User) => user.profile_pic_256,
-			(TemplateType::User(user), Cover::Story | Cover::User) => user.profile_pic_256,
-			(TemplateType::Blog(_, user, _), Cover::User) => user.profile_pic_256,
-			(TemplateType::Blog(_, user, story), Cover::Story) => story
-				.map(|story| story.cover_medium_url)
-				.unwrap_or(user.profile_pic_256),
-			(_, Cover::None) => None,
+		Some(cover) => match cover {
+			Cover::Story => story.cover_medium_url,
+			Cover::User => user.profile_pic_256,
+			Cover::None => None,
 		},
-		None => match data.clone() {
-			TemplateType::Story(story, _) => story.cover_medium_url,
-			TemplateType::User(user) => user.profile_pic_256,
-			TemplateType::Blog(_, user, _) => user.profile_pic_256,
-		},
+		None => story.cover_medium_url,
 	};
 	if let Some(cover) = cover {
 		text.push_str(&format!(
@@ -719,62 +675,115 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 		));
 	}
 	text.push_str(&format!(r#"<meta property="og:url" content="{link}" />"#));
-	let (og_type, property, content) = match data.clone() {
-		TemplateType::Story(_, user) => ("book", "book:author", user.link),
-		TemplateType::User(user) => ("profile", "profile:username", user.name),
-		TemplateType::Blog(_, user, _) => ("article", "article:author", user.link),
+	text.push_str(r#"<meta property="og:type" content="book" />"#);
+	text.push_str(&format!(
+		r#"<meta property="book:author" content="{}" />"#,
+		user.link
+	));
+	let site_name = if parameters.stats {
+		let time = story.date_published.format("%a %b %e %Y").to_string();
+		let status = match story.completion_status {
+			CompletionStatus::Incomplete => "Incomplete 🔄",
+			CompletionStatus::Complete => "Complete ✅",
+			CompletionStatus::Hiatus => "Hiatus ⏸",
+			CompletionStatus::Cancelled => "Cancelled ❌",
+		};
+		let rating = match story.content_rating {
+			ContentRating::Everyone => "Everyone 🇪",
+			ContentRating::Teen => "Teen 🇹",
+			ContentRating::Mature => "Mature 🇲",
+		};
+		let likes_dislikes = if story.likes == -1 && story.dislikes == -1 {
+			String::new()
+		} else {
+			format!("Likes: {} 👍 Dislikes: {} 👎 ", story.likes, story.dislikes)
+		};
+		&format!(
+			"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} {likes_dislikes}Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
+			story.views, story.comments, story.chapters, story.words
+		)
+	} else {
+		"Fimfiction"
 	};
 	text.push_str(&format!(
-		r#"<meta property="og:type" content="{og_type}" />"#
+		r#"<meta property="og:site_name" content="{site_name}" />"#
 	));
+	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);
+	text.push_str(r#"<meta property="twitter:card" content="summary" />"#);
+	let mut encode = form_urlencoded::Serializer::new(String::new());
+	encode.append_pair("type", "rich");
+	encode.append_pair("version", "1");
+	encode.append_pair("provider_name", site_name);
+	encode.append_pair("provider_url", "https://www.fimfiction.net/");
+	encode.append_pair("title", &story.title);
+	encode.append_pair("author_name", &user.name);
+	encode.append_pair("author_url", &user.link);
+	encode.append_pair("cache_age", "86400");
+	encode.append_pair("html", "");
+	let encode = encode.finish();
 	text.push_str(&format!(
-		r#"<meta property="{property}" content="{content}" />"#
-	));
-	if let TemplateType::Blog(blog, _, _) = data.clone() {
+		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{}" />"#,
+		user.name));
+	text.push_str(r#"</head><body></body></html>"#);
+	text
+}
+
+fn user_html_template(user: User, parameters: Parameters, link: String) -> String {
+	let mut text = String::new();
+	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
+	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
+	text.push_str("<!-- Pinkie Pie is best pony! -->");
+	let color = match parameters.color {
+		Some(color) => match color {
+			Color::None => None,
+			Color::Custom(color) => Some(color),
+			_ => Some(user.color_hex),
+		},
+		None => Some(user.color_hex),
+	};
+	if let Some(color) = color {
 		text.push_str(&format!(
-			r#"<meta property="article:published_time" content="{}" />"#,
-			blog.date_posted
+			r##"<meta name="theme-color" content="#{color}" />"##
 		));
 	}
+	text.push_str(&format!(r#"<link rel="canonical" href="{link}" />"#));
+	text.push_str(&format!(
+		r#"<meta http-equiv="refresh" content="0;url={link}" />"#
+	));
+	text.push_str(&format!(
+		r#"<meta property="og:title" content="{}" />"#,
+		user.name
+	));
+	text.push_str(&format!(
+		r#"<meta property="og:description" content="{}" />"#,
+		user.bio
+	));
+	let cover = match parameters.cover {
+		Some(cover) => match cover {
+			Cover::None => None,
+			Cover::User => user.profile_pic_256,
+			Cover::Story => user.profile_pic_256,
+		},
+		None => user.profile_pic_256,
+	};
+	if let Some(cover) = cover {
+		text.push_str(&format!(
+			r#"<meta property="og:image" content="{cover}" />"#
+		));
+	}
+	text.push_str(&format!(r#"<meta property="og:url" content="{link}" />"#));
+	text.push_str(r#"<meta property="og:type" content="profile" />"#);
+	text.push_str(&format!(
+		r#"<meta property="profile:username" content="{}" />"#,
+		user.name
+	));
 	let site_name = if parameters.stats {
-		match data.clone() {
-			TemplateType::Story(story, _) => {
-				let time = story.date_published.format("%a %b %e %Y").to_string();
-				let status = match story.completion_status {
-					CompletionStatus::Incomplete => "Incomplete 🔄",
-					CompletionStatus::Complete => "Complete ✅",
-					CompletionStatus::Hiatus => "Hiatus ⏸",
-					CompletionStatus::Cancelled => "Cancelled ❌",
-				};
-				let rating = match story.content_rating {
-					ContentRating::Everyone => "Everyone 🇪",
-					ContentRating::Teen => "Teen 🇹",
-					ContentRating::Mature => "Mature 🇲",
-				};
-				let likes_dislikes = if story.likes == -1 && story.dislikes == -1 {
-					String::new()
-				} else {
-					format!("Likes: {} 👍 Dislikes: {} 👎 ", story.likes, story.dislikes)
-				};
-				&format!(
-					"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} {likes_dislikes}Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
-					story.views, story.comments, story.chapters, story.words
-				)
-			}
-			TemplateType::User(user) => {
-				let time = user.date_joined.format("%a %b %e %Y").to_string();
-				&format!(
-					"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
-					user.stories, user.blogs, user.followers
-				)
-			}
-			TemplateType::Blog(blog, _, _) => {
-				let time = blog.date_posted.format("%a %b %e %Y").to_string();
-				&format!(
-					"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬",
-					blog.views, blog.comments
-				)
-			}
+		{
+			let time = user.date_joined.format("%a %b %e %Y").to_string();
+			&format!(
+				"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
+				user.stories, user.blogs, user.followers
+			)
 		}
 	} else {
 		"Fimfiction"
@@ -789,22 +798,108 @@ fn html_template(data: TemplateType, parameters: Parameters, link: String) -> St
 	encode.append_pair("version", "1");
 	encode.append_pair("provider_name", site_name);
 	encode.append_pair("provider_url", "https://www.fimfiction.net/");
-	encode.append_pair("title", &title);
-	match data {
-		TemplateType::Story(_, user) => {
-			encode.append_pair("author_name", &user.name);
-			encode.append_pair("author_url", &user.link);
-		}
-		TemplateType::Blog(_, user, _) => {
-			encode.append_pair("author_name", &user.name);
-			encode.append_pair("author_url", &user.link);
-		}
-		_ => {}
-	}
+	encode.append_pair("title", &user.name);
 	encode.append_pair("cache_age", "86400");
 	encode.append_pair("html", "");
 	let encode = encode.finish();
-	text.push_str(&format!(r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{title}" />"#));
+	text.push_str(&format!(
+			r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{}" />"#,
+		user.name));
+	text.push_str(r#"</head><body></body></html>"#);
+	text
+}
+
+fn blog_html_template(
+	blog: Blog, user: User, story: Option<Story>, parameters: Parameters, link: String,
+) -> String {
+	let mut text = String::new();
+	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
+	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
+	text.push_str("<!-- Pinkie Pie is best pony! -->");
+	let color = match parameters.color {
+		Some(color) => match color {
+			Color::None => None,
+			Color::Custom(color) => Some(color),
+			Color::Story => Some(
+				story
+					.clone()
+					.map(|story| story.color_hex)
+					.unwrap_or(user.color_hex),
+			),
+			Color::User => Some(user.color_hex),
+		},
+		None => Some(user.color_hex),
+	};
+	if let Some(color) = color {
+		text.push_str(&format!(
+			r##"<meta name="theme-color" content="#{color}" />"##
+		));
+	}
+	text.push_str(&format!(r#"<link rel="canonical" href="{link}" />"#));
+	text.push_str(&format!(
+		r#"<meta http-equiv="refresh" content="0;url={link}" />"#
+	));
+	text.push_str(&format!(
+		r#"<meta property="og:title" content="{}" />"#,
+		blog.title
+	));
+	text.push_str(&format!(
+		r#"<meta property="og:description" content="{}" />"#,
+		blog.content
+	));
+	let cover = match parameters.cover {
+		Some(cover) => match cover {
+			Cover::User => user.profile_pic_256,
+			Cover::Story => story
+				.map(|story| story.cover_medium_url)
+				.unwrap_or(user.profile_pic_256),
+			Cover::None => None,
+		},
+		None => user.profile_pic_256,
+	};
+	if let Some(cover) = cover {
+		text.push_str(&format!(
+			r#"<meta property="og:image" content="{cover}" />"#
+		));
+	}
+	text.push_str(&format!(r#"<meta property="og:url" content="{link}" />"#));
+	text.push_str(r#"<meta property="og:type" content="article" />"#);
+	text.push_str(&format!(
+		r#"<meta property="article:author" content="{}" />"#,
+		user.link
+	));
+	text.push_str(&format!(
+		r#"<meta property="article:published_time" content="{}" />"#,
+		blog.date_posted
+	));
+	let site_name = if parameters.stats {
+		let time = blog.date_posted.format("%a %b %e %Y").to_string();
+		&format!(
+			"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬",
+			blog.views, blog.comments
+		)
+	} else {
+		"Fimfiction"
+	};
+	text.push_str(&format!(
+		r#"<meta property="og:site_name" content="{site_name}" />"#
+	));
+	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);
+	text.push_str(r#"<meta property="twitter:card" content="summary" />"#);
+	let mut encode = form_urlencoded::Serializer::new(String::new());
+	encode.append_pair("type", "rich");
+	encode.append_pair("version", "1");
+	encode.append_pair("provider_name", site_name);
+	encode.append_pair("provider_url", "https://www.fimfiction.net/");
+	encode.append_pair("title", &blog.title);
+	encode.append_pair("author_name", &user.name);
+	encode.append_pair("author_url", &user.link);
+	encode.append_pair("cache_age", "86400");
+	encode.append_pair("html", "");
+	let encode = encode.finish();
+	text.push_str(&format!(
+		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{}" />"#,
+		user.name));
 	text.push_str(r#"</head><body></body></html>"#);
 	text
 }
