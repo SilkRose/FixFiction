@@ -1,0 +1,16 @@
+#!/usr/bin/env fontforge
+
+if($argc < 4)
+	Print("Usage: $0 <font file> <out dir> <codepoints...>")
+	Quit(1);
+endif
+
+Open($1)
+i = 3
+while(i < $argc)
+	SelectMore(Strtol($argv[i], 16))
+	i = i + 1
+endloop
+
+UnlinkReference()
+Export(StrJoin([$2, "/%u.svg"], ""))
