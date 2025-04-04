@@ -1,1 +1,0 @@
-Fimfic uses FontAwesome 4 which doesn't seem to provide a SVG download, so I'm using [Font-Awesome-SVG-PNG](https://github.com/Rush/Font-Awesome-SVG-PNG/releases/tag/1.1.5)

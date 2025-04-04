@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+echo "Extracting pony emojis..."
+./extract-pony-emoji.sh || {
+	echo "Failed to extract pony emojis."
+	exit 1
+}
+echo "Extracting font-awesome icons..."
+./extract-font-awesome.sh || {
+	echo "Failed to extract font awesome icons."
+	exit 1
+}
+echo "Colorizing icons..."
+./colirize.sh || {
+	echo "Failed to Colorize icons."
+	exit 1
+}

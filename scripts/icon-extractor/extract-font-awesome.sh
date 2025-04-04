@@ -17,7 +17,7 @@ fi
 # cat icons.html | grep -oP '(?<=data-icon-type="font-awesome" class="bookshelf-icon-element fa fa-).*?(?="></span>)' | tr '\n' ' '
 icons="bolt book bookmark certificate check times clock-o cog exclamation eye film gamepad globe heart lock music road search star thumbs-up thumbs-down thumb-tack smile-o meh-o frown-o trash-o user youtube-play "
 
-mkdir -p Out/
+mkdir -p Svg/font-awesome/
 for icon in $icons; do
-	cp -a "FontAwesome/white/svg/$icon.svg" "Out/fa-$icon.svg"
+	cp -a "FontAwesome/white/svg/$icon.svg" "Svg/font-awesome/fa-$icon.svg"
 done
