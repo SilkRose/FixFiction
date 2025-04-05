@@ -7,7 +7,7 @@ use fixfiction::blog::{blog_html_template, request_blog};
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed, Parameters};
 use fixfiction::user::{request_user, user_html_template};
-use fixfiction::utility::parse_parameters;
+use fixfiction::utility::{parse_id, parse_parameters, parse_second_id};
 use pony::fimfiction_api::fimfic_api_headers;
 use pony::http::Request;
 use reqwest::Client;
@@ -22,10 +22,12 @@ async fn get_story(
 	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let path = path.into_inner();
+	let story_id = parse_id(&path)?;
 	let mut params = query.into_inner();
-	let id = parse_parameters(&path, &mut params, &app.db).await?;
+	let chapter_id = parse_second_id(&path);
+	parse_parameters(&mut params, &app.db).await?;
 	let link = format!("https://www.fimfiction.net/story/{path}");
-	let (story, user) = request_story(id, &app, params.refresh).await?;
+	let (story, user) = request_story(story_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(story_html_template(story, user, params, link)))
@@ -36,10 +38,11 @@ async fn get_user(
 	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let path = path.into_inner();
+	let user_id = parse_id(&path)?;
 	let mut params = query.into_inner();
-	let id = parse_parameters(&path, &mut params, &app.db).await?;
+	parse_parameters(&mut params, &app.db).await?;
 	let link = format!("https://www.fimfiction.net/user/{path}");
-	let user = request_user(id, &app, params.refresh).await?;
+	let user = request_user(user_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(user_html_template(user, params, link)))
@@ -50,10 +53,11 @@ async fn get_blog(
 	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let path = path.into_inner();
+	let blog_id = parse_id(&path)?;
 	let mut params = query.into_inner();
-	let id = parse_parameters(&path, &mut params, &app.db).await?;
+	parse_parameters(&mut params, &app.db).await?;
 	let link = format!("https://www.fimfiction.net/blog/{path}");
-	let (blog, user, story) = request_blog(id, &app, params.refresh).await?;
+	let (blog, user, story) = request_blog(blog_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(blog_html_template(blog, user, story, params, link)))
