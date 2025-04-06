@@ -5,13 +5,14 @@ use chrono::{TimeDelta, Utc};
 use dotenvy::dotenv;
 use fixfiction::blog::{blog_html_template, request_blog};
 use fixfiction::story::{request_story, story_html_template};
-use fixfiction::structs::{AppState, OEmbed, Parameters};
+use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::user::{request_user, user_html_template};
-use fixfiction::utility::{parse_id, parse_parameters, parse_second_id};
+use fixfiction::utility::{parse_embed_parameters, parse_id, parse_second_id};
 use pony::fimfiction_api::fimfic_api_headers;
 use pony::http::Request;
 use reqwest::Client;
 use sqlx::query;
+use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 use std::sync::Arc;
@@ -19,13 +20,13 @@ use std::time::Duration;
 
 #[get("/story/{id:.*}")]
 async fn get_story(
-	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
-	let path = path.into_inner();
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
 	let story_id = parse_id(&path)?;
-	let mut params = query.into_inner();
 	let chapter_id = parse_second_id(&path);
-	parse_parameters(&mut params, &app.db).await?;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/story/{path}");
 	let (story, user) = request_story(story_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
@@ -35,12 +36,12 @@ async fn get_story(
 
 #[get("/user/{id:.*}")]
 async fn get_user(
-	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
-	let path = path.into_inner();
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
 	let user_id = parse_id(&path)?;
-	let mut params = query.into_inner();
-	parse_parameters(&mut params, &app.db).await?;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/user/{path}");
 	let user = request_user(user_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
@@ -50,12 +51,12 @@ async fn get_user(
 
 #[get("/blog/{id:.*}")]
 async fn get_blog(
-	path: Path<String>, query: Query<Parameters>, app: Data<Arc<AppState>>,
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
-	let path = path.into_inner();
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
 	let blog_id = parse_id(&path)?;
-	let mut params = query.into_inner();
-	parse_parameters(&mut params, &app.db).await?;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/blog/{path}");
 	let (blog, user, story) = request_blog(blog_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()

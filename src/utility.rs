@@ -1,7 +1,7 @@
-use crate::structs::{Color, Parameters};
+use crate::structs::{Color, Cover, Parameters};
 use regex::Regex;
 use sqlx::{Pool, Postgres, query};
-use std::{error::Error, sync::LazyLock};
+use std::{collections::HashMap, error::Error, sync::LazyLock};
 
 pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
 	let binding = path.to_string();
@@ -24,13 +24,41 @@ pub fn parse_second_id(path: &str) -> Option<i32> {
 	}
 }
 
-pub async fn parse_parameters(
-	params: &mut Parameters, db: &Pool<Postgres>,
-) -> Result<(), Box<dyn Error>> {
-	if let Some(Color::Custom(color)) = &params.color {
+pub async fn parse_embed_parameters(
+	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
+) -> (Parameters, String) {
+	let mut params = Parameters::default();
+	let mut errors = Vec::new();
+	for (key, value) in queries {
+		match key.to_lowercase().as_str() {
+			"cover" | "image" => parse_cover(&mut params, &mut errors, value),
+			"color" | "colour" => parse_color(&mut params, &mut errors, db, value).await,
+			"refresh" => parse_bool(value, &mut params.refresh, &mut errors, &key),
+			"stats" => parse_bool(value, &mut params.stats, &mut errors, &key),
+			"comment" => parse_comment(path, &mut errors, value),
+			_ => parse_error(&mut errors, key),
+		}
+	}
+	(params, errors.join(", "))
+}
+
+fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String) {
+	let cover = Cover::try_from(value);
+	match cover {
+		Ok(cover) => params.cover = Some(cover),
+		Err(err) => errors.push(err.to_string()),
+	}
+}
+
+pub async fn parse_color(
+	params: &mut Parameters, errors: &mut Vec<String>, db: &Pool<Postgres>, value: String,
+) {
+	let color = Color::from(value);
+	if let Color::Custom(color) = color {
 		let db_color = query!("SELECT color FROM Colors WHERE name = $1 LIMIT 1;", color)
 			.fetch_optional(db)
-			.await?;
+			.await
+			.unwrap_or_default();
 		if let Some(color) = db_color {
 			params.color = Some(Color::Custom(color.color));
 		} else if color.len() == 6 {
@@ -40,10 +68,34 @@ pub async fn parse_parameters(
 				.all(|hex| hex.is_ascii_hexdigit())
 				.then_some(Color::Custom(color.to_string()));
 		} else {
+			errors.push(format!("Unsupported color option: {color}"));
 			params.color = None;
 		}
+	} else {
+		params.color = Some(color);
 	}
-	Ok(())
+}
+
+fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key: &str) {
+	match text.to_lowercase().as_str() {
+		"false" | "0" => *value = true,
+		"true" | "1" => *value = true,
+		_ => {
+			errors.push(format!("Unsupported {key} value: {value}"));
+		}
+	}
+}
+
+fn parse_comment(path: &mut String, errors: &mut Vec<String>, value: String) {
+	if path.contains("#comment/") {
+		errors.push(format!("Duplicate comment: {value}"));
+	} else {
+		*path = format!("{path}#comment/{value}");
+	}
+}
+
+fn parse_error(errors: &mut Vec<String>, key: String) {
+	errors.push(format!("Unsupported option: {key}"));
 }
 
 pub fn trim_content(content: String, clean: bool) -> String {

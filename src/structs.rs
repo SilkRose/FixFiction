@@ -130,7 +130,7 @@ pub enum Cover {
 impl TryFrom<String> for Cover {
 	type Error = &'static str;
 	fn try_from(value: String) -> Result<Self, Self::Error> {
-		match value.as_str() {
+		match value.to_lowercase().as_str() {
 			"story" => Ok(Cover::Story),
 			"user" => Ok(Cover::User),
 			"none" => Ok(Cover::None),
@@ -150,11 +150,11 @@ pub enum Color {
 
 impl From<String> for Color {
 	fn from(value: String) -> Self {
-		match value.as_str() {
+		match value.to_lowercase().as_str() {
 			"story" => Color::Story,
 			"user" => Color::User,
 			"none" => Color::None,
-			_ => Color::Custom(value),
+			_ => Color::Custom(value.to_lowercase()),
 		}
 	}
 }
