@@ -109,7 +109,9 @@ pub async fn request_story(
 	}
 }
 
-pub fn story_html_template(story: Story, user: User, parameters: Parameters, link: String) -> String {
+pub fn story_html_template(
+	story: Story, user: User, parameters: Parameters, link: String, errors: String,
+) -> String {
 	let mut text = String::new();
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
@@ -159,7 +161,7 @@ pub fn story_html_template(story: Story, user: User, parameters: Parameters, lin
 		r#"<meta property="book:author" content="{}" />"#,
 		user.link
 	));
-	let site_name = if parameters.stats {
+	let mut site_name = if parameters.stats {
 		let time = story.date_published.format("%a %b %e %Y").to_string();
 		let status = match story.completion_status {
 			CompletionStatus::Incomplete => "Incomplete 🔄",
@@ -177,13 +179,16 @@ pub fn story_html_template(story: Story, user: User, parameters: Parameters, lin
 		} else {
 			format!("Likes: {} 👍 Dislikes: {} 👎 ", story.likes, story.dislikes)
 		};
-		&format!(
+		format!(
 			"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} {likes_dislikes}Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
 			story.views, story.comments, story.chapters, story.words
 		)
 	} else {
-		"Fimfiction"
+		"Fimfiction".to_string()
 	};
+	if !errors.is_empty() {
+		site_name = format!("{site_name}\n{errors}");
+	}
 	text.push_str(&format!(
 		r#"<meta property="og:site_name" content="{site_name}" />"#
 	));
@@ -192,7 +197,7 @@ pub fn story_html_template(story: Story, user: User, parameters: Parameters, lin
 	let mut encode = form_urlencoded::Serializer::new(String::new());
 	encode.append_pair("type", "rich");
 	encode.append_pair("version", "1");
-	encode.append_pair("provider_name", site_name);
+	encode.append_pair("provider_name", &site_name);
 	encode.append_pair("provider_url", "https://www.fimfiction.net/");
 	encode.append_pair("title", &story.title);
 	encode.append_pair("author_name", &user.name);

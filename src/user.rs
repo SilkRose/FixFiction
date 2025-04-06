@@ -86,7 +86,9 @@ pub async fn response_to_user(
 	Ok(user)
 }
 
-pub fn user_html_template(user: User, parameters: Parameters, link: String) -> String {
+pub fn user_html_template(
+	user: User, parameters: Parameters, link: String, errors: String,
+) -> String {
 	let mut text = String::new();
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
@@ -135,17 +137,20 @@ pub fn user_html_template(user: User, parameters: Parameters, link: String) -> S
 		r#"<meta property="profile:username" content="{}" />"#,
 		user.name
 	));
-	let site_name = if parameters.stats {
+	let mut site_name = if parameters.stats {
 		{
 			let time = user.date_joined.format("%a %b %e %Y").to_string();
-			&format!(
+			format!(
 				"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
 				user.stories, user.blogs, user.followers
 			)
 		}
 	} else {
-		"Fimfiction"
+		"Fimfiction".to_string()
 	};
+	if !errors.is_empty() {
+		site_name = format!("{site_name}\n{errors}");
+	}
 	text.push_str(&format!(
 		r#"<meta property="og:site_name" content="{site_name}" />"#
 	));
@@ -154,7 +159,7 @@ pub fn user_html_template(user: User, parameters: Parameters, link: String) -> S
 	let mut encode = form_urlencoded::Serializer::new(String::new());
 	encode.append_pair("type", "rich");
 	encode.append_pair("version", "1");
-	encode.append_pair("provider_name", site_name);
+	encode.append_pair("provider_name", &site_name);
 	encode.append_pair("provider_url", "https://www.fimfiction.net/");
 	encode.append_pair("title", &user.name);
 	encode.append_pair("cache_age", "86400");

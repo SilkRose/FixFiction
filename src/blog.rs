@@ -94,6 +94,7 @@ pub async fn request_blog(
 
 pub fn blog_html_template(
 	blog: Blog, user: User, story: Option<Story>, parameters: Parameters, link: String,
+	errors: String,
 ) -> String {
 	let mut text = String::new();
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
@@ -155,15 +156,18 @@ pub fn blog_html_template(
 		r#"<meta property="article:published_time" content="{}" />"#,
 		blog.date_posted
 	));
-	let site_name = if parameters.stats {
+	let mut site_name = if parameters.stats {
 		let time = blog.date_posted.format("%a %b %e %Y").to_string();
-		&format!(
+		format!(
 			"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬",
 			blog.views, blog.comments
 		)
 	} else {
-		"Fimfiction"
+		"Fimfiction".to_string()
 	};
+	if !errors.is_empty() {
+		site_name = format!("{site_name}\n{errors}");
+	}
 	text.push_str(&format!(
 		r#"<meta property="og:site_name" content="{site_name}" />"#
 	));
@@ -172,7 +176,7 @@ pub fn blog_html_template(
 	let mut encode = form_urlencoded::Serializer::new(String::new());
 	encode.append_pair("type", "rich");
 	encode.append_pair("version", "1");
-	encode.append_pair("provider_name", site_name);
+	encode.append_pair("provider_name", &site_name);
 	encode.append_pair("provider_url", "https://www.fimfiction.net/");
 	encode.append_pair("title", &blog.title);
 	encode.append_pair("author_name", &user.name);

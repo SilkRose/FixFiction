@@ -31,7 +31,7 @@ async fn get_story(
 	let (story, user) = request_story(story_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(story_html_template(story, user, params, link)))
+		.body(story_html_template(story, user, params, link, errors)))
 }
 
 #[get("/user/{id:.*}")]
@@ -46,7 +46,7 @@ async fn get_user(
 	let user = request_user(user_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(user_html_template(user, params, link)))
+		.body(user_html_template(user, params, link, errors)))
 }
 
 #[get("/blog/{id:.*}")]
@@ -61,7 +61,7 @@ async fn get_blog(
 	let (blog, user, story) = request_blog(blog_id, &app, params.refresh).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
-		.body(blog_html_template(blog, user, story, params, link)))
+		.body(blog_html_template(blog, user, story, params, link, errors)))
 }
 
 #[get("/oembed")]
