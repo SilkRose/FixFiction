@@ -33,7 +33,7 @@ async fn get_story(
 				.body(error_html_template("story", path, err.to_string())));
 		}
 	};
-	let chapter_id = parse_second_id(&path);
+	let _chapter_id = parse_second_id(&path);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/story/{path}");
 	match request_story(story_id, &app, params.refresh).await {

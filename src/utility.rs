@@ -83,8 +83,8 @@ pub async fn parse_color(
 
 fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key: &str) {
 	match text.to_lowercase().as_str() {
-		"false" | "0" => *value = true,
-		"true" | "1" => *value = true,
+		"false" | "0" | "no" | "n" | "f" => *value = false,
+		"true" | "1" | "yes" | "y" | "t" => *value = true,
 		_ => {
 			errors.push(format!("Unsupported {key} value: {value}"));
 		}
@@ -106,7 +106,7 @@ fn parse_error(errors: &mut Vec<String>, key: String) {
 pub async fn parse_fimfic_response<T: DeserializeOwned>(
 	api: &Request, url: &str,
 ) -> Result<T, Box<dyn Error>> {
-	let response = api_get_request(&api, url)
+	let response = api_get_request(api, url)
 		.await
 		.map_err(|_| "FixFiction Error: API request error")?;
 	let body = response
