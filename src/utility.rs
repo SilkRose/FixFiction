@@ -1,5 +1,10 @@
 use crate::structs::{Color, Cover, Parameters};
+use pony::{
+	fimfiction_api::error::FimficError,
+	http::{Request, api_get_request},
+};
 use regex::Regex;
+use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};
 use std::{collections::HashMap, error::Error, sync::LazyLock};
 
@@ -96,6 +101,31 @@ fn parse_comment(path: &mut String, errors: &mut Vec<String>, value: String) {
 
 fn parse_error(errors: &mut Vec<String>, key: String) {
 	errors.push(format!("Unsupported option: {key}"));
+}
+
+pub async fn parse_fimfic_response<T: DeserializeOwned>(
+	api: &Request, url: &str,
+) -> Result<T, Box<dyn Error>> {
+	let response = api_get_request(&api, url)
+		.await
+		.map_err(|_| "FixFiction Error: API request error")?;
+	let body = response
+		.bytes()
+		.await
+		.map_err(|_| "FixFiction Error: reading Fimfiction API response")?;
+	let api = serde_json::from_slice::<T>(&body);
+	match api {
+		Ok(api) => Ok(api),
+		Err(_) => {
+			let error = serde_json::from_slice::<FimficError<i32>>(&body)
+				.map_err(|_| "FixFiction Error: API deserialization error")?;
+			let error = error
+				.errors
+				.first()
+				.ok_or("Fimfiction API Error: no error provided")?;
+			Err(format!("Fimfiction API Error: {} – {}", error.code, error.title).into())
+		}
+	}
 }
 
 pub fn trim_content(content: String, clean: bool) -> String {

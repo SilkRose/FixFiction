@@ -36,10 +36,14 @@ async fn get_story(
 	let chapter_id = parse_second_id(&path);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/story/{path}");
-	let (story, user) = request_story(story_id, &app, params.refresh).await?;
-	Ok(HttpResponse::Ok()
-		.content_type("text/html; charset=utf-8")
-		.body(story_html_template(story, user, params, link, errors)))
+	match request_story(story_id, &app, params.refresh).await {
+		Ok((story, user)) => Ok(HttpResponse::Ok()
+			.content_type("text/html; charset=utf-8")
+			.body(story_html_template(story, user, params, link, errors))),
+		Err(err) => Ok(HttpResponse::Ok()
+			.content_type("text/html; charset=utf-8")
+			.body(error_html_template("story", path, err.to_string()))),
+	}
 }
 
 #[get("/user/{id:.*}")]

@@ -2,11 +2,10 @@ use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
 use crate::user::{request_user, response_to_user};
-use crate::utility::clean_content;
+use crate::utility::{clean_content, parse_fimfic_response};
 use chrono::{DateTime, TimeDelta, Utc};
 use core::str;
 use pony::fimfiction_api::story::StoryApi;
-use pony::http::api_get_request;
 use url::form_urlencoded;
 
 pub async fn request_story(
@@ -24,7 +23,8 @@ pub async fn request_story(
 		id
 	)
 	.fetch_optional(&app.db)
-	.await?;
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error")?;
 
 	let story = match recache {
 		true => story.filter(|story| {
@@ -42,13 +42,12 @@ pub async fn request_story(
 		}
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
-			let response = api_get_request(&app.api, &fimfic).await.unwrap();
-			let api = response.json::<StoryApi<i32>>().await.unwrap();
+			let api = parse_fimfic_response::<StoryApi<i32>>(&app.api, &fimfic).await?;
 			let author = api
 				.included
 				.iter()
 				.find(|author| author.id == api.data.relationships.author.data.id)
-				.unwrap();
+				.ok_or("Fimfiction API error: no author included")?;
 			let user = response_to_user(&author.clone(), &app.db).await?;
 			let story = sqlx::query_as!(
 				Story,
@@ -99,11 +98,12 @@ pub async fn request_story(
 					&api.data
 						.attributes
 						.date_published
-						.expect("All published stories should be published.")
+						.ok_or("Fimfictiion API error: no published date")?
 				)?
 			)
 			.fetch_one(&app.db)
-			.await?;
+			.await
+			.map_err(|_| "FixFiction Error: database insertion error")?;
 			Ok((story, user))
 		}
 	}
