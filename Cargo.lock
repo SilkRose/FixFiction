@@ -2120,7 +2120,7 @@ dependencies = [
 [[package]]
 name = "pony"
 version = "0.0.0"
-source = "git+https://github.com/SilkRose/Pony#02db98e8a60703b858a8d7ca4b7014609b30dc82"
+source = "git+https://github.com/SilkRose/Pony#d45b50006762b0870c70380cd7b489ac58c6b6a0"
 dependencies = [
  "camino",
  "chrono-tz",
