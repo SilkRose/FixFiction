@@ -1,11 +1,10 @@
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, Parameters, Story, User};
 use crate::user::{request_user, response_to_user};
-use crate::utility::{clean_content, trim_content};
+use crate::utility::{clean_content, parse_fimfic_response, trim_content};
 use chrono::{DateTime, TimeDelta, Utc};
 use core::str;
 use pony::fimfiction_api::blog::BlogApi;
-use pony::http::api_get_request;
 use url::form_urlencoded;
 
 pub async fn request_blog(
@@ -20,7 +19,8 @@ pub async fn request_blog(
 		id
 	)
 	.fetch_optional(&app.db)
-	.await?;
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error")?;
 
 	let blog = match recache {
 		true => blog.filter(|blog| {
@@ -45,9 +45,11 @@ pub async fn request_blog(
 			let fimfic = format!(
 				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
 			);
-			let response = api_get_request(&app.api, &fimfic).await.unwrap();
-			let api = response.json::<BlogApi<i32>>().await?;
-			let author = api.included.first().unwrap();
+			let api = parse_fimfic_response::<BlogApi<i32>>(&app.api, &fimfic).await?;
+			let author = api
+				.included
+				.first()
+				.ok_or("Fimfiction API error: no author included")?;
 			let story_id = (api.data.relationships.tagged_story.data.id != "0")
 				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);
 			let (story, user) = if let Some(story_id) = story_id {
@@ -83,10 +85,12 @@ pub async fn request_blog(
 				api.data.attributes.num_views,
 				author.id.parse::<i32>()?,
 				story_id,
-				DateTime::parse_from_rfc3339(&api.data.attributes.date_posted)?
+				DateTime::parse_from_rfc3339(&api.data.attributes.date_posted)
+					.map_err(|_| "FixFiction Error: failed to parse publish date")?
 			)
 			.fetch_one(&app.db)
-			.await?;
+			.await
+			.map_err(|_| "FixFiction Error: database insertion error")?;
 			Ok((blog, user, story))
 		}
 	}

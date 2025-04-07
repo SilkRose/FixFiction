@@ -1,9 +1,8 @@
 use crate::structs::{AppState, Color, Cover, Parameters, User};
-use crate::utility::clean_content;
+use crate::utility::{clean_content, parse_fimfic_response};
 use chrono::{DateTime, TimeDelta, Utc};
 use core::str;
 use pony::fimfiction_api::user::{UserApi, UserData};
-use pony::http::api_get_request;
 use sqlx::{Pool, Postgres};
 use std::error::Error;
 use url::form_urlencoded;
@@ -21,7 +20,8 @@ pub async fn request_user(
 		id
 	)
 	.fetch_optional(&app.db)
-	.await?;
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error")?;
 
 	let user = match recache {
 		true => user.filter(|user| {
@@ -36,8 +36,7 @@ pub async fn request_user(
 		Some(user) => Ok(user),
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-			let response = api_get_request(&app.api, &fimfic).await.unwrap();
-			let api = response.json::<UserApi<i32>>().await.unwrap();
+			let api = parse_fimfic_response::<UserApi<i32>>(&app.api, &fimfic).await?;
 			response_to_user(&api.data, &app.db).await
 		}
 	}
@@ -79,10 +78,12 @@ pub async fn response_to_user(
 		data.attributes.num_blog_posts,
 		image,
 		data.attributes.color.hex.trim_start_matches("#"),
-		DateTime::parse_from_rfc3339(&data.attributes.date_joined)?
+		DateTime::parse_from_rfc3339(&data.attributes.date_joined)
+			.map_err(|_| "FixFiction Error: failed to parse date joined")?
 	)
 	.fetch_one(db)
-	.await?;
+	.await
+	.map_err(|_| "FixFiction Error: database insertion error")?;
 	Ok(user)
 }
 

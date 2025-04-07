@@ -99,7 +99,8 @@ pub async fn request_story(
 						.attributes
 						.date_published
 						.ok_or("Fimfictiion API error: no published date")?
-				)?
+				)
+				.map_err(|_| "FixFiction Error: failed to parse publish date")?
 			)
 			.fetch_one(&app.db)
 			.await
