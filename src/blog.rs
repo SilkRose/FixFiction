@@ -1,27 +1,16 @@
+use crate::database::{get_blog, insert_blog};
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, Parameters, Story, User};
 use crate::user::{request_user, response_to_user};
-use crate::utility::{clean_content, parse_fimfic_response, trim_content};
-use chrono::{DateTime, TimeDelta, Utc};
-use core::str;
+use crate::utility::parse_fimfic_response;
+use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::blog::BlogApi;
 use url::form_urlencoded;
 
 pub async fn request_blog(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
-	let blog = sqlx::query_as!(
-		Blog,
-		"SELECT
-			id, title, content, comments, views,
-			author_id, story_id, date_posted, date_cached
-		FROM Blogs WHERE id = $1 LIMIT 1;",
-		id
-	)
-	.fetch_optional(&app.db)
-	.await
-	.map_err(|_| "FixFiction Error: database retrieval error")?;
-
+	let blog = get_blog(id, &app.db).await?;
 	let blog = match recache {
 		true => blog.filter(|blog| {
 			Utc::now()
@@ -30,7 +19,6 @@ pub async fn request_blog(
 		}),
 		false => blog,
 	};
-
 	match blog {
 		Some(blog) => {
 			let (story, user) = if let Some(story_id) = blog.story_id {
@@ -58,39 +46,7 @@ pub async fn request_blog(
 			} else {
 				(None, response_to_user(author, &app.db).await?)
 			};
-			let blog = sqlx::query_as!(
-				Blog,
-				"INSERT INTO Blogs 
-					(id, title, content, comments, views,
-					author_id, story_id, date_posted)
-				VALUES
-					($1, $2, $3, $4, $5, $6, $7, $8)
-				ON CONFLICT(id) DO UPDATE SET
-					title = EXCLUDED.title,
-					content = EXCLUDED.content,
-					comments = EXCLUDED.comments,
-					views = EXCLUDED.views,
-					author_id = EXCLUDED.author_id,
-					story_id = EXCLUDED.story_id,
-					date_posted = EXCLUDED.date_posted,
-					date_cached = now()
-				RETURNING
-					id, title, content, comments, views,
-					author_id, story_id, date_posted,
-					date_cached;",
-				api.data.id.parse::<i32>()?,
-				clean_content(api.data.attributes.title),
-				trim_content(api.data.attributes.content, true),
-				api.data.attributes.num_comments,
-				api.data.attributes.num_views,
-				author.id.parse::<i32>()?,
-				story_id,
-				DateTime::parse_from_rfc3339(&api.data.attributes.date_posted)
-					.map_err(|_| "FixFiction Error: failed to parse publish date")?
-			)
-			.fetch_one(&app.db)
-			.await
-			.map_err(|_| "FixFiction Error: database insertion error")?;
+			let blog = insert_blog(id, &api, user.id, story_id, &app.db).await?;
 			Ok((blog, user, story))
 		}
 	}

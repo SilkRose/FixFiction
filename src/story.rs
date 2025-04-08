@@ -1,31 +1,17 @@
+use crate::database::{get_story, insert_story};
 use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
 use crate::user::{request_user, response_to_user};
-use crate::utility::{clean_content, parse_fimfic_response};
-use chrono::{DateTime, TimeDelta, Utc};
-use core::str;
+use crate::utility::parse_fimfic_response;
+use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::story::StoryApi;
 use url::form_urlencoded;
 
 pub async fn request_story(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Story, User), Box<dyn std::error::Error>> {
-	let story = sqlx::query_as!(
-		Story,
-		r#"SELECT
-			id, title, short_description, cover_medium_url,
-			color_hex, views, words, chapters, comments,
-			completion_status AS "completion_status: CompletionStatus",
-			content_rating AS "content_rating: ContentRating",
-			likes, dislikes, author_id, date_published, date_cached
-		FROM Stories WHERE id = $1 LIMIT 1;"#,
-		id
-	)
-	.fetch_optional(&app.db)
-	.await
-	.map_err(|_| "FixFiction Error: database retrieval error")?;
-
+	let story = get_story(id, &app.db).await?;
 	let story = match recache {
 		true => story.filter(|story| {
 			Utc::now()
@@ -34,7 +20,6 @@ pub async fn request_story(
 		}),
 		false => story,
 	};
-
 	match story {
 		Some(story) => {
 			let user = request_user(story.author_id, app, recache).await?;
@@ -49,62 +34,7 @@ pub async fn request_story(
 				.find(|author| author.id == api.data.relationships.author.data.id)
 				.ok_or("Fimfiction API error: no author included")?;
 			let user = response_to_user(&author.clone(), &app.db).await?;
-			let story = sqlx::query_as!(
-				Story,
-				r#"INSERT INTO Stories (
-					id, title, short_description, cover_medium_url,
-					color_hex, views, words, chapters, comments,
-					completion_status, content_rating,
-					likes, dislikes, author_id, date_published)
-				VALUES
-					($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-				ON CONFLICT(id) DO UPDATE SET
-					title = EXCLUDED.title,
-					short_description = EXCLUDED.short_description,
-					cover_medium_url = EXCLUDED.cover_medium_url,
-					color_hex = EXCLUDED.color_hex,
-					views = EXCLUDED.views,
-					words = EXCLUDED.words,
-					chapters = EXCLUDED.chapters,
-					comments = EXCLUDED.comments,
-					completion_status = EXCLUDED.completion_status,
-					content_rating = EXCLUDED.content_rating,
-					likes = EXCLUDED.likes,
-					dislikes = EXCLUDED.dislikes,
-					author_id = EXCLUDED.author_id,
-					date_published = EXCLUDED.date_published,
-					date_cached = now()
-				RETURNING 
-					id, title, short_description, cover_medium_url,
-					color_hex, views, words, chapters, comments,
-					completion_status AS "completion_status: CompletionStatus",
-					content_rating AS "content_rating: ContentRating",
-					likes, dislikes, author_id, date_published, date_cached;"#,
-				id,
-				clean_content(api.data.attributes.title),
-				clean_content(api.data.attributes.short_description),
-				api.data.attributes.cover_image.map(|cover| cover.medium),
-				api.data.attributes.color.hex.trim_start_matches("#"),
-				api.data.attributes.num_views,
-				api.data.attributes.num_words,
-				api.data.attributes.num_chapters,
-				api.data.attributes.num_comments,
-				CompletionStatus::from(api.data.attributes.completion_status) as _,
-				ContentRating::from(api.data.attributes.content_rating) as _,
-				api.data.attributes.num_likes,
-				api.data.attributes.num_dislikes,
-				user.id,
-				DateTime::parse_from_rfc3339(
-					&api.data
-						.attributes
-						.date_published
-						.ok_or("Fimfictiion API error: no published date")?
-				)
-				.map_err(|_| "FixFiction Error: failed to parse publish date")?
-			)
-			.fetch_one(&app.db)
-			.await
-			.map_err(|_| "FixFiction Error: database insertion error")?;
+			let story = insert_story(id, api, user.id, &app.db).await?;
 			Ok((story, user))
 		}
 	}

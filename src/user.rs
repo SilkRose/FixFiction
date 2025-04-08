@@ -1,7 +1,7 @@
+use crate::database::{get_user, insert_user};
 use crate::structs::{AppState, Color, Cover, Parameters, User};
-use crate::utility::{clean_content, parse_fimfic_response};
-use chrono::{DateTime, TimeDelta, Utc};
-use core::str;
+use crate::utility::parse_fimfic_response;
+use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::user::{UserApi, UserData};
 use sqlx::{Pool, Postgres};
 use std::error::Error;
@@ -10,19 +10,7 @@ use url::form_urlencoded;
 pub async fn request_user(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<User, Box<dyn std::error::Error>> {
-	let user = sqlx::query_as!(
-		User,
-		"SELECT
-			id, name, bio, link, followers,
-			stories, blogs, profile_pic_256,
-			color_hex, date_joined, date_cached
-		FROM Authors WHERE id = $1 LIMIT 1;",
-		id
-	)
-	.fetch_optional(&app.db)
-	.await
-	.map_err(|_| "FixFiction Error: database retrieval error")?;
-
+	let user = get_user(id, &app.db).await?;
 	let user = match recache {
 		true => user.filter(|user| {
 			Utc::now()
@@ -31,7 +19,6 @@ pub async fn request_user(
 		}),
 		false => user,
 	};
-
 	match user {
 		Some(user) => Ok(user),
 		None => {
@@ -47,43 +34,7 @@ pub async fn response_to_user(
 ) -> Result<User, Box<dyn Error>> {
 	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
 		.then_some(data.attributes.avatar.r256.clone());
-	let user = sqlx::query_as!(
-		User,
-		"INSERT INTO Authors 
-			(id, name, bio, link, followers, stories,
-			blogs, profile_pic_256, color_hex, date_joined)
-		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		ON CONFLICT(id) DO UPDATE SET
-			name = EXCLUDED.name,
-			bio = EXCLUDED.bio,
-			link = EXCLUDED.link,
-			followers = EXCLUDED.followers,
-			stories = EXCLUDED.stories,
-			blogs = EXCLUDED.blogs,
-			profile_pic_256 = EXCLUDED.profile_pic_256,
-			color_hex = EXCLUDED.color_hex,
-			date_joined = EXCLUDED.date_joined,
-			date_cached = now()
-		RETURNING
-			id, name, bio, link, followers,
-			stories, blogs, profile_pic_256,
-			color_hex, date_joined, date_cached;",
-		data.id.parse::<i32>()?,
-		clean_content(data.attributes.name.clone()),
-		clean_content(data.attributes.bio.clone()),
-		data.meta.url,
-		data.attributes.num_followers,
-		data.attributes.num_stories,
-		data.attributes.num_blog_posts,
-		image,
-		data.attributes.color.hex.trim_start_matches("#"),
-		DateTime::parse_from_rfc3339(&data.attributes.date_joined)
-			.map_err(|_| "FixFiction Error: failed to parse date joined")?
-	)
-	.fetch_one(db)
-	.await
-	.map_err(|_| "FixFiction Error: database insertion error")?;
+	let user = insert_user(data.id.parse::<i32>()?, data, image, db).await?;
 	Ok(user)
 }
 
