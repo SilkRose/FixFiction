@@ -1,7 +1,7 @@
-use crate::database::{get_blog, insert_blog};
+use crate::database::{get_blog, insert_blog, insert_user};
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, Parameters, Story, User};
-use crate::user::{request_user, response_to_user};
+use crate::user::request_user;
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::blog::BlogApi;
@@ -44,9 +44,9 @@ pub async fn request_blog(
 				let (story, user) = request_story(story_id, app, recache).await?;
 				(Some(story), user)
 			} else {
-				(None, response_to_user(author, &app.db).await?)
+				(None, insert_user(None, author, &app.db).await?)
 			};
-			let blog = insert_blog(id, &api, user.id, story_id, &app.db).await?;
+			let blog = insert_blog(Some(id), &api.data, user.id, story_id, &app.db).await?;
 			Ok((blog, user, story))
 		}
 	}

@@ -1,8 +1,8 @@
-use crate::database::{get_story, insert_story};
+use crate::database::{get_story, insert_story, insert_user};
 use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
-use crate::user::{request_user, response_to_user};
+use crate::user::request_user;
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::story::StoryApi;
@@ -33,8 +33,8 @@ pub async fn request_story(
 				.iter()
 				.find(|author| author.id == api.data.relationships.author.data.id)
 				.ok_or("Fimfiction API error: no author included")?;
-			let user = response_to_user(&author.clone(), &app.db).await?;
-			let story = insert_story(id, api, user.id, &app.db).await?;
+			let user = insert_user(None, author, &app.db).await?;
+			let story = insert_story(Some(id), api.data, user.id, &app.db).await?;
 			Ok((story, user))
 		}
 	}

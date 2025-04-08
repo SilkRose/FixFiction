@@ -2,14 +2,11 @@ use crate::database::{get_user, insert_user};
 use crate::structs::{AppState, Color, Cover, Parameters, User};
 use crate::utility::{map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
-use pony::fimfiction_api::user::{UserApi, UserData};
-use sqlx::{Pool, Postgres};
+use pony::fimfiction_api::user::UserApi;
 use std::error::Error;
 use url::form_urlencoded;
 
-pub async fn request_user(
-	id: i32, app: &AppState, recache: bool,
-) -> Result<User, Box<dyn std::error::Error>> {
+pub async fn request_user(id: i32, app: &AppState, recache: bool) -> Result<User, Box<dyn Error>> {
 	let user = get_user(id, &app.db).await?;
 	let user = match recache {
 		true => user.filter(|user| {
@@ -24,19 +21,9 @@ pub async fn request_user(
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
 			let api = parse_fimfic_response::<UserApi<i32>>(&app.api, &fimfic).await?;
-			response_to_user(&api.data, &app.db).await
+			insert_user(Some(id), &api.data, &app.db).await
 		}
 	}
-}
-
-pub async fn response_to_user(
-	data: &UserData<i32>, db: &Pool<Postgres>,
-) -> Result<User, Box<dyn Error>> {
-	let avatar = &data.attributes.avatar;
-	let image = (!avatar.r64.ends_with("none_64.png"))
-		.then_some(avatar.r256.trim_end_matches("-256").to_string());
-	let user = insert_user(data.id.parse::<i32>()?, data, image, db).await?;
-	Ok(user)
 }
 
 pub fn user_html_template(
