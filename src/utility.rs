@@ -1,8 +1,7 @@
 use crate::structs::{Color, Cover, Parameters};
-use pony::{
-	fimfiction_api::error::FimficError,
-	http::{Request, api_get_request},
-};
+use chrono::{DateTime, FixedOffset};
+use pony::fimfiction_api::error::FimficError;
+use pony::http::{Request, api_get_request};
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};
@@ -150,4 +149,17 @@ pub fn clean_content(content: String) -> String {
 	re.replace_all(&content, "")
 		.to_string()
 		.replace('"', "&quot;")
+}
+
+pub fn map_cover(link: Option<String>) -> Option<String> {
+	link.map(|link| format!("{link}-medium"))
+}
+
+pub fn map_picture(link: Option<String>) -> Option<String> {
+	link.map(|link| format!("{link}-256"))
+}
+
+pub fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>, Box<dyn Error>> {
+	Ok(DateTime::parse_from_rfc3339(&date)
+		.map_err(|_| format!("FixFiction Error: failed to parse {name} date"))?)
 }

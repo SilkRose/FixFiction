@@ -11,6 +11,11 @@ CREATE TYPE content_rating AS enum (
 	'mature'
 );
 
+CREATE TYPE authors_note_pos AS enum (
+	'top',
+	'bottom'
+);
+
 CREATE TABLE IF NOT EXISTS Authors (
 	id              integer     NOT NULL PRIMARY KEY,
 	name            text        NOT NULL,
@@ -19,7 +24,7 @@ CREATE TABLE IF NOT EXISTS Authors (
 	followers       integer     NOT NULL,
 	stories         integer     NOT NULL,
 	blogs           integer     NOT NULL,
-	profile_pic_256 text        NULL,
+	profile_pic_url text        NULL,
 	color_hex       char(6)     NOT NULL,
 	date_joined     timestamptz NOT NULL,
 	date_cached     timestamptz NOT NULL DEFAULT now()
@@ -29,17 +34,24 @@ CREATE TABLE IF NOT EXISTS Stories (
 	id                integer           NOT NULL PRIMARY KEY,
 	title             text              NOT NULL,
 	short_description text              NOT NULL,
-	cover_medium_url  text              NULL,
+	description       text              NOT NULL,
+	published         boolean           NOT NULL,
+	link              text              NOT NULL,
+	cover_url         text              NULL,
 	color_hex         char(6)           NOT NULL,
 	views             integer           NOT NULL,
+	total_views       integer           NOT NULL,
 	words             integer           NOT NULL,
 	chapters          integer           NOT NULL,
 	comments          integer           NOT NULL,
+	rating            integer           NOT NULL,
 	completion_status completion_status NOT NULL,
 	content_rating    content_rating    NOT NULL,
 	likes             integer           NOT NULL,
 	dislikes          integer           NOT NULL,
 	author_id         integer           NOT NULL,
+	date_modified     timestamptz       NOT NULL,
+	date_updated      timestamptz       NOT NULL,
 	date_published    timestamptz       NOT NULL,
 	date_cached       timestamptz       NOT NULL DEFAULT now(),
 
@@ -48,25 +60,29 @@ CREATE TABLE IF NOT EXISTS Stories (
 );
 
 CREATE TABLE IF NOT EXISTS Chapters (
-	story_id       integer     NOT NULL,
-	chapter_num    integer     NOT NULL,
-	title          text        NOT NULL,
-	content        text        NOT NULL,
-	views          integer     NOT NULL,
-	words          integer     NOT NULL,
-	date_published timestamptz NOT NULL,
-	date_cached    timestamptz NOT NULL DEFAULT now(),
+	id               integer          NOT NULL,
+	story_id         integer          NOT NULL,
+	chapter_num      integer          NOT NULL,
+	title            text             NOT NULL,
+	content          text             NOT NULL,
+	authors_note     text             NULL,
+	authors_note_pos authors_note_pos NOT NULL,
+	link             text             NOT NULL,
+	views            integer          NOT NULL,
+	words            integer          NOT NULL,
+	date_published   timestamptz      NOT NULL,
+	date_modified    timestamptz      NOT NULL,
+	date_cached      timestamptz      NOT NULL DEFAULT now(),
 
 	CONSTRAINT chapter_story_id_fk FOREIGN KEY (story_id)
-		REFERENCES Stories (id) ON DELETE CASCADE,
-
-	CONSTRAINT chapters_pk PRIMARY KEY (story_id, chapter_num)
+		REFERENCES Stories (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Blogs (
 	id          integer     NOT NULL PRIMARY KEY,
 	title       text        NOT NULL,
 	content     text        NOT NULL,
+	link        text        NOT NULL,
 	comments    integer     NOT NULL,
 	views       integer     NOT NULL,
 	author_id   integer     NOT NULL,

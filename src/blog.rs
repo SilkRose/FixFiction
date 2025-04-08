@@ -2,7 +2,7 @@ use crate::database::{get_blog, insert_blog};
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, Parameters, Story, User};
 use crate::user::{request_user, response_to_user};
-use crate::utility::parse_fimfic_response;
+use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::blog::BlogApi;
 use url::form_urlencoded;
@@ -93,13 +93,13 @@ pub fn blog_html_template(
 	));
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::User => user.profile_pic_256,
+			Cover::User => map_picture(user.profile_pic_url),
 			Cover::Story => story
-				.map(|story| story.cover_medium_url)
-				.unwrap_or(user.profile_pic_256),
+				.map(|story| map_cover(story.cover_url))
+				.unwrap_or(map_picture(user.profile_pic_url)),
 			Cover::None => None,
 		},
-		None => user.profile_pic_256,
+		None => map_picture(user.profile_pic_url),
 	};
 	if let Some(cover) = cover {
 		text.push_str(&format!(

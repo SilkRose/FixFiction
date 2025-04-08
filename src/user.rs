@@ -1,6 +1,6 @@
 use crate::database::{get_user, insert_user};
 use crate::structs::{AppState, Color, Cover, Parameters, User};
-use crate::utility::parse_fimfic_response;
+use crate::utility::{map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::user::{UserApi, UserData};
 use sqlx::{Pool, Postgres};
@@ -32,8 +32,9 @@ pub async fn request_user(
 pub async fn response_to_user(
 	data: &UserData<i32>, db: &Pool<Postgres>,
 ) -> Result<User, Box<dyn Error>> {
-	let image = (!data.attributes.avatar.r64.ends_with("none_64.png"))
-		.then_some(data.attributes.avatar.r256.clone());
+	let avatar = &data.attributes.avatar;
+	let image = (!avatar.r64.ends_with("none_64.png"))
+		.then_some(avatar.r256.trim_end_matches("-256").to_string());
 	let user = insert_user(data.id.parse::<i32>()?, data, image, db).await?;
 	Ok(user)
 }
@@ -73,10 +74,10 @@ pub fn user_html_template(
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
 			Cover::None => None,
-			Cover::User => user.profile_pic_256,
-			Cover::Story => user.profile_pic_256,
+			Cover::User => map_picture(user.profile_pic_url),
+			Cover::Story => map_picture(user.profile_pic_url),
 		},
-		None => user.profile_pic_256,
+		None => map_picture(user.profile_pic_url),
 	};
 	if let Some(cover) = cover {
 		text.push_str(&format!(

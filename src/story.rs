@@ -3,7 +3,7 @@ use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
 use crate::user::{request_user, response_to_user};
-use crate::utility::parse_fimfic_response;
+use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
 use pony::fimfiction_api::story::StoryApi;
 use url::form_urlencoded;
@@ -75,11 +75,11 @@ pub fn story_html_template(
 	));
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::Story => story.cover_medium_url,
-			Cover::User => user.profile_pic_256,
+			Cover::Story => map_cover(story.cover_url),
+			Cover::User => map_picture(user.profile_pic_url),
 			Cover::None => None,
 		},
-		None => story.cover_medium_url,
+		None => map_cover(story.cover_url),
 	};
 	if let Some(cover) = cover {
 		text.push_str(&format!(
