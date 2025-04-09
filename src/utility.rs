@@ -163,3 +163,16 @@ pub fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>, Box
 	Ok(DateTime::parse_from_rfc3339(&date)
 		.map_err(|_| format!("FixFiction Error: failed to parse {name} date"))?)
 }
+
+#[macro_export]
+macro_rules! get_variant {
+	($vec:expr, $ty:path) => {{
+		$vec.iter().find_map(|inc| {
+			if let $ty(data) = inc {
+				Some(data)
+			} else {
+				None
+			}
+		})
+	}};
+}
