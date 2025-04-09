@@ -1,7 +1,8 @@
-use crate::structs::{Blog, CompletionStatus, ContentRating, Story, User};
+use crate::structs::{AuthorsNotePos, Blog, Chapter, CompletionStatus, ContentRating, Story, User};
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
 use pony::fimfiction_api::blog::BlogData;
+use pony::fimfiction_api::chapter::ChapterData;
 use pony::fimfiction_api::story::StoryData;
 use pony::fimfiction_api::user::UserData;
 use sqlx::{Pool, Postgres};
@@ -209,6 +210,67 @@ pub async fn insert_story(
 			.ok_or("Fimfictiion API error: no updated date")?, "updated")?,
 		parse_date(data.attributes.date_published
 			.ok_or("Fimfictiion API error: no publish date")?, "published")?,
+	)
+	.fetch_one(db)
+	.await
+	.map_err(|_| "FixFiction Error: database insertion error".into())
+}
+
+pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Chapter,
+		r#"SELECT
+			id, story_id, chapter_num, title, content, authors_note,
+			authors_note_pos AS "authors_note_pos: AuthorsNotePos", link, views,
+			words, date_published, date_modified, date_cached
+		FROM Chapters WHERE id = $1 LIMIT 1;"#,
+		id
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
+pub async fn insert_chapter(
+	id: Option<i32>, data: ChapterData<i32>, story_id: i32, db: &Pool<Postgres>,
+) -> Result<Chapter, Box<dyn Error>> {
+	sqlx::query_as!(
+		Chapter,
+		r#"INSERT INTO Chapters 
+			(id, story_id, chapter_num, title, content,
+			authors_note, authors_note_pos, link, views,
+			words, date_published, date_modified)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		ON CONFLICT(id) DO UPDATE SET
+			story_id = EXCLUDED.story_id,
+			chapter_num = EXCLUDED.chapter_num,
+			title = EXCLUDED.title,
+			content = EXCLUDED.content,
+			authors_note = EXCLUDED.authors_note,
+			authors_note_pos = EXCLUDED.authors_note_pos,
+			link = EXCLUDED.link,
+			views = EXCLUDED.views,
+			words = EXCLUDED.words,
+			date_published = EXCLUDED.date_published,
+			date_modified = EXCLUDED.date_modified,
+			date_cached = now()
+		RETURNING
+			id, story_id, chapter_num, title, content, authors_note,
+			authors_note_pos AS "authors_note_pos: AuthorsNotePos", link, views,
+			words, date_published, date_modified, date_cached;"#,
+		id.unwrap_or(data.id.parse::<i32>()?),
+		story_id,
+		data.attributes.chapter_number,
+		data.attributes.title,
+		data.attributes.content,
+		data.attributes.authors_note,
+		AuthorsNotePos::from(data.attributes.authors_note_position) as _,
+		data.meta.url,
+		data.attributes.num_views,
+		data.attributes.num_words,
+		parse_date(data.attributes.date_published, "published")?,
+		parse_date(data.attributes.date_modified, "modifed")?,
 	)
 	.fetch_one(db)
 	.await

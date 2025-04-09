@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS Stories (
 );
 
 CREATE TABLE IF NOT EXISTS Chapters (
-	id               integer          NOT NULL,
+	id               integer          NOT NULL PRIMARY KEY,
 	story_id         integer          NOT NULL,
 	chapter_num      integer          NOT NULL,
 	title            text             NOT NULL,
