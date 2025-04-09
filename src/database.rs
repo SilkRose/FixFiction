@@ -216,6 +216,24 @@ pub async fn insert_story(
 	.map_err(|_| "FixFiction Error: database insertion error".into())
 }
 
+pub async fn get_story_chapter(
+	story_id: i32, chapter_num: i32, db: &Pool<Postgres>,
+) -> Result<Option<Chapter>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Chapter,
+		r#"SELECT
+			id, story_id, chapter_num, title, content, authors_note,
+			authors_note_pos AS "authors_note_pos: AuthorsNotePos", link, views,
+			words, date_published, date_modified, date_cached
+		FROM Chapters WHERE story_id = $1 AND chapter_num = $2 LIMIT 1;"#,
+		story_id,
+		chapter_num
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
 pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Chapter,
