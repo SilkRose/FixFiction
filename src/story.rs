@@ -1,11 +1,11 @@
 use crate::database::{get_story, insert_story, insert_user};
+use crate::fimfiction_api::story::StoryApi;
 use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
 use crate::user::request_user;
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
-use pony::fimfiction_api::story::StoryApi;
 use url::form_urlencoded;
 
 pub async fn request_story(

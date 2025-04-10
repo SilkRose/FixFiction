@@ -2,6 +2,7 @@ pub mod blog;
 pub mod chapter;
 pub mod database;
 pub mod error;
+pub mod fimfiction_api;
 pub mod story;
 pub mod structs;
 pub mod user;

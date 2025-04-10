@@ -1,10 +1,10 @@
 use crate::database::{get_blog, insert_blog, insert_user};
+use crate::fimfiction_api::blog::BlogApi;
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, Parameters, Story, User};
 use crate::user::request_user;
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
-use pony::fimfiction_api::blog::BlogApi;
 use url::form_urlencoded;
 
 pub async fn request_blog(

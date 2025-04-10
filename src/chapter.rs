@@ -1,10 +1,10 @@
 use crate::database::{get_chapter, insert_chapter, insert_story, insert_user};
+use crate::fimfiction_api::chapter::{ChapterApi, ChapterIncluded};
 use crate::get_variant;
 use crate::story::request_story;
 use crate::structs::{AppState, Chapter, Story, User};
 use crate::utility::parse_fimfic_response;
 use chrono::{TimeDelta, Utc};
-use pony::fimfiction_api::chapter::{ChapterApi, ChapterIncluded};
 
 pub async fn request_chapter(
 	id: i32, app: &AppState, recache: bool,

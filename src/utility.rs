@@ -1,6 +1,6 @@
+use crate::fimfiction_api::error::FimficError;
 use crate::structs::{Color, Cover, Parameters};
 use chrono::{DateTime, FixedOffset};
-use pony::fimfiction_api::error::FimficError;
 use pony::http::{Request, api_get_request};
 use regex::Regex;
 use serde::de::DeserializeOwned;
