@@ -10,6 +10,7 @@ use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::user::{request_user, user_html_template};
 use fixfiction::utility::{parse_embed_parameters, parse_id, parse_second_id};
+use fixfiction::{count_rows, prune_db};
 use pony::http::Request;
 use reqwest::Client;
 use sqlx::query;
@@ -104,18 +105,6 @@ async fn oembed(query: Query<OEmbed>) -> Result<impl Responder, Box<dyn Error>> 
 	Ok(HttpResponse::Ok()
 		.content_type("application/json+oembed")
 		.json(embed))
-}
-
-macro_rules! prune_db {
-	($query:literal, $time:ident, $db:ident) => {
-		query!($query, $time).execute(&$db).await.unwrap()
-	};
-}
-
-macro_rules! count_rows {
-	($query:literal, $db:ident) => {
-		query!($query).fetch_one(&$db).await.unwrap().count.unwrap()
-	};
 }
 
 #[tokio::main]

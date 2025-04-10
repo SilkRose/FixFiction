@@ -8,6 +8,20 @@ use chrono::DateTime;
 use sqlx::{Pool, Postgres};
 use std::error::Error;
 
+#[macro_export]
+macro_rules! prune_db {
+	($query:literal, $time:ident, $db:ident) => {
+		query!($query, $time).execute(&$db).await.unwrap()
+	};
+}
+
+#[macro_export]
+macro_rules! count_rows {
+	($query:literal, $db:ident) => {
+		query!($query).fetch_one(&$db).await.unwrap().count.unwrap();
+	};
+}
+
 pub async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Blog,
