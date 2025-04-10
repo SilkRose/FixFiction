@@ -1,3 +1,4 @@
+use crate::check_recache;
 use crate::database::{get_blog, insert_blog, insert_user};
 use crate::fimfiction_api::blog::BlogApi;
 use crate::story::request_story;
@@ -11,14 +12,7 @@ pub async fn request_blog(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
 	let blog = get_blog(id, &app.db).await?;
-	let blog = match recache {
-		true => blog.filter(|blog| {
-			Utc::now()
-				.checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))
-				.is_some_and(|max_age| blog.date_cached >= max_age)
-		}),
-		false => blog,
-	};
+	let blog = check_recache!(blog, recache, app);
 	match blog {
 		Some(blog) => {
 			let (story, user) = if let Some(story_id) = blog.story_id {

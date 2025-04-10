@@ -176,3 +176,17 @@ macro_rules! get_variant {
 		})
 	}};
 }
+
+#[macro_export]
+macro_rules! check_recache {
+	($item:expr, $recache:expr, $app:expr) => {{
+		match $recache {
+			true => $item.filter(|item| {
+				Utc::now()
+					.checked_sub_signed(TimeDelta::seconds($app.cache_recache_age))
+					.is_some_and(|max_age| item.date_cached >= max_age)
+			}),
+			false => $item,
+		}
+	}};
+}

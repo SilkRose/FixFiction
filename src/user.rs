@@ -1,3 +1,4 @@
+use crate::check_recache;
 use crate::database::{get_user, insert_user};
 use crate::fimfiction_api::user::UserApi;
 use crate::structs::{AppState, Color, Cover, Parameters, User};
@@ -8,14 +9,7 @@ use url::form_urlencoded;
 
 pub async fn request_user(id: i32, app: &AppState, recache: bool) -> Result<User, Box<dyn Error>> {
 	let user = get_user(id, &app.db).await?;
-	let user = match recache {
-		true => user.filter(|user| {
-			Utc::now()
-				.checked_sub_signed(TimeDelta::seconds(app.cache_recache_age))
-				.is_some_and(|max_age| user.date_cached >= max_age)
-		}),
-		false => user,
-	};
+	let user = check_recache!(user, recache, app);
 	match user {
 		Some(user) => Ok(user),
 		None => {
