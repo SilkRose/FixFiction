@@ -4,16 +4,15 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, get};
 use chrono::{TimeDelta, Utc};
 use dotenvy::dotenv;
 use fixfiction::blog::{blog_html_template, request_blog};
+use fixfiction::database::count_rows;
 use fixfiction::error::error_html_template;
 use fixfiction::fimfiction_api::fimfic_api_headers;
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::user::{request_user, user_html_template};
 use fixfiction::utility::{parse_embed_parameters, parse_id, parse_second_id};
-use fixfiction::{count_rows, prune_db};
 use pony::http::Request;
 use reqwest::Client;
-use sqlx::query;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -146,13 +145,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	tokio::task::spawn(async move {
 		loop {
 			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
-			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
-			prune_db!("DELETE FROM Blogs WHERE date_cached < $1", time, db_clone);
-			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
-			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);
-			let blogs = count_rows!("SELECT count(*) FROM Blogs;", db_clone);
-			let users = count_rows!("SELECT count(*) FROM Authors;", db_clone);
-			let stories = count_rows!("SELECT count(*) FROM Stories;", db_clone);
+			let _time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
+			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
+			let users = count_rows("Authors", &db_clone).await.unwrap();
+			let stories = count_rows("Stories", &db_clone).await.unwrap();
 			let time = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 			println!("{time}: stories: {stories}, users: {users}, blogs: {blogs}");
 		}
