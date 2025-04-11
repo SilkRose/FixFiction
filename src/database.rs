@@ -1,8 +1,11 @@
 use crate::fimfiction_api::blog::BlogData;
 use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::story::StoryData;
+use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::user::UserData;
-use crate::structs::{AuthorsNotePos, Blog, Chapter, CompletionStatus, ContentRating, Story, User};
+use crate::structs::{
+	AuthorsNotePos, Blog, Chapter, CompletionStatus, ContentRating, Story, Tag, TagType, User,
+};
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
 use sqlx::{Pool, Postgres};
@@ -12,6 +15,62 @@ pub async fn count_rows(table: &str, db: &Pool<Postgres>) -> Result<i64, Box<dyn
 	let query = format!("SELECT count(*) FROM {}", table);
 	let count: i64 = sqlx::query_scalar(&query).fetch_one(db).await?;
 	Ok(count)
+}
+
+pub async fn get_tag_by_id(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Tag,
+		r#"SELECT
+			id, name, type AS "tag_type: TagType", description, old_id, link, date_cached
+		FROM Tags WHERE id = $1 LIMIT 1;"#,
+		id
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
+pub async fn get_tag_by_url(url: &str, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Tag,
+		r#"SELECT
+			id, name, type AS "tag_type: TagType", description, old_id, link, date_cached
+		FROM Tags WHERE link = $1 LIMIT 1;"#,
+		url
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
+pub async fn insert_tag(
+	id: Option<i32>, tag: TagData, db: &Pool<Postgres>,
+) -> Result<Tag, Box<dyn Error>> {
+	sqlx::query_as!(
+		Tag,
+		r#"INSERT INTO Tags
+			(id, name, type, description, old_id, link)
+		VALUES
+			($1, $2, $3, $4, $5, $6)
+		ON CONFLICT(id) DO UPDATE SET
+			name = EXCLUDED.name,
+			type = EXCLUDED.type,
+			description = EXCLUDED.description,
+			old_id = EXCLUDED.old_id,
+			link = EXCLUDED.link,
+			date_cached = now()
+		RETURNING
+			id, name, type AS "tag_type: TagType", description, old_id, link, date_cached;"#,
+		id.unwrap_or(tag.id.parse::<i32>()?),
+		tag.attributes.name,
+		TagType::from(tag.attributes.r#type) as _,
+		tag.attributes.description,
+		tag.attributes.meta.old_id,
+		tag.attributes.meta.url,
+	)
+	.fetch_one(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
 }
 
 pub async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<dyn Error>> {
