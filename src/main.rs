@@ -143,14 +143,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	};
 
 	tokio::task::spawn(async move {
+		let _time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
+		// Insert tag check here.
 		loop {
-			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
-			let _time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
 			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
 			let users = count_rows("Authors", &db_clone).await.unwrap();
 			let stories = count_rows("Stories", &db_clone).await.unwrap();
+			let chapters = count_rows("Chapters", &db_clone).await.unwrap();
+			let tags = count_rows("Tags", &db_clone).await.unwrap();
+			let tag_links = count_rows("Tag_links", &db_clone).await.unwrap();
 			let time = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
-			println!("{time}: stories: {stories}, users: {users}, blogs: {blogs}");
+			println!("{time}");
+			println!("stories: {stories}, users: {users}, blogs: {blogs}");
+			println!("chapters: {chapters}, tags: {tags}, tag links: {tag_links}");
+			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
 		}
 	});
 
