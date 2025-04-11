@@ -201,6 +201,50 @@ impl From<String> for Color {
 	}
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "lowercase", try_from = "String")]
+pub enum TagType {
+	Character,
+	Genre,
+	Rating,
+	Content,
+	Series,
+	Warning,
+	Universe,
+}
+
+impl From<String> for TagType {
+	fn from(value: String) -> Self {
+		match value.to_lowercase().as_str() {
+			"character" => TagType::Character,
+			"genre" => TagType::Genre,
+			"rating" => TagType::Rating,
+			"content" => TagType::Content,
+			"series" => TagType::Series,
+			"warning" => TagType::Warning,
+			"universe" => TagType::Universe,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct Tag {
+	pub id: i32,
+	pub name: String,
+	pub tag_type: TagType,
+	pub description: Option<String>,
+	pub old_id: Option<String>,
+	pub link: String,
+	pub date_cached: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TagLink {
+	pub story_id: i32,
+	pub tag_id: i32,
+}
+
 #[derive(Debug, Clone)]
 pub struct AppState {
 	pub api: Request,
