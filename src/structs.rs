@@ -61,6 +61,33 @@ impl From<String> for AuthorsNotePos {
 	}
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
+#[sqlx(type_name = "tag_type", rename_all = "lowercase")]
+pub enum TagType {
+	Character,
+	Genre,
+	Rating,
+	Content,
+	Series,
+	Warning,
+	Universe,
+}
+
+impl From<String> for TagType {
+	fn from(value: String) -> Self {
+		match value.as_str() {
+			"character" => TagType::Character,
+			"genre" => TagType::Genre,
+			"rating" => TagType::Rating,
+			"content" => TagType::Content,
+			"series" => TagType::Series,
+			"warning" => TagType::Warning,
+			"universe" => TagType::Universe,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
+}
+
 #[derive(Debug, Clone)]
 pub struct Story {
 	pub id: i32,
@@ -197,33 +224,6 @@ impl From<String> for Color {
 			"user" => Color::User,
 			"none" => Color::None,
 			_ => Color::Custom(value.to_lowercase()),
-		}
-	}
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "lowercase", try_from = "String")]
-pub enum TagType {
-	Character,
-	Genre,
-	Rating,
-	Content,
-	Series,
-	Warning,
-	Universe,
-}
-
-impl From<String> for TagType {
-	fn from(value: String) -> Self {
-		match value.to_lowercase().as_str() {
-			"character" => TagType::Character,
-			"genre" => TagType::Genre,
-			"rating" => TagType::Rating,
-			"content" => TagType::Content,
-			"series" => TagType::Series,
-			"warning" => TagType::Warning,
-			"universe" => TagType::Universe,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
 		}
 	}
 }
