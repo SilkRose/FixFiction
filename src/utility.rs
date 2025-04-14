@@ -152,11 +152,11 @@ pub fn clean_content(content: String) -> String {
 }
 
 pub fn map_cover(link: Option<String>) -> Option<String> {
-	link.map(|link| format!("{link}-medium"))
+	link.map(|link| format!("{link}-full"))
 }
 
 pub fn map_picture(link: Option<String>) -> Option<String> {
-	link.map(|link| format!("{link}-256"))
+	link.map(|link| format!("{link}-512"))
 }
 
 pub fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>, Box<dyn Error>> {
