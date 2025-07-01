@@ -18,7 +18,7 @@ pub async fn request_chapter(
 		}
 		None => {
 			let fimfic = format!(
-				"https://www.fimfiction.net/api/v2/chapters/{id}?include=story,story.author&fields%5Bchapter%5D=chapter_number,title,published,num_words,num_views,date_published,date_modified,authors_note,authors_note_position,content"
+				"https://www.fimfiction.net/api/v2/chapters/{id}?include=story,story.author"
 			);
 			let api = parse_fimfic_response::<ChapterApi<i32>>(&app.api, &fimfic).await?;
 			let story = get_variant!(api.included, ChapterIncluded::Story)

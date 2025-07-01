@@ -3,9 +3,7 @@ use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::user::UserData;
-use crate::structs::{
-	AuthorsNotePos, Blog, Chapter, CompletionStatus, ContentRating, Story, Tag, TagType, User,
-};
+use crate::structs::{Blog, Chapter, CompletionStatus, ContentRating, Story, Tag, TagType, User};
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
 use sqlx::{Pool, Postgres};
@@ -294,8 +292,7 @@ pub async fn get_story_chapter(
 	sqlx::query_as!(
 		Chapter,
 		r#"SELECT
-			id, story_id, chapter_num, title, content, authors_note,
-			authors_note_pos AS "authors_note_pos: AuthorsNotePos", link, views,
+			id, story_id, chapter_num, title, link, views,
 			words, date_published, date_modified, date_cached
 		FROM Chapters WHERE story_id = $1 AND chapter_num = $2 LIMIT 1;"#,
 		story_id,
@@ -310,8 +307,7 @@ pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>
 	sqlx::query_as!(
 		Chapter,
 		r#"SELECT
-			id, story_id, chapter_num, title, content, authors_note,
-			authors_note_pos AS "authors_note_pos: AuthorsNotePos", link, views,
+			id, story_id, chapter_num, title, link, views,
 			words, date_published, date_modified, date_cached
 		FROM Chapters WHERE id = $1 LIMIT 1;"#,
 		id
@@ -327,18 +323,14 @@ pub async fn insert_chapter(
 	sqlx::query_as!(
 		Chapter,
 		r#"INSERT INTO Chapters 
-			(id, story_id, chapter_num, title, content,
-			authors_note, authors_note_pos, link, views,
+			(id, story_id, chapter_num, title, link, views,
 			words, date_published, date_modified)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT(id) DO UPDATE SET
 			story_id = EXCLUDED.story_id,
 			chapter_num = EXCLUDED.chapter_num,
 			title = EXCLUDED.title,
-			content = EXCLUDED.content,
-			authors_note = EXCLUDED.authors_note,
-			authors_note_pos = EXCLUDED.authors_note_pos,
 			link = EXCLUDED.link,
 			views = EXCLUDED.views,
 			words = EXCLUDED.words,
@@ -346,16 +338,12 @@ pub async fn insert_chapter(
 			date_modified = EXCLUDED.date_modified,
 			date_cached = now()
 		RETURNING
-			id, story_id, chapter_num, title, content, authors_note,
-			authors_note_pos AS "authors_note_pos: AuthorsNotePos", link, views,
+			id, story_id, chapter_num, title, link, views,
 			words, date_published, date_modified, date_cached;"#,
 		id.unwrap_or(data.id.parse::<i32>()?),
 		story_id,
 		data.attributes.chapter_number,
 		data.attributes.title,
-		data.attributes.content,
-		data.attributes.authors_note,
-		AuthorsNotePos::from(data.attributes.authors_note_position) as _,
 		data.meta.url,
 		data.attributes.num_views,
 		data.attributes.num_words,

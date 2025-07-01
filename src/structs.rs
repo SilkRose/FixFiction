@@ -45,23 +45,6 @@ impl From<String> for CompletionStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
-#[sqlx(type_name = "authors_note_pos", rename_all = "lowercase")]
-pub enum AuthorsNotePos {
-	Top,
-	Bottom,
-}
-
-impl From<String> for AuthorsNotePos {
-	fn from(value: String) -> Self {
-		match value.as_str() {
-			"top" => AuthorsNotePos::Top,
-			"bottom" => AuthorsNotePos::Bottom,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "tag_type", rename_all = "lowercase")]
 pub enum TagType {
 	Character,
@@ -165,9 +148,6 @@ pub struct Chapter {
 	pub story_id: i32,
 	pub chapter_num: i32,
 	pub title: String,
-	pub content: String,
-	pub authors_note: Option<String>,
-	pub authors_note_pos: AuthorsNotePos,
 	pub link: String,
 	pub views: i32,
 	pub words: i32,

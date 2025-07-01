@@ -40,7 +40,5 @@ pub struct ChapterAttributes<T = u32> {
 	pub num_views: T,
 	pub date_published: String,
 	pub date_modified: String,
-	pub authors_note: String,
 	pub authors_note_position: String,
-	pub content: String,
 }
