@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS Chapters;
 DROP TABLE IF EXISTS Stories;
 DROP TABLE IF EXISTS Authors;
 
+DROP TYPE IF EXISTS tag_type;
 DROP TYPE IF EXISTS authors_note_pos;
 DROP TYPE IF EXISTS content_rating;
 DROP TYPE IF EXISTS completion_status;
