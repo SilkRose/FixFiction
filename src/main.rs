@@ -7,6 +7,7 @@ use fixfiction::blog::{blog_html_template, request_blog};
 use fixfiction::database::count_rows;
 use fixfiction::error::error_html_template;
 use fixfiction::fimfiction_api::fimfic_api_headers;
+use fixfiction::prune_db;
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::user::{request_user, user_html_template};
@@ -146,6 +147,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		let _time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
 		// Insert tag check here.
 		loop {
+			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
+			prune_db!("DELETE FROM Blogs WHERE date_cached < $1", time, db_clone);
+			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
+			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);
 			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
 			let users = count_rows("Authors", &db_clone).await.unwrap();
 			let stories = count_rows("Stories", &db_clone).await.unwrap();
