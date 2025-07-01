@@ -11,11 +11,6 @@ CREATE TYPE content_rating AS enum (
 	'mature'
 );
 
-CREATE TYPE authors_note_pos AS enum (
-	'top',
-	'bottom'
-);
-
 CREATE TYPE tag_type AS enum (
 	'character',
 	'genre',
@@ -74,9 +69,6 @@ CREATE TABLE IF NOT EXISTS Chapters (
 	story_id         integer          NOT NULL,
 	chapter_num      integer          NOT NULL,
 	title            text             NOT NULL,
-	content          text             NOT NULL,
-	authors_note     text             NULL,
-	authors_note_pos authors_note_pos NOT NULL,
 	link             text             NOT NULL,
 	views            integer          NOT NULL,
 	words            integer          NOT NULL,
