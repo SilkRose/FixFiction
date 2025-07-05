@@ -17,7 +17,7 @@ macro_rules! prune_db {
 }
 
 pub async fn count_rows(table: &str, db: &Pool<Postgres>) -> Result<i64, Box<dyn Error>> {
-	let query = format!("SELECT count(*) FROM {}", table);
+	let query = format!("SELECT count(*) FROM {table}");
 	let count: i64 = sqlx::query_scalar(&query).fetch_one(db).await?;
 	Ok(count)
 }
