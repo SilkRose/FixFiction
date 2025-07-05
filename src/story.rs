@@ -1,11 +1,12 @@
-use crate::check_recache;
 use crate::database::{get_story, insert_story, insert_user};
+use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::story::StoryApi;
 use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
 use crate::user::request_user;
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
+use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use url::form_urlencoded;
 
@@ -22,10 +23,7 @@ pub async fn request_story(
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
 			let api = parse_fimfic_response::<StoryApi<i32>>(&app.api, &fimfic).await?;
-			let author = api
-				.included
-				.iter()
-				.find(|author| author.id == api.data.relationships.author.data.id)
+			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let user = insert_user(None, author, &app.db).await?;
 			let story = insert_story(Some(id), api.data, user.id, &app.db).await?;

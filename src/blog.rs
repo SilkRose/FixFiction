@@ -1,10 +1,11 @@
-use crate::check_recache;
 use crate::database::{get_blog, insert_blog, insert_user};
+use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::BlogApi;
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, Parameters, Story, User};
 use crate::user::request_user;
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
+use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use url::form_urlencoded;
 
@@ -28,9 +29,7 @@ pub async fn request_blog(
 				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
 			);
 			let api = parse_fimfic_response::<BlogApi<i32>>(&app.api, &fimfic).await?;
-			let author = api
-				.included
-				.first()
+			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let story_id = (api.data.relationships.tagged_story.data.id != "0")
 				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);

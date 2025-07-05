@@ -1,5 +1,6 @@
 use crate::database::{get_chapter, insert_chapter, insert_story, insert_user};
-use crate::fimfiction_api::chapter::{ChapterApi, ChapterIncluded};
+use crate::fimfiction_api::ApiIncluded;
+use crate::fimfiction_api::chapter::ChapterApi;
 use crate::story::request_story;
 use crate::structs::{AppState, Chapter, Story, User};
 use crate::utility::parse_fimfic_response;
@@ -21,9 +22,9 @@ pub async fn request_chapter(
 				"https://www.fimfiction.net/api/v2/chapters/{id}?include=story,story.author"
 			);
 			let api = parse_fimfic_response::<ChapterApi<i32>>(&app.api, &fimfic).await?;
-			let story = get_variant!(api.included, ChapterIncluded::Story)
+			let story = get_variant!(api.included, ApiIncluded::Story)
 				.ok_or("Fimfiction API error: no story included")?;
-			let author = get_variant!(api.included, ChapterIncluded::Author)
+			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let author = insert_user(None, author, &app.db).await?;
 			let story = insert_story(None, story.clone(), author.id, &app.db).await?;
