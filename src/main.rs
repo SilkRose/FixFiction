@@ -4,6 +4,7 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, get};
 use chrono::{TimeDelta, Utc};
 use dotenvy::dotenv;
 use fixfiction::blog::{blog_html_template, request_blog};
+use fixfiction::chapter::{chapter_html_template, request_chapter, request_story_chapters};
 use fixfiction::database::count_rows;
 use fixfiction::error::error_html_template;
 use fixfiction::fimfiction_api::fimfic_api_headers;
@@ -34,16 +35,53 @@ async fn get_story(
 				.body(error_html_template("story", path, err.to_string())));
 		}
 	};
-	let _chapter_id = parse_second_id(&path);
+	let chapter_id = parse_second_id(&path);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/story/{path}");
-	match request_story(story_id, &app, params.refresh).await {
-		Ok((story, user)) => Ok(HttpResponse::Ok()
+	let body = match chapter_id {
+		Some(chapter_num) => {
+			match request_story_chapters(story_id, chapter_num, &app, params.refresh).await {
+				Ok((chapter, story, user)) => {
+					chapter_html_template(chapter, story, user, params, link, errors)
+				}
+				Err(err) => error_html_template("story", path, err.to_string()),
+			}
+		}
+		None => match request_story(story_id, &app, params.refresh).await {
+			Ok((story, user)) => story_html_template(story, user, params, link, errors),
+			Err(err) => error_html_template("story", path, err.to_string()),
+		},
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
+}
+
+#[get("/chapter/{id:.*}")]
+async fn get_chapter(
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
+	let chapter_id = match parse_id(&path) {
+		Ok(id) => id,
+		Err(err) => {
+			return Ok(HttpResponse::Ok()
+				.content_type("text/html; charset=utf-8")
+				.body(error_html_template("chapter", path, err.to_string())));
+		}
+	};
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let link = format!("https://www.fimfiction.net/chapter/{path}");
+	match request_chapter(chapter_id, &app, params.refresh).await {
+		Ok((chapter, story, user)) => Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(story_html_template(story, user, params, link, errors))),
+			.body(chapter_html_template(
+				chapter, story, user, params, link, errors,
+			))),
 		Err(err) => Ok(HttpResponse::Ok()
 			.content_type("text/html; charset=utf-8")
-			.body(error_html_template("story", path, err.to_string()))),
+			.body(error_html_template("user", path, err.to_string()))),
 	}
 }
 
@@ -176,6 +214,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 					.max_age(3600),
 			)
 			.service(get_story)
+			.service(get_chapter)
 			.service(get_user)
 			.service(get_blog)
 			.service(oembed)
