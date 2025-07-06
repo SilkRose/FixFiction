@@ -73,16 +73,15 @@ async fn get_chapter(
 	};
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/chapter/{path}");
-	match request_chapter(chapter_id, &app, params.refresh).await {
-		Ok((chapter, story, user)) => Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(chapter_html_template(
-				chapter, story, user, params, link, errors,
-			))),
-		Err(err) => Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(error_html_template("user", path, err.to_string()))),
-	}
+	let body = match request_chapter(chapter_id, &app, params.refresh).await {
+		Ok((chapter, story, user)) => {
+			chapter_html_template(chapter, story, user, params, link, errors)
+		}
+		Err(err) => error_html_template("chapter", path, err.to_string()),
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
 }
 
 #[get("/user/{id:.*}")]
@@ -101,14 +100,13 @@ async fn get_user(
 	};
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/user/{path}");
-	match request_user(user_id, &app, params.refresh).await {
-		Ok(user) => Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(user_html_template(user, params, link, errors))),
-		Err(err) => Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(error_html_template("user", path, err.to_string()))),
-	}
+	let body = match request_user(user_id, &app, params.refresh).await {
+		Ok(user) => user_html_template(user, params, link, errors),
+		Err(err) => error_html_template("user", path, err.to_string()),
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
 }
 
 #[get("/blog/{id:.*}")]
@@ -127,14 +125,13 @@ async fn get_blog(
 	};
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/blog/{path}");
-	match request_blog(blog_id, &app, params.refresh).await {
-		Ok((blog, user, story)) => Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(blog_html_template(blog, user, story, params, link, errors))),
-		Err(err) => Ok(HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
-			.body(error_html_template("blog", path, err.to_string()))),
-	}
+	let body = match request_blog(blog_id, &app, params.refresh).await {
+		Ok((blog, user, story)) => blog_html_template(blog, user, story, params, link, errors),
+		Err(err) => error_html_template("blog", path, err.to_string()),
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
 }
 
 #[get("/oembed")]
