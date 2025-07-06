@@ -65,7 +65,17 @@ pub fn blog_html_template(
 			),
 			Color::User => Some(user.color_hex),
 		},
-		None => Some(user.color_hex),
+		None => match parameters.cover {
+			Some(ref cover) => match cover {
+				Cover::Story => match story {
+					Some(ref story) => Some(story.color_hex.clone()),
+					None => Some(user.color_hex),
+				},
+				Cover::User => Some(user.color_hex),
+				Cover::None => None,
+			},
+			None => Some(user.color_hex),
+		},
 	};
 	if let Some(color) = color {
 		text.push_str(&format!(

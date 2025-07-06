@@ -46,7 +46,14 @@ pub fn story_html_template(
 			Color::User => Some(user.color_hex),
 			Color::Story => Some(story.color_hex),
 		},
-		None => Some(story.color_hex),
+		None => match parameters.cover {
+			Some(ref cover) => match cover {
+				Cover::Story => Some(story.color_hex),
+				Cover::User => Some(user.color_hex),
+				Cover::None => None,
+			},
+			None => Some(story.color_hex),
+		},
 	};
 	if let Some(color) = color {
 		text.push_str(&format!(
