@@ -5,12 +5,13 @@ use chrono::{TimeDelta, Utc};
 use dotenvy::dotenv;
 use fixfiction::blog::{blog_html_template, request_blog};
 use fixfiction::chapter::{chapter_html_template, request_chapter, request_story_chapters};
-use fixfiction::database::count_rows;
+use fixfiction::database::{count_rows, get_first_tag};
 use fixfiction::error::error_html_template;
 use fixfiction::fimfiction_api::fimfic_api_headers;
 use fixfiction::prune_db;
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
+use fixfiction::tag::request_tags;
 use fixfiction::user::{request_user, user_html_template};
 use fixfiction::utility::{parse_embed_parameters, parse_id, parse_second_id};
 use pony::http::Request;
@@ -177,12 +178,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		cache_max_age: 86400,
 		cache_recache_age: 60,
 	};
+	let app_clone = app_data.clone();
 
 	tokio::task::spawn(async move {
-		let _time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
-		// Insert tag check here.
 		loop {
 			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
+			let first_tag = get_first_tag(time, &db_clone).await.unwrap();
+			if first_tag.is_none() {
+				request_tags(&app_clone).await.unwrap();
+			}
 			prune_db!("DELETE FROM Blogs WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);

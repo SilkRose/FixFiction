@@ -5,5 +5,6 @@ pub mod error;
 pub mod fimfiction_api;
 pub mod story;
 pub mod structs;
+pub mod tag;
 pub mod user;
 pub mod utility;

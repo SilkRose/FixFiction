@@ -5,7 +5,7 @@ use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::user::UserData;
 use crate::structs::{Blog, Chapter, CompletionStatus, ContentRating, Story, Tag, TagType, User};
 use crate::utility::{clean_content, parse_date, trim_content};
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
 use sqlx::{Pool, Postgres};
 use std::error::Error;
 
@@ -48,8 +48,26 @@ pub async fn get_tag_by_url(url: &str, db: &Pool<Postgres>) -> Result<Option<Tag
 	.map_err(|_| "FixFiction Error: database retrieval error".into())
 }
 
+pub async fn get_first_tag(
+	time: DateTime<Utc>, db: &Pool<Postgres>,
+) -> Result<Option<Tag>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Tag,
+		r#"SELECT
+            id, name, type AS "tag_type: TagType", description, old_id, link, date_cached
+        FROM Tags
+		  WHERE date_cached < $1
+        ORDER BY id ASC
+        LIMIT 1;"#,
+		time
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
 pub async fn insert_tag(
-	id: Option<i32>, tag: TagData, db: &Pool<Postgres>,
+	id: Option<i32>, tag: TagData<i32>, db: &Pool<Postgres>,
 ) -> Result<Tag, Box<dyn Error>> {
 	sqlx::query_as!(
 		Tag,
@@ -70,8 +88,8 @@ pub async fn insert_tag(
 		tag.attributes.name,
 		TagType::from(tag.attributes.r#type) as _,
 		tag.attributes.description,
-		tag.attributes.meta.old_id,
-		tag.attributes.meta.url,
+		tag.meta.old_id,
+		tag.meta.url,
 	)
 	.fetch_one(db)
 	.await
