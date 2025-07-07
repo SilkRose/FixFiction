@@ -27,7 +27,7 @@ pub async fn request_blog(
 		}
 		None => {
 			let fimfic = format!(
-				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,tagged_story"
+				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,site_post,tags,tagged_story"
 			);
 			let api = parse_fimfic_response::<BlogApi<i32>>(&app.api, &fimfic).await?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
@@ -51,6 +51,10 @@ pub fn blog_html_template(
 	errors: String,
 ) -> String {
 	let mut text = String::new();
+	let author = match parameters.tags && !blog.tags.is_empty() {
+		true => format!("{}\nTags: {}", user.name, blog.tags),
+		false => user.name,
+	};
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
 	text.push_str("<!-- Pinkie Pie is best pony! -->");
@@ -113,8 +117,7 @@ pub fn blog_html_template(
 	text.push_str(&format!(r#"<meta property="og:url" content="{link}" />"#));
 	text.push_str(r#"<meta property="og:type" content="article" />"#);
 	text.push_str(&format!(
-		r#"<meta property="article:author" content="{}" />"#,
-		user.link
+		r#"<meta property="article:author" content="{author}" />"#,
 	));
 	text.push_str(&format!(
 		r#"<meta property="article:published_time" content="{}" />"#,
@@ -144,14 +147,13 @@ pub fn blog_html_template(
 	encode.append_pair("provider_name", &site_name);
 	encode.append_pair("provider_url", "https://www.fimfiction.net/");
 	encode.append_pair("title", &blog.title);
-	encode.append_pair("author_name", &user.name);
+	encode.append_pair("author_name", &author);
 	encode.append_pair("author_url", &user.link);
 	encode.append_pair("cache_age", "86400");
 	encode.append_pair("html", "");
 	let encode = encode.finish();
 	text.push_str(&format!(
-		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{}" />"#,
-		user.name));
+		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{author}" />"#));
 	text.push_str(r#"</head><body></body></html>"#);
 	text
 }

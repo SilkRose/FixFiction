@@ -39,6 +39,7 @@ pub async fn parse_embed_parameters(
 			"color" | "colour" => parse_color(&mut params, &mut errors, db, value).await,
 			"refresh" => parse_bool(value, &mut params.refresh, &mut errors, &key),
 			"stats" => parse_bool(value, &mut params.stats, &mut errors, &key),
+			"tags" => parse_bool(value, &mut params.tags, &mut errors, &key),
 			"comment" => parse_comment(path, &mut errors, value),
 			_ => parse_error(&mut errors, key),
 		}

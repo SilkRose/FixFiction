@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS Blogs (
 	comments    integer     NOT NULL,
 	views       integer     NOT NULL,
 	author_id   integer     NOT NULL,
+	tags        text        NOT NULL,
 	story_id    integer     NULL,
 	date_posted timestamptz NOT NULL,
 	date_cached timestamptz NOT NULL DEFAULT now(),

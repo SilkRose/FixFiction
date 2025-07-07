@@ -83,7 +83,7 @@ pub async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<
 		Blog,
 		"SELECT
 			id, title, content, link, comments, views,
-			author_id, story_id, date_posted, date_cached
+			author_id, tags, story_id, date_posted, date_cached
 		FROM Blogs WHERE id = $1 LIMIT 1;",
 		id
 	)
@@ -100,9 +100,9 @@ pub async fn insert_blog(
 		Blog,
 		"INSERT INTO Blogs 
 			(id, title, content, link, comments, views,
-			author_id, story_id, date_posted)
+			author_id, tags, story_id, date_posted)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT(id) DO UPDATE SET
 			title = EXCLUDED.title,
 			content = EXCLUDED.content,
@@ -110,12 +110,13 @@ pub async fn insert_blog(
 			comments = EXCLUDED.comments,
 			views = EXCLUDED.views,
 			author_id = EXCLUDED.author_id,
+			tags = EXCLUDED.tags,
 			story_id = EXCLUDED.story_id,
 			date_posted = EXCLUDED.date_posted,
 			date_cached = now()
 		RETURNING
 			id, title, content, link, comments, views,
-			author_id, story_id, date_posted,
+			author_id, tags, story_id, date_posted,
 			date_cached;",
 		id.unwrap_or(data.id.parse::<i32>()?),
 		clean_content(data.attributes.title.clone()),
@@ -124,6 +125,7 @@ pub async fn insert_blog(
 		data.attributes.num_comments,
 		data.attributes.num_views,
 		author_id,
+		data.attributes.tags.join(", "),
 		story_id,
 		DateTime::parse_from_rfc3339(&data.attributes.date_posted)
 			.map_err(|_| "FixFiction Error: failed to parse date posted")?

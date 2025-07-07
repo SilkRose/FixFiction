@@ -137,6 +137,7 @@ pub struct Blog {
 	pub comments: i32,
 	pub views: i32,
 	pub author_id: i32,
+	pub tags: String,
 	pub story_id: Option<i32>,
 	pub date_posted: DateTime<Utc>,
 	pub date_cached: DateTime<Utc>,
@@ -166,6 +167,8 @@ pub struct Parameters {
 	pub refresh: bool,
 	#[serde(default)]
 	pub stats: bool,
+	#[serde(default)]
+	pub tags: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
