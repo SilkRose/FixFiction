@@ -7,6 +7,7 @@ use crate::user::request_user;
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
+use pony::number_format::{FormatType, format_number_unit_metric};
 use url::form_urlencoded;
 
 pub async fn request_blog(
@@ -123,7 +124,8 @@ pub fn blog_html_template(
 		let time = blog.date_posted.format("%a %b %e %Y").to_string();
 		format!(
 			"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬",
-			blog.views, blog.comments
+			format_number_unit_metric(blog.views as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(blog.comments as f64, FormatType::MetricPrefix, 1).unwrap(),
 		)
 	} else {
 		"Fimfiction".to_string()

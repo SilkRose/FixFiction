@@ -9,6 +9,7 @@ use crate::structs::{
 use crate::utility::{map_cover, map_picture, parse_fimfic_response};
 use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
+use pony::number_format::{FormatType, format_number_unit_metric};
 use url::form_urlencoded;
 
 pub async fn request_chapter(
@@ -152,17 +153,22 @@ pub fn chapter_html_template(
 		let likes_dislikes = if story.likes == -1 && story.dislikes == -1 {
 			String::new()
 		} else {
-			format!("Likes: {} 👍 Dislikes: {} 👎 ", story.likes, story.dislikes)
+			format!(
+				"Likes: {} 👍 Dislikes: {} 👎 ",
+				format_number_unit_metric(story.likes as f64, FormatType::MetricPrefix, 1).unwrap(),
+				format_number_unit_metric(story.dislikes as f64, FormatType::MetricPrefix, 1)
+					.unwrap()
+			)
 		};
 		format!(
 			"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} {likes_dislikes}Views: {}/{} 📈\nComments: {} 💬 Chapter: {}/{} 📖 Words: {}/{} 📝",
-			chapter.views,
-			story.views,
-			story.comments,
+			format_number_unit_metric(chapter.views as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(story.views as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(story.comments as f64, FormatType::MetricPrefix, 1).unwrap(),
 			chapter.chapter_num,
 			story.chapters,
-			chapter.words,
-			story.words
+			format_number_unit_metric(chapter.words as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(story.words as f64, FormatType::MetricPrefix, 1).unwrap(),
 		)
 	} else {
 		"Fimfiction".to_string()

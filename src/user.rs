@@ -4,6 +4,7 @@ use crate::fimfiction_api::user::UserApi;
 use crate::structs::{AppState, Color, Cover, Parameters, User};
 use crate::utility::{map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
+use pony::number_format::{FormatType, format_number_unit_metric};
 use std::error::Error;
 use url::form_urlencoded;
 
@@ -76,7 +77,11 @@ pub fn user_html_template(
 			let time = user.date_joined.format("%a %b %e %Y").to_string();
 			format!(
 				"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
-				user.stories, user.blogs, user.followers
+				format_number_unit_metric(user.stories as f64, FormatType::MetricPrefix, 1)
+					.unwrap(),
+				format_number_unit_metric(user.blogs as f64, FormatType::MetricPrefix, 1).unwrap(),
+				format_number_unit_metric(user.followers as f64, FormatType::MetricPrefix, 1)
+					.unwrap(),
 			)
 		}
 	} else {
