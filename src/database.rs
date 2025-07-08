@@ -1,11 +1,10 @@
 use crate::fimfiction_api::blog::BlogData;
 use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::story::StoryData;
-use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::user::UserData;
-use crate::structs::{Blog, Chapter, CompletionStatus, ContentRating, Story, Tag, TagType, User};
+use crate::structs::{Blog, Chapter, CompletionStatus, ContentRating, Story, User};
 use crate::utility::{clean_content, parse_date, trim_content};
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
 use sqlx::{Pool, Postgres};
 use std::error::Error;
 
@@ -20,80 +19,6 @@ pub async fn count_rows(table: &str, db: &Pool<Postgres>) -> Result<i64, Box<dyn
 	let query = format!("SELECT count(*) FROM {table}");
 	let count: i64 = sqlx::query_scalar(&query).fetch_one(db).await?;
 	Ok(count)
-}
-
-pub async fn get_tag_by_id(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dyn Error>> {
-	sqlx::query_as!(
-		Tag,
-		r#"SELECT
-			id, name, type AS "tag_type: TagType", description, old_id, link, date_cached
-		FROM Tags WHERE id = $1 LIMIT 1;"#,
-		id
-	)
-	.fetch_optional(db)
-	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
-}
-
-pub async fn get_tag_by_url(url: &str, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dyn Error>> {
-	sqlx::query_as!(
-		Tag,
-		r#"SELECT
-			id, name, type AS "tag_type: TagType", description, old_id, link, date_cached
-		FROM Tags WHERE link = $1 LIMIT 1;"#,
-		url
-	)
-	.fetch_optional(db)
-	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
-}
-
-pub async fn get_first_tag(
-	time: DateTime<Utc>, db: &Pool<Postgres>,
-) -> Result<Option<Tag>, Box<dyn Error>> {
-	sqlx::query_as!(
-		Tag,
-		r#"SELECT
-            id, name, type AS "tag_type: TagType", description, old_id, link, date_cached
-        FROM Tags
-		  WHERE date_cached < $1
-        ORDER BY id ASC
-        LIMIT 1;"#,
-		time
-	)
-	.fetch_optional(db)
-	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
-}
-
-pub async fn insert_tag(
-	id: Option<i32>, tag: TagData<i32>, db: &Pool<Postgres>,
-) -> Result<Tag, Box<dyn Error>> {
-	sqlx::query_as!(
-		Tag,
-		r#"INSERT INTO Tags
-			(id, name, type, description, old_id, link)
-		VALUES
-			($1, $2, $3, $4, $5, $6)
-		ON CONFLICT(id) DO UPDATE SET
-			name = EXCLUDED.name,
-			type = EXCLUDED.type,
-			description = EXCLUDED.description,
-			old_id = EXCLUDED.old_id,
-			link = EXCLUDED.link,
-			date_cached = now()
-		RETURNING
-			id, name, type AS "tag_type: TagType", description, old_id, link, date_cached;"#,
-		id.unwrap_or(tag.id.parse::<i32>()?),
-		tag.attributes.name,
-		TagType::from(tag.attributes.r#type) as _,
-		tag.attributes.description,
-		tag.meta.old_id,
-		tag.meta.url,
-	)
-	.fetch_one(db)
-	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
 }
 
 pub async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<dyn Error>> {
@@ -224,7 +149,7 @@ pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Bo
 			color_hex, views, total_views, words, chapters, comments, rating,
 			completion_status AS "completion_status: CompletionStatus",
 			content_rating AS "content_rating: ContentRating",
-			likes, dislikes, author_id, date_modified,
+			tags, likes, dislikes, author_id, date_modified,
 			date_updated, date_published, date_cached
 		FROM Stories WHERE id = $1 LIMIT 1;"#,
 		id
@@ -235,17 +160,17 @@ pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Bo
 }
 
 pub async fn insert_story(
-	id: Option<i32>, data: StoryData<i32>, user_id: i32, db: &Pool<Postgres>,
+	id: Option<i32>, data: StoryData<i32>, tags: &str, user_id: i32, db: &Pool<Postgres>,
 ) -> Result<Story, Box<dyn Error>> {
 	sqlx::query_as!(
 		Story,
 		r#"INSERT INTO Stories (
 			id, title, short_description, description, published, link, cover_url,
 			color_hex, views, total_views, words, chapters, comments, rating,
-			completion_status, content_rating, likes, dislikes, author_id,
+			completion_status, content_rating, tags, likes, dislikes, author_id,
 			date_modified, date_updated, date_published)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 		ON CONFLICT(id) DO UPDATE SET
 			title = EXCLUDED.title,
 			short_description = EXCLUDED.short_description,
@@ -262,6 +187,7 @@ pub async fn insert_story(
 			rating = EXCLUDED.rating,
 			completion_status = EXCLUDED.completion_status,
 			content_rating = EXCLUDED.content_rating,
+			tags = EXCLUDED.tags,
 			likes = EXCLUDED.likes,
 			dislikes = EXCLUDED.dislikes,
 			author_id = EXCLUDED.author_id,
@@ -274,7 +200,7 @@ pub async fn insert_story(
 			color_hex, views, total_views, words, chapters, comments, rating,
 			completion_status AS "completion_status: CompletionStatus",
 			content_rating AS "content_rating: ContentRating",
-			likes, dislikes, author_id, date_modified,
+			tags, likes, dislikes, author_id, date_modified,
 			date_updated, date_published, date_cached;"#,
 		id.unwrap_or(data.id.parse::<i32>()?),
 		clean_content(data.attributes.title),
@@ -292,6 +218,7 @@ pub async fn insert_story(
 		data.attributes.rating,
 		CompletionStatus::from(data.attributes.completion_status) as _,
 		ContentRating::from(data.attributes.content_rating) as _,
+		tags,
 		data.attributes.num_likes,
 		data.attributes.num_dislikes,
 		user_id,

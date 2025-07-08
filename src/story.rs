@@ -5,8 +5,8 @@ use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
 use crate::user::request_user;
-use crate::utility::{map_cover, map_picture, parse_fimfic_response};
-use crate::{check_recache, get_variant};
+use crate::utility::{map_cover, map_picture, map_tags, parse_fimfic_response};
+use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 use url::form_urlencoded;
@@ -22,12 +22,15 @@ pub async fn request_story(
 			Ok((story, user))
 		}
 		None => {
-			let fimfic = format!("https://www.fimfiction.net/api/v2/stories/{id}");
+			let fimfic =
+				format!("https://www.fimfiction.net/api/v2/stories/{id}?include=author,tags");
 			let api = parse_fimfic_response::<StoryApi<i32>>(&app.api, &fimfic).await?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
+			let tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
+			let tags = map_tags(tags);
 			let user = insert_user(None, author, &app.db).await?;
-			let story = insert_story(Some(id), api.data, user.id, &app.db).await?;
+			let story = insert_story(Some(id), api.data, &tags, user.id, &app.db).await?;
 			Ok((story, user))
 		}
 	}
@@ -37,6 +40,10 @@ pub fn story_html_template(
 	story: Story, user: User, parameters: Parameters, link: String, errors: String,
 ) -> String {
 	let mut text = String::new();
+	let author = match parameters.tags {
+		true => format!("{}\nTags: {}", user.name, story.tags),
+		false => user.name,
+	};
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
 	text.push_str("<!-- Pinkie Pie is best pony! -->");
@@ -139,14 +146,13 @@ pub fn story_html_template(
 	encode.append_pair("provider_name", &site_name);
 	encode.append_pair("provider_url", "https://www.fimfiction.net/");
 	encode.append_pair("title", &story.title);
-	encode.append_pair("author_name", &user.name);
+	encode.append_pair("author_name", &author);
 	encode.append_pair("author_url", &user.link);
 	encode.append_pair("cache_age", "86400");
 	encode.append_pair("html", "");
 	let encode = encode.finish();
 	text.push_str(&format!(
-		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{}" />"#,
-		user.name));
+		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{author}" />"#));
 	text.push_str(r#"</head><body></body></html>"#);
 	text
 }

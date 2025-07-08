@@ -1,4 +1,5 @@
 use crate::fimfiction_api::error::FimficError;
+use crate::fimfiction_api::tag::TagData;
 use crate::structs::{Color, Cover, Parameters};
 use chrono::{DateTime, FixedOffset};
 use pony::http::{Request, api_get_request};
@@ -165,10 +166,30 @@ pub fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>, Box
 		.map_err(|_| format!("FixFiction Error: failed to parse {name} date"))?)
 }
 
+pub fn map_tags(tags: Vec<&TagData<i32>>) -> String {
+	tags.iter()
+		.map(|tag| tag.attributes.name.clone())
+		.collect::<Vec<_>>()
+		.join(", ")
+}
+
 #[macro_export]
 macro_rules! get_variant {
 	($vec:expr, $ty:path) => {{
 		$vec.iter().find_map(|inc| {
+			if let $ty(data) = inc {
+				Some(data)
+			} else {
+				None
+			}
+		})
+	}};
+}
+
+#[macro_export]
+macro_rules! get_variants {
+	($vec:expr, $ty:path) => {{
+		$vec.iter().filter_map(|inc| {
 			if let $ty(data) = inc {
 				Some(data)
 			} else {

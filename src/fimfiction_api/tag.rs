@@ -23,7 +23,6 @@ pub struct TagAttributes<T = u32> {
 	pub name: String,
 	pub r#type: String,
 	pub num_stories: T,
-	pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

@@ -11,16 +11,6 @@ CREATE TYPE content_rating AS enum (
 	'mature'
 );
 
-CREATE TYPE tag_type AS enum (
-	'character',
-	'genre',
-	'rating',
-	'content',
-	'series',
-	'warning',
-	'universe'
-);
-
 CREATE TABLE IF NOT EXISTS Authors (
 	id              integer     NOT NULL PRIMARY KEY,
 	name            text        NOT NULL,
@@ -52,6 +42,7 @@ CREATE TABLE IF NOT EXISTS Stories (
 	rating            integer           NOT NULL,
 	completion_status completion_status NOT NULL,
 	content_rating    content_rating    NOT NULL,
+	tags              text              NOT NULL,
 	likes             integer           NOT NULL,
 	dislikes          integer           NOT NULL,
 	author_id         integer           NOT NULL,
@@ -98,27 +89,4 @@ CREATE TABLE IF NOT EXISTS Blogs (
 
 	CONSTRAINT blogs_story_id_fk FOREIGN KEY (story_id)
 		REFERENCES Stories (id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS Tags (
-	id          integer     NOT NULL PRIMARY KEY,
-	name        text        NOT NULL,
-	type        tag_type    NOT NULL,
-	description text        NULL,
-	old_id      text        NULL,
-	link        text        NOT NULL,
-	date_cached timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS Tag_links (
-	story_id integer,
-	tag_id   integer,
-
-	CONSTRAINT tag_links_story_id_fk FOREIGN KEY (story_id)
-		REFERENCES Stories (id) ON DELETE CASCADE,
-
-	CONSTRAINT tag_links_tag_id_fk FOREIGN KEY (tag_id)
-		REFERENCES Tags (id) ON DELETE CASCADE,
-
-	CONSTRAINT tag_links_pk PRIMARY KEY (story_id, tag_id)
 );

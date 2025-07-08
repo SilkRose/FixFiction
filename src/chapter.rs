@@ -6,8 +6,8 @@ use crate::story::request_story;
 use crate::structs::{
 	AppState, Chapter, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
-use crate::utility::{map_cover, map_picture, parse_fimfic_response};
-use crate::{check_recache, get_variant};
+use crate::utility::{map_cover, map_picture, map_tags, parse_fimfic_response};
+use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 use url::form_urlencoded;
@@ -31,8 +31,10 @@ pub async fn request_chapter(
 				.ok_or("Fimfiction API error: no story included")?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
+			let tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
+			let tags = map_tags(tags);
 			let author = insert_user(None, author, &app.db).await?;
-			let story = insert_story(None, story.clone(), author.id, &app.db).await?;
+			let story = insert_story(None, story.clone(), &tags, author.id, &app.db).await?;
 			let chapter = insert_chapter(Some(id), api.data, story.id, &app.db).await?;
 			Ok((chapter, story, author))
 		}
@@ -51,13 +53,15 @@ pub async fn request_story_chapters(
 		}
 		None => {
 			let fimfic = format!(
-				"https://www.fimfiction.net/api/v2/stories/{story_id}?include=author,chapters"
+				"https://www.fimfiction.net/api/v2/stories/{story_id}?include=author,chapters,tags"
 			);
 			let api = parse_fimfic_response::<StoryApi<i32>>(&app.api, &fimfic).await?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
+			let tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
+			let tags = map_tags(tags);
 			let author = insert_user(None, author, &app.db).await?;
-			let story = insert_story(None, api.data, author.id, &app.db).await?;
+			let story = insert_story(None, api.data, &tags, author.id, &app.db).await?;
 			let mut chapters = Vec::new();
 			for chapter in &api.included {
 				if let ApiIncluded::Chapter(data) = chapter {
@@ -80,7 +84,10 @@ pub fn chapter_html_template(
 	chapter: Chapter, story: Story, user: User, parameters: Parameters, link: String,
 	errors: String,
 ) -> String {
-	let author = format!("{} – {}", user.name, story.title);
+	let author = match parameters.tags {
+		true => format!("{} – {}\nTags: {}", user.name, story.title, story.tags),
+		false => format!("{} – {}", user.name, story.title),
+	};
 	let mut text = String::new();
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");

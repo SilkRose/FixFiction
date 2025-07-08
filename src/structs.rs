@@ -89,6 +89,7 @@ pub struct Story {
 	pub rating: i32,
 	pub completion_status: CompletionStatus,
 	pub content_rating: ContentRating,
+	pub tags: String,
 	pub likes: i32,
 	pub dislikes: i32,
 	pub author_id: i32,
@@ -209,23 +210,6 @@ impl From<String> for Color {
 			_ => Color::Custom(value.to_lowercase()),
 		}
 	}
-}
-
-#[derive(Debug, Clone)]
-pub struct Tag {
-	pub id: i32,
-	pub name: String,
-	pub tag_type: TagType,
-	pub description: Option<String>,
-	pub old_id: Option<String>,
-	pub link: String,
-	pub date_cached: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TagLink {
-	pub story_id: i32,
-	pub tag_id: i32,
 }
 
 #[derive(Debug, Clone)]
