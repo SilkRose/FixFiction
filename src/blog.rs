@@ -4,7 +4,7 @@ use crate::fimfiction_api::blog::BlogApi;
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, Parameters, Story, User};
 use crate::user::request_user;
-use crate::utility::{map_cover, map_picture, parse_fimfic_response};
+use crate::utility::{get_color, map_cover, map_picture, parse_fimfic_response};
 use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
@@ -62,13 +62,15 @@ pub fn blog_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
+			Color::User => Some(user.color_hex),
+			Color::Random => Some(get_color(None)),
+			Color::Modulo => Some(get_color(Some(blog.id))),
 			Color::Story => Some(
 				story
 					.clone()
 					.map(|story| story.color_hex)
 					.unwrap_or(user.color_hex),
 			),
-			Color::User => Some(user.color_hex),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {

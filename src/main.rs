@@ -36,12 +36,7 @@ async fn get_story(
 		}
 	};
 	let chapter_id = parse_second_id(&path);
-	let (params, errors) = match chapter_id {
-		Some(chapter_num) => {
-			parse_embed_parameters(&mut path, story_id + chapter_num, queries, &app.db).await
-		}
-		None => parse_embed_parameters(&mut path, story_id, queries, &app.db).await,
-	};
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/story/{path}");
 	let body = match chapter_id {
 		Some(chapter_num) => {
@@ -76,7 +71,7 @@ async fn get_chapter(
 				.body(error_html_template("chapter", path, err.to_string())));
 		}
 	};
-	let (params, errors) = parse_embed_parameters(&mut path, chapter_id, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/chapter/{path}");
 	let body = match request_chapter(chapter_id, &app, params.refresh).await {
 		Ok((chapter, story, user)) => {
@@ -103,7 +98,7 @@ async fn get_user(
 				.body(error_html_template("user", path, err.to_string())));
 		}
 	};
-	let (params, errors) = parse_embed_parameters(&mut path, user_id, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/user/{path}");
 	let body = match request_user(user_id, &app, params.refresh).await {
 		Ok(user) => user_html_template(user, params, link, errors),
@@ -128,7 +123,7 @@ async fn get_blog(
 				.body(error_html_template("blog", path, err.to_string())));
 		}
 	};
-	let (params, errors) = parse_embed_parameters(&mut path, blog_id, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/blog/{path}");
 	let body = match request_blog(blog_id, &app, params.refresh).await {
 		Ok((blog, user, story)) => blog_html_template(blog, user, story, params, link, errors),

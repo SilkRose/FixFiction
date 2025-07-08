@@ -196,6 +196,8 @@ impl TryFrom<String> for Cover {
 #[serde(rename_all = "lowercase", try_from = "String")]
 pub enum Color {
 	Custom(String),
+	Random,
+	Modulo,
 	Story,
 	User,
 	None,
@@ -204,6 +206,8 @@ pub enum Color {
 impl From<String> for Color {
 	fn from(value: String) -> Self {
 		match value.to_lowercase().as_str() {
+			"ran" | "random" => Color::Random,
+			"mod" | "modulo" => Color::Modulo,
 			"story" => Color::Story,
 			"user" => Color::User,
 			"none" => Color::None,

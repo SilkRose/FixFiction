@@ -5,7 +5,7 @@ use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
 };
 use crate::user::request_user;
-use crate::utility::{map_cover, map_picture, map_tags, parse_fimfic_response};
+use crate::utility::{get_color, map_cover, map_picture, map_tags, parse_fimfic_response};
 use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
@@ -53,6 +53,8 @@ pub fn story_html_template(
 			Color::Custom(color) => Some(color),
 			Color::User => Some(user.color_hex),
 			Color::Story => Some(story.color_hex),
+			Color::Random => Some(get_color(None)),
+			Color::Modulo => Some(get_color(Some(story.id))),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {
