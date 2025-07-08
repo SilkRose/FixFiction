@@ -855,6 +855,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "pony",
+ "rand 0.9.1",
  "regex",
  "reqwest",
  "serde",

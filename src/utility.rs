@@ -3,6 +3,7 @@ use crate::fimfiction_api::tag::TagData;
 use crate::structs::{Color, Cover, Parameters};
 use chrono::{DateTime, FixedOffset};
 use pony::http::{Request, api_get_request};
+use rand::Rng;
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};
@@ -30,14 +31,14 @@ pub fn parse_second_id(path: &str) -> Option<i32> {
 }
 
 pub async fn parse_embed_parameters(
-	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
+	path: &mut String, id: i32, queries: HashMap<String, String>, db: &Pool<Postgres>,
 ) -> (Parameters, String) {
 	let mut params = Parameters::default();
 	let mut errors = Vec::new();
 	for (key, value) in queries {
 		match key.to_lowercase().as_str() {
 			"cover" | "image" => parse_cover(&mut params, &mut errors, value),
-			"color" | "colour" => parse_color(&mut params, &mut errors, db, value).await,
+			"color" | "colour" => parse_color(&mut params, &mut errors, db, value, id).await,
 			"refresh" => parse_bool(value, &mut params.refresh, &mut errors, &key),
 			"stats" => parse_bool(value, &mut params.stats, &mut errors, &key),
 			"tags" => parse_bool(value, &mut params.tags, &mut errors, &key),
@@ -57,7 +58,7 @@ fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String)
 }
 
 pub async fn parse_color(
-	params: &mut Parameters, errors: &mut Vec<String>, db: &Pool<Postgres>, value: String,
+	params: &mut Parameters, errors: &mut Vec<String>, db: &Pool<Postgres>, value: String, id: i32,
 ) {
 	let color = Color::from(value);
 	if let Color::Custom(color) = color {
@@ -67,6 +68,12 @@ pub async fn parse_color(
 			.unwrap_or_default();
 		if let Some(color) = db_color {
 			params.color = Some(Color::Custom(color.color));
+		} else if color == "mod" || color == "modulo" {
+			params.color = Some(Color::Custom(colors[(id % 6) as usize].to_string()));
+		} else if color == "ran" || color == "random" {
+			let mut rng = rand::rng();
+			let idx = rng.random_range(0..=5) as usize;
+			params.color = Some(Color::Custom(colors[idx].to_string()));
 		} else if color.len() == 6 {
 			params.color = color
 				.as_bytes()
@@ -212,3 +219,6 @@ macro_rules! check_recache {
 		}
 	}};
 }
+
+#[allow(non_upper_case_globals)]
+pub const colors: [&str; 6] = ["CC9CDF", "FABA62", "FAF5AB", "F5B7D0", "9BDBF5", "EAEEF0"];
