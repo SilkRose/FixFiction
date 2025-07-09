@@ -3,7 +3,7 @@ use crate::fimfiction_api::ApiIncluded;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct StoryApi<T = u32> {
+pub struct GroupApi<T = u32> {
 	pub data: GroupData<T>,
 	pub included: Vec<ApiIncluded<T>>,
 	pub uri: String,
