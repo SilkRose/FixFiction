@@ -2,7 +2,7 @@ use crate::check_recache;
 use crate::database::{get_user, insert_user};
 use crate::fimfiction_api::user::UserApi;
 use crate::structs::{AppState, Color, Cover, Parameters, User};
-use crate::utility::{map_picture, parse_fimfic_response};
+use crate::utility::{get_color, map_picture, parse_fimfic_response};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 use std::error::Error;
@@ -32,6 +32,8 @@ pub fn user_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
+			Color::Random => Some(get_color(None)),
+			Color::Modulo => Some(get_color(Some(user.id))),
 			_ => Some(user.color_hex),
 		},
 		None => Some(user.color_hex),
