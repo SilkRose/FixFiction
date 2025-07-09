@@ -1,8 +1,9 @@
 use crate::fimfiction_api::blog::BlogData;
 use crate::fimfiction_api::chapter::ChapterData;
+use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::user::UserData;
-use crate::structs::{Blog, Chapter, CompletionStatus, ContentRating, Story, User};
+use crate::structs::{Blog, Chapter, CompletionStatus, ContentRating, Group, Story, User};
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
 use sqlx::{Pool, Postgres};
@@ -296,6 +297,72 @@ pub async fn insert_chapter(
 		data.attributes.num_words,
 		parse_date(data.attributes.date_published, "published")?,
 		parse_date(data.attributes.date_modified, "modifed")?,
+	)
+	.fetch_one(db)
+	.await
+	.map_err(|_| "FixFiction Error: database insertion error".into())
+}
+
+pub async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Group>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Group,
+		"SELECT
+			id, name, description, link, members,
+			stories, founder_id, icon_url, nsfw,
+			open, hidden, date_created, date_cached
+		FROM Groups WHERE id = $1 LIMIT 1;",
+		id
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
+pub async fn insert_group(
+	id: Option<i32>, data: &GroupData<i32>, db: &Pool<Postgres>,
+) -> Result<Group, Box<dyn Error>> {
+	sqlx::query_as!(
+		Group,
+		"INSERT INTO Groups
+			(id, name, description, link, members,
+			stories, founder_id, icon_url, nsfw,
+			open, hidden, date_created)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		ON CONFLICT(id) DO UPDATE SET
+			name = EXCLUDED.name,
+			description = EXCLUDED.description,
+			link = EXCLUDED.link,
+			members = EXCLUDED.members,
+			stories = EXCLUDED.stories,
+			founder_id = EXCLUDED.founder_id,
+			icon_url = EXCLUDED.icon_url,
+			nsfw = EXCLUDED.nsfw,
+			open = EXCLUDED.open,
+			hidden = EXCLUDED.hidden,
+			date_created = EXCLUDED.date_created,
+			date_cached = now()
+		RETURNING
+			id, name, description, link, members,
+			stories, founder_id, icon_url, nsfw,
+			open, hidden, date_created, date_cached;",
+		id.unwrap_or(data.id.parse::<i32>()?),
+		clean_content(data.attributes.name.clone()),
+		clean_content(data.attributes.description.clone()),
+		data.meta.url,
+		data.attributes.num_members,
+		data.attributes.num_stories,
+		data.relationships.founder.data.id.parse::<i32>()?,
+		data.attributes
+			.icon
+			.r512
+			.as_ref()
+			.map(|icon| icon.trim_end_matches("-512").to_string()),
+		data.attributes.nsfw,
+		data.attributes.open,
+		data.attributes.hidden,
+		DateTime::parse_from_rfc3339(&data.attributes.date_created)
+			.map_err(|_| "FixFiction Error: failed to parse date created")?
 	)
 	.fetch_one(db)
 	.await

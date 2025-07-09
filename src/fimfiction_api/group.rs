@@ -23,7 +23,7 @@ pub struct GroupData<T = u32> {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GroupRelationship {
-	founder: RelationshipData,
+	pub founder: RelationshipData,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
