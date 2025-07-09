@@ -158,6 +158,23 @@ pub struct Chapter {
 	pub date_cached: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Group {
+	pub id: i32,
+	pub name: String,
+	pub description: String,
+	pub link: String,
+	pub members: i32,
+	pub stories: i32,
+	pub founder_id: i32,
+	pub nsfw: bool,
+	pub open: bool,
+	pub hidden: bool,
+	pub icon_url: Option<String>,
+	pub date_created: DateTime<Utc>,
+	pub date_cached: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Parameters {
