@@ -32,7 +32,7 @@ pub async fn request_group(
 	}
 }
 
-pub fn blog_html_template(
+pub fn group_html_template(
 	group: Group, founder: User, parameters: Parameters, link: String, errors: String,
 ) -> String {
 	let mut text = String::new();
@@ -82,7 +82,7 @@ pub fn blog_html_template(
 			Cover::User | Cover::Story => map_picture(founder.profile_pic_url),
 			Cover::None => None,
 		},
-		None => map_picture(founder.profile_pic_url),
+		None => map_picture(group.icon_url).or(map_picture(founder.profile_pic_url)),
 	};
 	if let Some(cover) = cover {
 		text.push_str(&format!(
@@ -99,8 +99,8 @@ pub fn blog_html_template(
 	let mut site_name = if parameters.stats {
 		let time = group.date_created.format("%a %b %e %Y").to_string();
 		let mature = match group.nsfw {
-			true => "Safe for work: ✅",
-			false => "Not safe for work: 🔞",
+			true => "Not safe for work: 🔞",
+			false => "Safe for work: ✅",
 		};
 		let open = match group.open {
 			true => "Open submissions: ✅",
