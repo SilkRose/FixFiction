@@ -90,3 +90,22 @@ CREATE TABLE IF NOT EXISTS Blogs (
 	CONSTRAINT blogs_story_id_fk FOREIGN KEY (story_id)
 		REFERENCES Stories (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS Groups (
+	id           integer     NOT NULL PRIMARY KEY,
+	name         text        NOT NULL,
+	description  text        NOT NULL,
+	link         text        NOT NULL,
+	members      integer     NOT NULL,
+	stories      integer     NOT NULL,
+	founder_id   integer     NOT NULL,
+	nsfw         boolean     NOT NULL,
+	open         boolean     NOT NULL,
+	hidden       boolean     NOT NULL,
+	icon_url     text        NULL,
+	date_created timestamptz NOT NULL,
+	date_cached  timestamptz NOT NULL DEFAULT now(),
+
+	CONSTRAINT groups_founder_id_fk FOREIGN KEY (founder_id)
+		REFERENCES Authors (id) ON DELETE CASCADE
+);
