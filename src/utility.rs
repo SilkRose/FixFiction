@@ -215,7 +215,7 @@ macro_rules! check_recache {
 }
 
 pub fn get_color(id: Option<i32>) -> String {
-	let colors = ["CC9CDF", "FABA62", "FAF5AB", "F5B7D0", "9BDBF5", "EAEEF0"];
+	let colors = ["cc9cdf", "faba62", "faf5ab", "f5b7d0", "9bdbf5", "eaeef0"];
 	match id {
 		Some(id) => colors[(id % 6) as usize].to_string(),
 		None => {
