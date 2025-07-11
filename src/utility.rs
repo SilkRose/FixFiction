@@ -148,7 +148,7 @@ pub fn trim_content(content: String, clean: bool) -> String {
 }
 
 pub fn clean_content(content: String) -> String {
-	let re = LazyLock::new(|| Regex::new(r"\[[^]]+\]").unwrap());
+	let re = LazyLock::new(|| Regex::new(r"\[icon\].*\[/icon\]|\[[^]]+\]").unwrap());
 	re.replace_all(&content, "")
 		.to_string()
 		.replace('"', "&quot;")
