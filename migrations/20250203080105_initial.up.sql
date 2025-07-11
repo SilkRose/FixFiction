@@ -109,3 +109,24 @@ CREATE TABLE IF NOT EXISTS Groups (
 	CONSTRAINT groups_founder_id_fk FOREIGN KEY (founder_id)
 		REFERENCES Authors (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS Bookshelves (
+	id            integer     NOT NULL PRIMARY KEY,
+	name          text        NOT NULL,
+	description   text        NOT NULL,
+	link          text        NOT NULL,
+	icon_url      text        NOT NULL,
+	stories       integer     NOT NULL,
+	num_unread    integer     NULL,
+	track_unread  boolean     NOT NULL,
+	quick_add     boolean     NOT NULL,
+	email_update  boolean     NOT NULL,
+	user_id       integer     NULL,
+	order_pos     integer     NOT NULL,
+	date_created  timestamptz NOT NULL,
+	date_modified timestamptz NOT NULL,
+	date_cached   timestamptz NOT NULL DEFAULT now(),
+
+	CONSTRAINT bookshelves_user_id_fk FOREIGN KEY (user_id)
+		REFERENCES Authors (id) ON DELETE CASCADE
+);
