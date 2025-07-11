@@ -175,6 +175,25 @@ pub struct Group {
 	pub date_cached: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Bookshelf {
+	pub id: i32,
+	pub name: String,
+	pub description: String,
+	pub link: String,
+	pub icon_url: String,
+	pub stories: i32,
+	pub num_unread: Option<i32>,
+	pub track_unread: bool,
+	pub quick_add: bool,
+	pub email_update: bool,
+	pub user_id: Option<i32>,
+	pub order_pos: i32,
+	pub date_created: DateTime<Utc>,
+	pub date_modified: DateTime<Utc>,
+	pub date_cached: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Parameters {
