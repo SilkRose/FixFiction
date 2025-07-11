@@ -348,7 +348,7 @@ pub async fn insert_group(
 			open, hidden, date_created, date_cached;",
 		id.unwrap_or(data.id.parse::<i32>()?),
 		clean_content(data.attributes.name.clone()),
-		clean_content(data.attributes.description.clone()),
+		trim_content(data.attributes.description.clone(), true),
 		data.meta.url,
 		data.attributes.num_members,
 		data.attributes.num_stories,
