@@ -1,9 +1,12 @@
 use crate::fimfiction_api::blog::BlogData;
+use crate::fimfiction_api::bookshelf::BookshelfData;
 use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::user::UserData;
-use crate::structs::{Blog, Chapter, CompletionStatus, ContentRating, Group, Story, User};
+use crate::structs::{
+	Blog, Bookshelf, Chapter, CompletionStatus, ContentRating, Group, Story, User,
+};
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
 use sqlx::{Pool, Postgres};
@@ -363,6 +366,78 @@ pub async fn insert_group(
 		data.attributes.hidden,
 		DateTime::parse_from_rfc3339(&data.attributes.date_created)
 			.map_err(|_| "FixFiction Error: failed to parse date created")?
+	)
+	.fetch_one(db)
+	.await
+	.map_err(|_| "FixFiction Error: database insertion error".into())
+}
+
+pub async fn get_bookshelf(
+	id: i32, db: &Pool<Postgres>,
+) -> Result<Option<Bookshelf>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Bookshelf,
+		"SELECT
+			id, name, description, link, icon_url, stories,
+			num_unread, track_unread, quick_add, email_update,
+			user_id, order_pos, date_created, date_modified, date_cached
+		FROM Bookshelves WHERE id = $1 LIMIT 1;",
+		id
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
+pub async fn insert_bookshelf(
+	id: Option<i32>, data: &BookshelfData<i32>, user_id: Option<i32>, db: &Pool<Postgres>,
+) -> Result<Bookshelf, Box<dyn Error>> {
+	sqlx::query_as!(
+		Bookshelf,
+		"INSERT INTO Bookshelves
+			(id, name, description, link, icon_url, stories,
+			num_unread, track_unread, quick_add, email_update,
+			user_id, order_pos, date_created, date_modified)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		ON CONFLICT(id) DO UPDATE SET
+			name = EXCLUDED.name,
+			description = EXCLUDED.description,
+			link = EXCLUDED.link,
+			icon_url = EXCLUDED.icon_url,
+			stories = EXCLUDED.stories,
+			num_unread = EXCLUDED.num_unread,
+			track_unread = EXCLUDED.track_unread,
+			quick_add = EXCLUDED.quick_add,
+			email_update = EXCLUDED.email_update,
+			user_id = EXCLUDED.user_id,
+			order_pos = EXCLUDED.order_pos,
+			date_created = EXCLUDED.date_created,
+			date_modified = EXCLUDED.date_modified,
+			date_cached = now()
+		RETURNING
+			id, name, description, link, icon_url, stories,
+			num_unread, track_unread, quick_add, email_update,
+			user_id, order_pos, date_created, date_modified, date_cached;",
+		id.unwrap_or(data.id.parse::<i32>()?),
+		data.attributes.name,
+		data.attributes.description,
+		data.meta.url,
+		format!("https://raw.githubusercontent.com/SilkRose/Fimfiction-bookshelf-icons/refs/heads/mane/icons/{}/{}/{}.png",
+			data.attributes.color,
+			data.attributes.icon.r#type,
+			data.attributes.icon.data.trim_start_matches("&#x")),
+		data.attributes.num_stories,
+		data.attributes.num_unread,
+		data.attributes.track_unread,
+		data.attributes.quick_add,
+		data.attributes.email_on_update,
+		user_id,
+		data.attributes.order,
+		DateTime::parse_from_rfc3339(&data.attributes.date_created)
+			.map_err(|_| "FixFiction Error: failed to parse date created")?,
+		DateTime::parse_from_rfc3339(&data.attributes.date_modified)
+			.map_err(|_| "FixFiction Error: failed to parse date modified")?
 	)
 	.fetch_one(db)
 	.await
