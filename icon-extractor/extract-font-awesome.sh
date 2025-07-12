@@ -15,7 +15,8 @@ if [ ! -d FontAwesome/ ]; then
 fi
 
 # cat icons.html | grep -oP '(?<=data-icon-type="font-awesome" class="bookshelf-icon-element fa fa-).*?(?="></span>)' | tr '\n' ' '
-icons="bolt book bookmark certificate check times clock-o cog exclamation eye film gamepad globe heart lock music road search star thumbs-up thumbs-down thumb-tack smile-o meh-o frown-o trash-o user youtube-play "
+icons="bed book bookmark bolt certificate check clock-o cog exclamation eye film folder-open frown-o gamepad globe heart line-chart lock magic meh-o minus-square music paw pencil plus-square road search smile-o star star-half-o thumb-tack thumbs-down thumbs-up times trash-o user youtube-play"
+
 
 mkdir -p Svg/font-awesome/
 for icon in $icons; do
