@@ -181,6 +181,7 @@ pub struct Bookshelf {
 	pub name: String,
 	pub description: String,
 	pub link: String,
+	pub color: String,
 	pub icon_url: String,
 	pub stories: i32,
 	pub num_unread: Option<i32>,

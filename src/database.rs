@@ -378,7 +378,7 @@ pub async fn get_bookshelf(
 	sqlx::query_as!(
 		Bookshelf,
 		"SELECT
-			id, name, description, link, icon_url, stories,
+			id, name, description, link, color, icon_url, stories,
 			num_unread, track_unread, quick_add, email_update,
 			user_id, order_pos, date_created, date_modified, date_cached
 		FROM Bookshelves WHERE id = $1 LIMIT 1;",
@@ -395,15 +395,16 @@ pub async fn insert_bookshelf(
 	sqlx::query_as!(
 		Bookshelf,
 		"INSERT INTO Bookshelves
-			(id, name, description, link, icon_url, stories,
+			(id, name, description, link, color, icon_url, stories,
 			num_unread, track_unread, quick_add, email_update,
 			user_id, order_pos, date_created, date_modified)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		ON CONFLICT(id) DO UPDATE SET
 			name = EXCLUDED.name,
 			description = EXCLUDED.description,
 			link = EXCLUDED.link,
+			color = EXCLUDED.color,
 			icon_url = EXCLUDED.icon_url,
 			stories = EXCLUDED.stories,
 			num_unread = EXCLUDED.num_unread,
@@ -416,13 +417,14 @@ pub async fn insert_bookshelf(
 			date_modified = EXCLUDED.date_modified,
 			date_cached = now()
 		RETURNING
-			id, name, description, link, icon_url, stories,
+			id, name, description, link, color, icon_url, stories,
 			num_unread, track_unread, quick_add, email_update,
 			user_id, order_pos, date_created, date_modified, date_cached;",
 		id.unwrap_or(data.id.parse::<i32>()?),
 		data.attributes.name,
 		data.attributes.description,
 		data.meta.url,
+		data.attributes.color.trim_start_matches("#"),
 		format!("https://raw.githubusercontent.com/SilkRose/Fimfiction-bookshelf-icons/refs/heads/mane/icons/{}/{}/{}.png",
 			data.attributes.color,
 			data.attributes.icon.r#type,

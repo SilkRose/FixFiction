@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS Bookshelves (
 	name          text        NOT NULL,
 	description   text        NOT NULL,
 	link          text        NOT NULL,
+	color         text        NOT NULL,
 	icon_url      text        NOT NULL,
 	stories       integer     NOT NULL,
 	num_unread    integer     NULL,
