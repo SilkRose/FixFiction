@@ -1,4 +1,5 @@
 pub mod blog;
+pub mod bookshelf;
 pub mod chapter;
 pub mod database;
 pub mod error;
