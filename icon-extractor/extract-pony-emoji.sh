@@ -18,5 +18,5 @@ codepoints="1F601 1F602 1F603 1F604 1F605 1F606 1F607 1F608 1F609 1F60A 1F60B 1F
 mkdir -p Svg/pony-emoji/
 ./extract-pony-emoji.ff Ponyemoji.ttf Svg/pony-emoji/ $codepoints
 for file in Svg/pony-emoji/*.svg; do
-	sed -i "s/currentColor/#000000/g" $file
+	sed -i "s/currentColor/#1A1A1A/g" $file
 done
