@@ -207,10 +207,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	tokio::task::spawn(async move {
 		loop {
 			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
+			prune_db!(
+				"DELETE FROM Bookshelves WHERE date_cached < $1",
+				time,
+				db_clone
+			);
 			prune_db!("DELETE FROM Blogs WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Groups WHERE date_cached < $1", time, db_clone);
+			let bookshelves = count_rows("Blogs", &db_clone).await.unwrap();
 			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
 			let users = count_rows("Authors", &db_clone).await.unwrap();
 			let stories = count_rows("Stories", &db_clone).await.unwrap();
@@ -218,7 +224,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			let groups = count_rows("Groups", &db_clone).await.unwrap();
 			let time = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 			println!(
-				"{time} -- stories: {stories}, users: {users}, blogs: {blogs}, chapters: {chapters}, groups: {groups}"
+				"{time} -- stories: {stories}, users: {users}, blogs: {blogs}, chapters: {chapters}, groups: {groups}, bookshelves: {bookshelves}"
 			);
 			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
 		}
