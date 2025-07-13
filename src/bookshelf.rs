@@ -62,7 +62,7 @@ pub fn bookshelf_html_template(
 				Cover::User => user.clone().map(|user| user.color_hex),
 				Cover::None => None,
 			},
-			None => Some(get_color(Some(bookshelf.id))),
+			None => Some(bookshelf.color),
 		},
 	};
 	if let Some(color) = color {
