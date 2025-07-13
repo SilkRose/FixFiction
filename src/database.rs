@@ -426,7 +426,7 @@ pub async fn insert_bookshelf(
 		data.meta.url,
 		data.attributes.color.trim_start_matches("#"),
 		format!("https://raw.githubusercontent.com/SilkRose/Fimfiction-bookshelf-icons/refs/heads/mane/icons/{}/{}/{}.png",
-			data.attributes.color,
+			data.attributes.color.trim_start_matches("#"),
 			data.attributes.icon.r#type,
 			data.attributes.icon.data.trim_start_matches("&#x")),
 		data.attributes.num_stories,
