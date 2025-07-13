@@ -242,7 +242,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);
 			prune_db!("DELETE FROM Groups WHERE date_cached < $1", time, db_clone);
-			let bookshelves = count_rows("Blogs", &db_clone).await.unwrap();
+			let bookshelves = count_rows("Bookshelves", &db_clone).await.unwrap();
 			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
 			let users = count_rows("Authors", &db_clone).await.unwrap();
 			let stories = count_rows("Stories", &db_clone).await.unwrap();
