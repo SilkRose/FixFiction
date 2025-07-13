@@ -4,6 +4,7 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, get};
 use chrono::{TimeDelta, Utc};
 use dotenvy::dotenv;
 use fixfiction::blog::{blog_html_template, request_blog};
+use fixfiction::bookshelf::{bookshelf_html_template, request_bookshelf};
 use fixfiction::chapter::{chapter_html_template, request_chapter, request_story_chapters};
 use fixfiction::database::count_rows;
 use fixfiction::error::error_html_template;
@@ -160,6 +161,31 @@ async fn get_group(
 		.body(body))
 }
 
+#[get("/bookshelf/{id:.*}")]
+async fn get_bookshelf(
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
+	let bookshelf_id = match parse_id(&path) {
+		Ok(id) => id,
+		Err(err) => {
+			return Ok(HttpResponse::Ok()
+				.content_type("text/html; charset=utf-8")
+				.body(error_html_template("bookshelf", path, err.to_string())));
+		}
+	};
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let link = format!("https://www.fimfiction.net/bookshelf/{path}");
+	let body = match request_bookshelf(bookshelf_id, &app, params.refresh).await {
+		Ok((group, founder)) => bookshelf_html_template(group, founder, params, link, errors),
+		Err(err) => error_html_template("bookshelf", path, err.to_string()),
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
+}
+
 #[get("/oembed")]
 async fn oembed(query: Query<OEmbed>) -> Result<impl Responder, Box<dyn Error>> {
 	let embed = query.into_inner();
@@ -245,6 +271,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.service(get_user)
 			.service(get_blog)
 			.service(get_group)
+			.service(get_bookshelf)
 			.service(oembed)
 	})
 	.bind(("0.0.0.0", 7669))? // pony
