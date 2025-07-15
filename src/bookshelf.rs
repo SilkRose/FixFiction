@@ -27,6 +27,9 @@ pub async fn request_bookshelf(
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/bookshelves/{id}?include=user");
 			let api = parse_fimfic_response::<BookshelfApi<i32>>(&app.api, &fimfic).await?;
+			if api.data.attributes.privacy == "private" {
+				return Err("Fimfiction API Error: 4040 – Resource not found".into());
+			}
 			let user = get_variant!(api.included, ApiIncluded::Author);
 			if let Some(user) = user {
 				let user = insert_user(None, user, &app.db).await?;
