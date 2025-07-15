@@ -143,21 +143,22 @@ pub fn bookshelf_html_template(
 	));
 	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);
 	text.push_str(r#"<meta property="twitter:card" content="summary" />"#);
+	let mut encode = form_urlencoded::Serializer::new(String::new());
+	encode.append_pair("type", "rich");
+	encode.append_pair("version", "1");
+	encode.append_pair("provider_name", &site_name);
+	encode.append_pair("provider_url", "https://www.fimfiction.net/");
+	encode.append_pair("title", &bookshelf.name);
 	if let Some(user) = user {
-		let mut encode = form_urlencoded::Serializer::new(String::new());
-		encode.append_pair("type", "rich");
-		encode.append_pair("version", "1");
-		encode.append_pair("provider_name", &site_name);
-		encode.append_pair("provider_url", "https://www.fimfiction.net/");
-		encode.append_pair("title", &bookshelf.name);
 		encode.append_pair("author_name", &user.name);
 		encode.append_pair("author_url", &user.link);
-		encode.append_pair("cache_age", "86400");
-		encode.append_pair("html", "");
-		let encode = encode.finish();
-		text.push_str(&format!(
-		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{}" />"#, user.name));
 	}
+	encode.append_pair("cache_age", "86400");
+	encode.append_pair("html", "");
+	let encode = encode.finish();
+	text.push_str(&format!(
+		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{}" />"#,
+		&bookshelf.name));
 	text.push_str(r#"</head><body></body></html>"#);
 	text
 }
