@@ -1,7 +1,7 @@
 use crate::structs::EmbedData;
 use url::form_urlencoded;
 
-pub fn story_html_template(embed: EmbedData) -> String {
+pub fn embed_html_template(embed: EmbedData) -> String {
 	let mut text = String::new();
 	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
 	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
