@@ -2,15 +2,16 @@ use crate::database::{get_chapter, get_story_chapter, insert_chapter, insert_sto
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::chapter::ChapterApi;
 use crate::fimfiction_api::story::StoryApi;
+use crate::html_template::embed_html_template;
 use crate::story::request_story;
 use crate::structs::{
-	AppState, Chapter, Color, CompletionStatus, ContentRating, Cover, Parameters, Story, User,
+	AppState, Chapter, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story,
+	User,
 };
 use crate::utility::{get_color, map_cover, map_picture, map_tags, parse_fimfic_response};
 use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
-use url::form_urlencoded;
 
 pub async fn request_chapter(
 	id: i32, app: &AppState, recache: bool,
@@ -88,10 +89,6 @@ pub fn chapter_html_template(
 		true => format!("{} – {}\nTags: {}", user.name, story.title, story.tags),
 		false => format!("{} – {}", user.name, story.title),
 	};
-	let mut text = String::new();
-	text.push_str(r#"<!DOCTYPE html><html lang="en"><head>"#);
-	text.push_str("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->");
-	text.push_str("<!-- Pinkie Pie is best pony! -->");
 	let color = match parameters.color {
 		Some(color) => match color {
 			Color::None => None,
@@ -110,23 +107,6 @@ pub fn chapter_html_template(
 			None => Some(story.color_hex),
 		},
 	};
-	if let Some(color) = color {
-		text.push_str(&format!(
-			r##"<meta name="theme-color" content="#{color}" />"##
-		));
-	}
-	text.push_str(&format!(r#"<link rel="canonical" href="{link}" />"#));
-	text.push_str(&format!(
-		r#"<meta http-equiv="refresh" content="0;url={link}" />"#
-	));
-	text.push_str(&format!(
-		r#"<meta property="og:title" content="{}" />"#,
-		chapter.title
-	));
-	text.push_str(&format!(
-		r#"<meta property="og:description" content="{}" />"#,
-		story.short_description
-	));
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
 			Cover::Story => map_cover(story.cover_url),
@@ -135,18 +115,7 @@ pub fn chapter_html_template(
 		},
 		None => map_cover(story.cover_url),
 	};
-	if let Some(cover) = cover {
-		text.push_str(&format!(
-			r#"<meta property="og:image" content="{cover}" />"#
-		));
-	}
-	text.push_str(&format!(r#"<meta property="og:url" content="{link}" />"#));
-	text.push_str(r#"<meta property="og:type" content="book" />"#);
-	text.push_str(&format!(
-		r#"<meta property="book:author" content="{}" />"#,
-		user.link
-	));
-	let mut site_name = if parameters.stats {
+	let site_name = if parameters.stats {
 		let time = chapter.date_published.format("%a %b %e %Y").to_string();
 		let status = match story.completion_status {
 			CompletionStatus::Incomplete => "Incomplete 🔄",
@@ -182,27 +151,20 @@ pub fn chapter_html_template(
 	} else {
 		"Fimfiction".to_string()
 	};
-	if !errors.is_empty() {
-		site_name = format!("{site_name}\n{errors}");
-	}
-	text.push_str(&format!(
-		r#"<meta property="og:site_name" content="{site_name}" />"#
-	));
-	text.push_str(r#"<meta property="twitter:site" content="fimfiction" />"#);
-	text.push_str(r#"<meta property="twitter:card" content="summary" />"#);
-	let mut encode = form_urlencoded::Serializer::new(String::new());
-	encode.append_pair("type", "rich");
-	encode.append_pair("version", "1");
-	encode.append_pair("provider_name", &site_name);
-	encode.append_pair("provider_url", "https://www.fimfiction.net/");
-	encode.append_pair("title", &chapter.title);
-	encode.append_pair("author_name", &author);
-	encode.append_pair("author_url", &user.link);
-	encode.append_pair("cache_age", "86400");
-	encode.append_pair("html", "");
-	let encode = encode.finish();
-	text.push_str(&format!(
-		r#"<link rel="alternate" type="application/json+oembed" href="https://www.fixfiction.net/oembed?{encode}" title="{author}" />"#));
-	text.push_str(r#"</head><body></body></html>"#);
-	text
+	let data = EmbedData {
+		title: chapter.title,
+		description: story.short_description,
+		link,
+		color,
+		cover,
+		site_name,
+		site_url: String::from("https://www.fimfiction.net/"),
+		errors,
+		user_name: Some(author),
+		user_link: Some(user.link),
+		html_comment: None,
+		open_graph_type: String::from("book"),
+		open_graph_property: Some(String::from("book:author")),
+	};
+	embed_html_template(data)
 }
