@@ -131,24 +131,33 @@ pub async fn parse_fimfic_response<T: DeserializeOwned>(
 }
 
 pub fn trim_content(content: String, clean: bool) -> String {
+	let content = match clean {
+		true => clean_content(content),
+		false => content,
+	};
 	let mut text = vec![];
 	let mut chars = 0;
 	for line in content.lines() {
-		if chars + line.len() < 512 {
+		let line = line.trim();
+		if line.is_empty() {
+			continue;
+		} else if chars + line.len() < 512 {
 			text.push(line);
-			chars += line.len() + 1;
+			chars += line.len() + 2;
 		} else {
 			break;
 		}
 	}
-	match clean {
-		true => clean_content(text.join("\n")),
-		false => text.join("\n"),
-	}
+	text.join("\n\n")
 }
 
 pub fn clean_content(content: String) -> String {
-	let re = LazyLock::new(|| Regex::new(r"\[icon\].*\[/icon\]|\[[^]]+\]").unwrap());
+	let re = LazyLock::new(|| {
+		Regex::new(
+			r":[A-Za-z0-9]{20}:|\[icon\].*\[/icon\]|\[img\].*\[/img\]|\[embed\].*\[/embed\]|\[[^]]+\]|https?:\/\/[A-Za-z0-9]{1,256}\.[A-Za-z0-9]{1,256}\.[A-Za-z0-9]{1,256}(\/.*)?",
+		)
+		.unwrap()
+	});
 	re.replace_all(&content, "")
 		.to_string()
 		.replace('"', "&quot;")
