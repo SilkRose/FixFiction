@@ -139,7 +139,9 @@ pub fn trim_content(content: String, clean: bool) -> String {
 	let mut chars = 0;
 	for line in content.lines() {
 		let line = line.trim();
-		if line.is_empty() {
+		if chars == 0 && line.len() > 512 {
+			return line.to_string();
+		} else if line.is_empty() {
 			continue;
 		} else if chars + line.len() < 512 {
 			text.push(line);
