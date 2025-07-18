@@ -154,13 +154,11 @@ pub fn trim_content(content: String, clean: bool) -> String {
 pub fn clean_content(content: String) -> String {
 	let re = LazyLock::new(|| {
 		Regex::new(
-			r":[A-Za-z0-9]{20}:|\[icon\].*\[/icon\]|\[img\].*\[/img\]|\[embed\].*\[/embed\]|\[[^]]+\]|https?:\/\/[A-Za-z0-9]{1,256}\.[A-Za-z0-9]{1,256}\.[A-Za-z0-9]{1,256}(\/.*)?",
+			r":[a-z]{1,20}[0-9]?:|\[icon\].*\[/icon\]|\[img\].*\[/img\]|\[embed\].*\[/embed\]|\[[^]]+\]|https?:\/\/[A-Za-z0-9]{1,256}\.[A-Za-z0-9]{1,256}\.[A-Za-z0-9]{1,256}(\/.*)?",
 		)
 		.unwrap()
 	});
-	re.replace_all(&content, "")
-		.to_string()
-		.replace('"', "&quot;")
+	re.replace_all(&content, "").to_string().replace('⠀', "")
 }
 
 pub fn map_cover(link: Option<String>) -> Option<String> {
