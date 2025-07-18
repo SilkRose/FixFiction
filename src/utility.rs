@@ -30,6 +30,12 @@ pub fn parse_second_id(path: &str) -> Option<i32> {
 	}
 }
 
+pub fn check_slash(path: &mut String, id: i32) {
+	if !path.starts_with(&format!("{id}/")) {
+		*path = format!("{path}/");
+	}
+}
+
 pub async fn parse_embed_parameters(
 	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
 ) -> (Parameters, String) {

@@ -14,7 +14,7 @@ use fixfiction::prune_db;
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::user::{request_user, user_html_template};
-use fixfiction::utility::{parse_embed_parameters, parse_id, parse_second_id};
+use fixfiction::utility::{check_slash, parse_embed_parameters, parse_id, parse_second_id};
 use pony::http::Request;
 use reqwest::Client;
 use std::collections::HashMap;
@@ -100,6 +100,7 @@ async fn get_user(
 				.body(error_html_template("user", path, err.to_string())));
 		}
 	};
+	check_slash(&mut path, user_id);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/user/{path}");
 	let body = match request_user(user_id, &app, params.refresh).await {
@@ -150,6 +151,7 @@ async fn get_group(
 				.body(error_html_template("group", path, err.to_string())));
 		}
 	};
+	check_slash(&mut path, group_id);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/group/{path}");
 	let body = match request_group(group_id, &app, params.refresh).await {
@@ -175,6 +177,7 @@ async fn get_bookshelf(
 				.body(error_html_template("bookshelf", path, err.to_string())));
 		}
 	};
+	check_slash(&mut path, bookshelf_id);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/bookshelf/{path}");
 	let body = match request_bookshelf(bookshelf_id, &app, params.refresh).await {
