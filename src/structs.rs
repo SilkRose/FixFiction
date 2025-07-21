@@ -195,62 +195,32 @@ pub struct Bookshelf {
 	pub date_cached: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Default)]
 pub struct Parameters {
-	#[serde(alias = "image")]
 	pub cover: Option<Cover>,
 	pub color: Option<Color>,
-	#[serde(default)]
 	pub refresh: bool,
-	#[serde(default)]
 	pub stats: bool,
-	#[serde(default)]
 	pub tags: bool,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase", try_from = "String")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Cover {
+	Founder,
 	Story,
 	User,
 	None,
 }
 
-impl TryFrom<String> for Cover {
-	type Error = &'static str;
-	fn try_from(value: String) -> Result<Self, Self::Error> {
-		match value.to_lowercase().as_str() {
-			"story" => Ok(Cover::Story),
-			"user" => Ok(Cover::User),
-			"none" => Ok(Cover::None),
-			_ => Err("invalid cover value"),
-		}
-	}
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "lowercase", try_from = "String")]
+#[derive(Debug, Clone)]
 pub enum Color {
 	Custom(String),
+	Founder,
 	Random,
 	Modulo,
 	Story,
 	User,
 	None,
-}
-
-impl From<String> for Color {
-	fn from(value: String) -> Self {
-		match value.to_lowercase().as_str() {
-			"ran" | "random" => Color::Random,
-			"mod" | "modulo" => Color::Modulo,
-			"story" => Color::Story,
-			"user" => Color::User,
-			"none" => Color::None,
-			_ => Color::Custom(value.to_lowercase()),
-		}
-	}
 }
 
 #[derive(Debug, Clone)]

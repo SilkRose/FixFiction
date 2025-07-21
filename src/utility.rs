@@ -57,7 +57,13 @@ pub async fn parse_embed_parameters(
 }
 
 pub fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String) {
-	let cover = Cover::try_from(value);
+	let cover = match value.to_lowercase().as_str() {
+		"founder" => Ok(Cover::Founder),
+		"story" => Ok(Cover::Story),
+		"user" => Ok(Cover::User),
+		"none" => Ok(Cover::None),
+		_ => Err(format!("Unsupported cover option: {value}")),
+	};
 	match cover {
 		Ok(cover) => params.cover = Some(cover),
 		Err(err) => errors.push(err.to_string()),
@@ -67,7 +73,15 @@ pub fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: Str
 pub async fn parse_color(
 	params: &mut Parameters, errors: &mut Vec<String>, db: &Pool<Postgres>, value: String,
 ) {
-	let color = Color::from(value);
+	let color = match value.to_lowercase().as_str() {
+		"ran" | "random" => Color::Random,
+		"mod" | "modulo" => Color::Modulo,
+		"founder" => Color::Founder,
+		"story" => Color::Story,
+		"user" => Color::User,
+		"none" => Color::None,
+		_ => Color::Custom(value.to_lowercase()),
+	};
 	if let Color::Custom(color) = color {
 		let db_color = query!("SELECT color FROM Colors WHERE name = $1 LIMIT 1;", color)
 			.fetch_optional(db)
