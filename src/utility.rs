@@ -8,6 +8,7 @@ use regex::Regex;
 use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};
 use std::{collections::HashMap, error::Error, sync::LazyLock};
+use url::form_urlencoded;
 
 pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
 	let binding = path.to_string();
@@ -49,13 +50,13 @@ pub async fn parse_embed_parameters(
 			"stats" => parse_bool(value, &mut params.stats, &mut errors, &key),
 			"tags" => parse_bool(value, &mut params.tags, &mut errors, &key),
 			"comment" => parse_comment(path, &mut errors, value),
-			_ => parse_error(&mut errors, key),
+			_ => append_query(path, &key, &value),
 		}
 	}
 	(params, errors.join(", "))
 }
 
-fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String) {
+pub fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String) {
 	let cover = Cover::try_from(value);
 	match cover {
 		Ok(cover) => params.cover = Some(cover),
@@ -89,7 +90,7 @@ pub async fn parse_color(
 	}
 }
 
-fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key: &str) {
+pub fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key: &str) {
 	match text.to_lowercase().as_str() {
 		"false" | "0" | "no" | "n" | "f" => *value = false,
 		"true" | "1" | "yes" | "y" | "t" => *value = true,
@@ -99,7 +100,7 @@ fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key: &st
 	}
 }
 
-fn parse_comment(path: &mut String, errors: &mut Vec<String>, value: String) {
+pub fn parse_comment(path: &mut String, errors: &mut Vec<String>, value: String) {
 	if path.contains("#comment/") {
 		errors.push(format!("Duplicate comment: {value}"));
 	} else {
@@ -107,8 +108,14 @@ fn parse_comment(path: &mut String, errors: &mut Vec<String>, value: String) {
 	}
 }
 
-fn parse_error(errors: &mut Vec<String>, key: String) {
-	errors.push(format!("Unsupported option: {key}"));
+pub fn append_query(path: &mut String, key: &str, value: &str) {
+	let mut encode = form_urlencoded::Serializer::new(String::new());
+	encode.append_pair(key, value);
+	if path.contains('?') {
+		*path = format!("{path}&{}", encode.finish());
+	} else {
+		*path = format!("{path}?{}", encode.finish());
+	}
 }
 
 pub async fn parse_fimfic_response<T: DeserializeOwned>(
