@@ -51,14 +51,14 @@ pub fn bookshelf_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
-			Color::User => user.clone().map(|user| user.color_hex),
+			Color::User | Color::Founder => user.clone().map(|user| user.color_hex),
 			Color::Random => Some(get_color(None)),
 			Color::Modulo | Color::Story => Some(get_color(Some(bookshelf.id))),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {
 				Cover::Story => Some(get_color(Some(bookshelf.id))),
-				Cover::User => user.clone().map(|user| user.color_hex),
+				Cover::User | Cover::Founder => user.clone().map(|user| user.color_hex),
 				Cover::None => None,
 			},
 			None => Some(bookshelf.color),
@@ -66,7 +66,7 @@ pub fn bookshelf_html_template(
 	};
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::User | Cover::Story => user
+			Cover::User | Cover::Founder | Cover::Story => user
 				.clone()
 				.map(|user| map_picture(user.profile_pic_url).unwrap()),
 			Cover::None => None,

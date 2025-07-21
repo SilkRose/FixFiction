@@ -43,14 +43,14 @@ pub fn group_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
-			Color::User => Some(founder.color_hex),
+			Color::User | Color::Founder => Some(founder.color_hex),
 			Color::Random => Some(get_color(None)),
 			Color::Modulo | Color::Story => Some(get_color(Some(group.id))),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {
 				Cover::Story => Some(get_color(Some(group.id))),
-				Cover::User => Some(founder.color_hex),
+				Cover::User | Cover::Founder => Some(founder.color_hex),
 				Cover::None => None,
 			},
 			None => Some(get_color(Some(group.id))),
@@ -58,7 +58,7 @@ pub fn group_html_template(
 	};
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::User | Cover::Story => map_picture(founder.profile_pic_url),
+			Cover::User | Cover::Founder | Cover::Story => map_picture(founder.profile_pic_url),
 			Cover::None => None,
 		},
 		None => map_picture(group.icon_url).or(map_picture(founder.profile_pic_url)),

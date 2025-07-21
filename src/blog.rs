@@ -58,7 +58,7 @@ pub fn blog_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
-			Color::User => Some(user.color_hex),
+			Color::User | Color::Founder => Some(user.color_hex),
 			Color::Random => Some(get_color(None)),
 			Color::Modulo => Some(get_color(Some(blog.id))),
 			Color::Story => Some(
@@ -74,7 +74,7 @@ pub fn blog_html_template(
 					Some(ref story) => Some(story.color_hex.clone()),
 					None => Some(user.color_hex),
 				},
-				Cover::User => Some(user.color_hex),
+				Cover::User | Cover::Founder => Some(user.color_hex),
 				Cover::None => None,
 			},
 			None => Some(user.color_hex),
@@ -82,7 +82,7 @@ pub fn blog_html_template(
 	};
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::User => map_picture(user.profile_pic_url),
+			Cover::User | Cover::Founder => map_picture(user.profile_pic_url),
 			Cover::Story => story
 				.map(|story| map_cover(story.cover_url))
 				.unwrap_or(map_picture(user.profile_pic_url)),

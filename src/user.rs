@@ -37,7 +37,7 @@ pub fn user_html_template(
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
 			Cover::None => None,
-			Cover::User => map_picture(user.profile_pic_url),
+			Cover::User | Cover::Founder => map_picture(user.profile_pic_url),
 			Cover::Story => map_picture(user.profile_pic_url),
 		},
 		None => map_picture(user.profile_pic_url),
