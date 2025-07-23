@@ -3,7 +3,9 @@ use crate::database::{get_user, insert_user};
 use crate::fimfiction_api::user::UserApi;
 use crate::html_template::embed_html_template;
 use crate::structs::{AppState, Color, Cover, EmbedData, Parameters, User};
-use crate::utility::{get_color, map_picture, parse_fimfic_response};
+use crate::utility::{
+	get_color, map_picture, parse_fimfic_response, unsupported_color, unsupported_cover_opt,
+};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 use std::error::Error;
@@ -22,15 +24,17 @@ pub async fn request_user(id: i32, app: &AppState, recache: bool) -> Result<User
 }
 
 pub fn user_html_template(
-	user: User, parameters: Parameters, link: String, errors: String,
+	user: User, parameters: Parameters, link: String, errors: Vec<String>,
 ) -> String {
+	let mut errors = errors;
 	let color = match parameters.color {
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
 			Color::Random => Some(get_color(None)),
 			Color::Modulo => Some(get_color(Some(user.id))),
-			_ => Some(user.color_hex),
+			Color::User => Some(user.color_hex),
+			_ => unsupported_color(&mut errors, color.to_string(), user.color_hex),
 		},
 		None => Some(user.color_hex),
 	};
@@ -38,7 +42,11 @@ pub fn user_html_template(
 		Some(cover) => match cover {
 			Cover::None => None,
 			Cover::User | Cover::Founder => map_picture(user.profile_pic_url),
-			Cover::Story => map_picture(user.profile_pic_url),
+			_ => unsupported_cover_opt(
+				&mut errors,
+				cover.to_string(),
+				map_picture(user.profile_pic_url),
+			),
 		},
 		None => map_picture(user.profile_pic_url),
 	};
@@ -65,7 +73,7 @@ pub fn user_html_template(
 		cover,
 		site_name,
 		site_url: String::from("https://www.fimfiction.net/"),
-		errors,
+		errors: errors.to_vec(),
 		user_name: None,
 		user_link: None,
 		html_comment: None,

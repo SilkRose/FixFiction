@@ -3,6 +3,7 @@ use core::str;
 use pony::http::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Type};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "content_rating", rename_all = "lowercase")]
@@ -212,6 +213,18 @@ pub enum Cover {
 	None,
 }
 
+impl fmt::Display for Cover {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let text = match self {
+			Cover::Founder => "founder",
+			Cover::Story => "story",
+			Cover::User => "user",
+			Cover::None => "none",
+		};
+		write!(f, "{text}")
+	}
+}
+
 #[derive(Debug, Clone)]
 pub enum Color {
 	Custom(String),
@@ -221,6 +234,21 @@ pub enum Color {
 	Story,
 	User,
 	None,
+}
+
+impl fmt::Display for Color {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let text = match self {
+			Color::Custom(color) => color.as_str(),
+			Color::Founder => "founder",
+			Color::Random => "random",
+			Color::Modulo => "modulo",
+			Color::Story => "story",
+			Color::User => "user",
+			Color::None => "none",
+		};
+		write!(f, "{text}")
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -241,7 +269,7 @@ pub struct EmbedData {
 	pub cover: Option<String>,
 	pub site_name: String,
 	pub site_url: String,
-	pub errors: String,
+	pub errors: Vec<String>,
 	pub user_name: Option<String>,
 	pub user_link: Option<String>,
 	pub html_comment: Option<String>,

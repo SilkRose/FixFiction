@@ -5,7 +5,10 @@ use crate::html_template::embed_html_template;
 use crate::story::request_story;
 use crate::structs::{AppState, Blog, Color, Cover, EmbedData, Parameters, Story, User};
 use crate::user::request_user;
-use crate::utility::{get_color, map_cover, map_picture, parse_fimfic_response};
+use crate::utility::{
+	get_color, map_cover, map_picture, parse_fimfic_response, unsupported_color,
+	unsupported_cover_opt,
+};
 use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
@@ -48,8 +51,9 @@ pub async fn request_blog(
 
 pub fn blog_html_template(
 	blog: Blog, user: User, story: Option<Story>, parameters: Parameters, link: String,
-	errors: String,
+	errors: Vec<String>,
 ) -> String {
+	let mut errors = errors;
 	let author = match parameters.tags && !blog.tags.is_empty() {
 		true => format!("{}\nTags: {}", user.name, blog.tags),
 		false => user.name,
@@ -58,15 +62,14 @@ pub fn blog_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
-			Color::User | Color::Founder => Some(user.color_hex),
+			Color::User => Some(user.color_hex),
 			Color::Random => Some(get_color(None)),
 			Color::Modulo => Some(get_color(Some(blog.id))),
-			Color::Story => Some(
-				story
-					.clone()
-					.map(|story| story.color_hex)
-					.unwrap_or(user.color_hex),
-			),
+			Color::Story => match story {
+				Some(ref story) => Some(story.color_hex.clone()),
+				None => unsupported_color(&mut errors, color.to_string(), user.color_hex),
+			},
+			_ => unsupported_color(&mut errors, color.to_string(), user.color_hex),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {
@@ -82,11 +85,21 @@ pub fn blog_html_template(
 	};
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::User | Cover::Founder => map_picture(user.profile_pic_url),
-			Cover::Story => story
-				.map(|story| map_cover(story.cover_url))
-				.unwrap_or(map_picture(user.profile_pic_url)),
+			Cover::User => map_picture(user.profile_pic_url),
+			Cover::Story => match story {
+				Some(ref story) => map_cover(story.cover_url.clone()),
+				None => unsupported_cover_opt(
+					&mut errors,
+					cover.to_string(),
+					map_picture(user.profile_pic_url),
+				),
+			},
 			Cover::None => None,
+			_ => unsupported_cover_opt(
+				&mut errors,
+				cover.to_string(),
+				map_picture(user.profile_pic_url),
+			),
 		},
 		None => map_picture(user.profile_pic_url),
 	};
@@ -108,7 +121,7 @@ pub fn blog_html_template(
 		cover,
 		site_name,
 		site_url: String::from("https://www.fimfiction.net/"),
-		errors,
+		errors: errors.to_vec(),
 		user_name: Some(author),
 		user_link: Some(user.link),
 		html_comment: None,

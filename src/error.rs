@@ -15,7 +15,7 @@ pub fn error_html_template(endpoint: &str, link: String, errors: String) -> Stri
 		)),
 		site_name: String::from("FixFiction Issues Page"),
 		site_url: String::from("https://github.com/SilkRose/FixFiction/issues"),
-		errors: String::default(),
+		errors: Vec::default(),
 		user_name: Some(String::from("Silk Rose's Fimfiction Profile")),
 		user_link: Some(String::from("https://www.fimfiction.net/user/237915/")),
 		html_comment: Some(String::from(

@@ -29,7 +29,7 @@ pub fn embed_html_template(embed: EmbedData) -> String {
 					}
 				};
 				@let site_name = if !embed.errors.is_empty() {
-					format!("{}\n{}", embed.site_name, embed.errors)
+					format!("{}\n{}", embed.site_name, embed.errors.join(", "))
 				} else {
 					embed.site_name
 				};

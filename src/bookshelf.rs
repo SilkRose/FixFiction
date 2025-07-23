@@ -4,7 +4,9 @@ use crate::fimfiction_api::bookshelf::BookshelfApi;
 use crate::html_template::embed_html_template;
 use crate::structs::{AppState, Bookshelf, Color, Cover, EmbedData, Parameters, User};
 use crate::user::request_user;
-use crate::utility::{get_color, map_picture, parse_fimfic_response};
+use crate::utility::{
+	get_color, map_picture, parse_fimfic_response, unsupported_color, unsupported_cover,
+};
 use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
@@ -45,31 +47,46 @@ pub async fn request_bookshelf(
 }
 
 pub fn bookshelf_html_template(
-	bookshelf: Bookshelf, user: Option<User>, parameters: Parameters, link: String, errors: String,
+	bookshelf: Bookshelf, user: Option<User>, parameters: Parameters, link: String,
+	errors: Vec<String>,
 ) -> String {
+	let mut errors = errors;
 	let color = match parameters.color {
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
-			Color::User | Color::Founder => user.clone().map(|user| user.color_hex),
 			Color::Random => Some(get_color(None)),
-			Color::Modulo | Color::Story => Some(get_color(Some(bookshelf.id))),
+			Color::Modulo => Some(get_color(Some(bookshelf.id))),
+			Color::User => match user {
+				Some(ref user) => Some(user.color_hex.to_string()),
+				None => unsupported_color(
+					&mut errors,
+					color.to_string(),
+					get_color(Some(bookshelf.id)),
+				),
+			},
+			_ => unsupported_color(&mut errors, color.to_string(), bookshelf.color),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {
-				Cover::Story => Some(get_color(Some(bookshelf.id))),
-				Cover::User | Cover::Founder => user.clone().map(|user| user.color_hex),
+				Cover::User => user
+					.clone()
+					.map(|user| user.color_hex)
+					.or(Some(bookshelf.color)),
 				Cover::None => None,
+				_ => Some(bookshelf.color),
 			},
 			None => Some(bookshelf.color),
 		},
 	};
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::User | Cover::Founder | Cover::Story => user
-				.clone()
-				.map(|user| map_picture(user.profile_pic_url).unwrap()),
+			Cover::User => match user {
+				Some(ref user) => map_picture(user.profile_pic_url.clone()),
+				None => unsupported_cover(&mut errors, cover.to_string(), bookshelf.icon_url),
+			},
 			Cover::None => None,
+			_ => unsupported_cover(&mut errors, cover.to_string(), bookshelf.icon_url),
 		},
 		None => Some(bookshelf.icon_url),
 	};
@@ -112,7 +129,7 @@ pub fn bookshelf_html_template(
 		cover,
 		site_name,
 		site_url: String::from("https://www.fimfiction.net/"),
-		errors,
+		errors: errors.to_vec(),
 		user_name: user.clone().map(|user| user.name),
 		user_link: user.map(|user| user.link),
 		html_comment: None,

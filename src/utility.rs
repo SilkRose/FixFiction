@@ -39,7 +39,7 @@ pub fn check_slash(path: &mut String, id: i32) {
 
 pub async fn parse_embed_parameters(
 	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
-) -> (Parameters, String) {
+) -> (Parameters, Vec<String>) {
 	let mut params = Parameters::default();
 	let mut errors = Vec::new();
 	for (key, value) in queries {
@@ -53,7 +53,7 @@ pub async fn parse_embed_parameters(
 			_ => append_query(path, &key, &value),
 		}
 	}
-	(params, errors.join(", "))
+	(params, errors)
 }
 
 pub fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String) {
@@ -260,4 +260,28 @@ pub fn get_color(id: Option<i32>) -> String {
 			colors[idx].to_string()
 		}
 	}
+}
+
+pub fn unsupported_cover_opt(
+	errors: &mut Vec<String>, option: String, res: Option<String>,
+) -> Option<String> {
+	errors.push(format!("Unsupported cover option: {option}"));
+	res
+}
+
+pub fn unsupported_color_opt(
+	errors: &mut Vec<String>, option: String, res: Option<String>,
+) -> Option<String> {
+	errors.push(format!("Unsupported color option: {option}"));
+	res
+}
+
+pub fn unsupported_cover(errors: &mut Vec<String>, option: String, res: String) -> Option<String> {
+	errors.push(format!("Unsupported cover option: {option}"));
+	Some(res)
+}
+
+pub fn unsupported_color(errors: &mut Vec<String>, option: String, res: String) -> Option<String> {
+	errors.push(format!("Unsupported color option: {option}"));
+	Some(res)
 }

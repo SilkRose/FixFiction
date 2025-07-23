@@ -6,7 +6,10 @@ use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story, User,
 };
 use crate::user::request_user;
-use crate::utility::{get_color, map_cover, map_picture, map_tags, parse_fimfic_response};
+use crate::utility::{
+	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, unsupported_color,
+	unsupported_cover_opt,
+};
 use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
@@ -37,8 +40,9 @@ pub async fn request_story(
 }
 
 pub fn story_html_template(
-	story: Story, user: User, parameters: Parameters, link: String, errors: String,
+	story: Story, user: User, parameters: Parameters, link: String, errors: Vec<String>,
 ) -> String {
+	let mut errors = errors;
 	let mut text = String::new();
 	let author = match parameters.tags {
 		true => format!("{}\nTags: {}", user.name, story.tags),
@@ -48,16 +52,18 @@ pub fn story_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
-			Color::User | Color::Founder => Some(user.color_hex),
+			Color::User => Some(user.color_hex),
 			Color::Story => Some(story.color_hex),
 			Color::Random => Some(get_color(None)),
 			Color::Modulo => Some(get_color(Some(story.id))),
+			_ => unsupported_color(&mut errors, color.to_string(), story.color_hex),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {
 				Cover::Story => Some(story.color_hex),
-				Cover::User | Cover::Founder => Some(user.color_hex),
+				Cover::User => Some(user.color_hex),
 				Cover::None => None,
+				_ => Some(user.color_hex),
 			},
 			None => Some(story.color_hex),
 		},
@@ -65,8 +71,9 @@ pub fn story_html_template(
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
 			Cover::Story => map_cover(story.cover_url),
-			Cover::User | Cover::Founder => map_picture(user.profile_pic_url),
+			Cover::User => map_picture(user.profile_pic_url),
 			Cover::None => None,
+			_ => unsupported_cover_opt(&mut errors, cover.to_string(), map_cover(story.cover_url)),
 		},
 		None => map_cover(story.cover_url),
 	};
@@ -116,7 +123,7 @@ pub fn story_html_template(
 		cover,
 		site_name,
 		site_url: String::from("https://www.fimfiction.net/"),
-		errors,
+		errors: errors.to_vec(),
 		user_name: Some(author),
 		user_link: Some(user.link),
 		html_comment: None,

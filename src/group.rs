@@ -4,7 +4,9 @@ use crate::fimfiction_api::group::GroupApi;
 use crate::html_template::embed_html_template;
 use crate::structs::{AppState, Color, Cover, EmbedData, Group, Parameters, User};
 use crate::user::request_user;
-use crate::utility::{get_color, map_picture, parse_fimfic_response};
+use crate::utility::{
+	get_color, map_picture, parse_fimfic_response, unsupported_color_opt, unsupported_cover_opt,
+};
 use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
@@ -33,8 +35,9 @@ pub async fn request_group(
 }
 
 pub fn group_html_template(
-	group: Group, founder: User, parameters: Parameters, link: String, errors: String,
+	group: Group, founder: User, parameters: Parameters, link: String, errors: Vec<String>,
 ) -> String {
+	let mut errors = errors;
 	let founder_name = match parameters.stats {
 		true => Some(format!("Founder: {}", founder.name)),
 		false => None,
@@ -43,9 +46,10 @@ pub fn group_html_template(
 		Some(color) => match color {
 			Color::None => None,
 			Color::Custom(color) => Some(color),
-			Color::User | Color::Founder => Some(founder.color_hex),
+			Color::Founder => Some(founder.color_hex),
 			Color::Random => Some(get_color(None)),
-			Color::Modulo | Color::Story => Some(get_color(Some(group.id))),
+			Color::Modulo => Some(get_color(Some(group.id))),
+			_ => unsupported_color_opt(&mut errors, color.to_string(), Some(founder.color_hex)),
 		},
 		None => match parameters.cover {
 			Some(ref cover) => match cover {
@@ -58,8 +62,13 @@ pub fn group_html_template(
 	};
 	let cover = match parameters.cover {
 		Some(cover) => match cover {
-			Cover::User | Cover::Founder | Cover::Story => map_picture(founder.profile_pic_url),
+			Cover::Founder => map_picture(founder.profile_pic_url),
 			Cover::None => None,
+			_ => unsupported_cover_opt(
+				&mut errors,
+				cover.to_string(),
+				map_picture(founder.profile_pic_url),
+			),
 		},
 		None => map_picture(group.icon_url).or(map_picture(founder.profile_pic_url)),
 	};
@@ -89,7 +98,7 @@ pub fn group_html_template(
 		cover,
 		site_name,
 		site_url: String::from("https://www.fimfiction.net/"),
-		errors,
+		errors: errors.to_vec(),
 		user_name: founder_name,
 		user_link: Some(founder.link),
 		html_comment: None,
