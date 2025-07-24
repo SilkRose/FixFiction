@@ -42,6 +42,7 @@ pub async fn parse_embed_parameters(
 ) -> (Parameters, Vec<String>) {
 	let mut params = Parameters::default();
 	let mut errors = Vec::new();
+	let mut comment = None;
 	for (key, value) in queries {
 		match key.to_lowercase().as_str() {
 			"cover" | "image" => parse_cover(&mut params, &mut errors, value),
@@ -49,9 +50,12 @@ pub async fn parse_embed_parameters(
 			"refresh" | "renew" => parse_bool(value, &mut params.refresh, &mut errors, &key),
 			"stats" | "info" => parse_bool(value, &mut params.stats, &mut errors, &key),
 			"tags" | "tag" => parse_bool(value, &mut params.tags, &mut errors, &key),
-			"comment" => parse_comment(path, &mut errors, value),
+			"comment" => comment = Some(value),
 			_ => append_query(path, &key, &value),
 		}
+	}
+	if let Some(comment_id) = comment {
+		*path = format!("{path}#comment/{comment_id}");
 	}
 	(params, errors)
 }
@@ -111,14 +115,6 @@ pub fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key:
 		_ => {
 			errors.push(format!("Unsupported {key} value: {value}"));
 		}
-	}
-}
-
-pub fn parse_comment(path: &mut String, errors: &mut Vec<String>, value: String) {
-	if path.contains("#comment/") {
-		errors.push(format!("Duplicate comment: {value}"));
-	} else {
-		*path = format!("{path}#comment/{value}");
 	}
 }
 
