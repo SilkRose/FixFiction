@@ -196,6 +196,22 @@ pub struct Bookshelf {
 	pub date_cached: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Thread {
+	pub id: i32,
+	pub group_id: i32,
+	pub creator_id: i32,
+	pub last_poster_id: i32,
+	pub title: String,
+	pub link: String,
+	pub posts: i32,
+	pub sticky: bool,
+	pub locked: bool,
+	pub date_created: DateTime<Utc>,
+	pub date_last_post: DateTime<Utc>,
+	pub date_cached: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Parameters {
 	pub cover: Option<Cover>,
