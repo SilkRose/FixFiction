@@ -3,9 +3,10 @@ use crate::fimfiction_api::bookshelf::BookshelfData;
 use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
+use crate::fimfiction_api::thread::ThreadData;
 use crate::fimfiction_api::user::UserData;
 use crate::structs::{
-	Blog, Bookshelf, Chapter, CompletionStatus, ContentRating, Group, Story, User,
+	Blog, Bookshelf, Chapter, CompletionStatus, ContentRating, Group, Story, Thread, User,
 };
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
@@ -440,6 +441,62 @@ pub async fn insert_bookshelf(
 			.map_err(|_| "FixFiction Error: failed to parse date created")?,
 		DateTime::parse_from_rfc3339(&data.attributes.date_modified)
 			.map_err(|_| "FixFiction Error: failed to parse date modified")?
+	)
+	.fetch_one(db)
+	.await
+	.map_err(|_| "FixFiction Error: database insertion error".into())
+}
+
+pub async fn get_thread(id: i32, db: &Pool<Postgres>) -> Result<Option<Thread>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Thread,
+		r#"SELECT
+			id, group_id, creator_id, last_poster_id, title, link, posts,
+			sticky, locked, date_created, date_last_post, date_cached
+		FROM Threads WHERE id = $1 LIMIT 1;"#,
+		id
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|_| "FixFiction Error: database retrieval error".into())
+}
+
+pub async fn insert_thread(
+	id: Option<i32>, data: ThreadData<i32>, group_id: i32, db: &Pool<Postgres>,
+) -> Result<Thread, Box<dyn Error>> {
+	sqlx::query_as!(
+		Thread,
+		r#"INSERT INTO Threads 
+			(id, group_id, creator_id, last_poster_id, title, link, posts,
+			sticky, locked, date_created, date_last_post)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT(id) DO UPDATE SET
+			group_id = EXCLUDED.group_id,
+			creator_id = EXCLUDED.creator_id,
+			last_poster_id = EXCLUDED.last_poster_id,
+			title = EXCLUDED.title,
+			link = EXCLUDED.link,
+			posts = EXCLUDED.posts,
+			sticky = EXCLUDED.sticky,
+			locked = EXCLUDED.locked,
+			date_created = EXCLUDED.date_created,
+			date_last_post = EXCLUDED.date_last_post,
+			date_cached = now()
+		RETURNING
+			id, group_id, creator_id, last_poster_id, title, link, posts,
+			sticky, locked, date_created, date_last_post, date_cached;"#,
+		id.unwrap_or(data.id.parse::<i32>()?),
+		group_id,
+		data.relationships.creator.data.id.parse::<i32>()?,
+		data.relationships.last_poster.data.id.parse::<i32>()?,
+		data.attributes.title,
+		data.meta.url,
+		data.attributes.num_posts,
+		data.attributes.sticky,
+		data.attributes.locked,
+		parse_date(data.attributes.date_created, "published")?,
+		parse_date(data.attributes.date_last_post, "modifed")?,
 	)
 	.fetch_one(db)
 	.await
