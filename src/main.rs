@@ -10,13 +10,13 @@ use fixfiction::database::count_rows;
 use fixfiction::error::error_html_template;
 use fixfiction::fimfiction_api::fimfic_api_headers;
 use fixfiction::group::{group_html_template, request_group};
-use fixfiction::prune_db;
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::user::{request_user, user_html_template};
 use fixfiction::utility::{check_slash, parse_embed_parameters, parse_id, parse_second_id};
 use pony::http::Request;
 use reqwest::Client;
+use sqlx::Executor;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -236,21 +236,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	tokio::task::spawn(async move {
 		loop {
 			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
-			prune_db!(
-				"DELETE FROM Bookshelves WHERE date_cached < $1",
-				time,
-				db_clone
-			);
-			prune_db!("DELETE FROM Blogs WHERE date_cached < $1", time, db_clone);
-			prune_db!("DELETE FROM Authors WHERE date_cached < $1", time, db_clone);
-			prune_db!("DELETE FROM Stories WHERE date_cached < $1", time, db_clone);
-			prune_db!(
-				"DELETE FROM Chapters WHERE date_cached < $1",
-				time,
-				db_clone
-			);
-			prune_db!("DELETE FROM Groups WHERE date_cached < $1", time, db_clone);
-			prune_db!("DELETE FROM Threads WHERE date_cached < $1", time, db_clone);
+			let tables = [
+				"Stories",
+				"Chapters",
+				"Authors",
+				"Blogs",
+				"Bookshelves",
+				"Groups",
+				"Threads",
+			];
+			for table in tables {
+				let query = format!("DELETE FROM {table} WHERE date_cached < $1");
+				if let Err(e) = db_clone.execute(sqlx::query(&query).bind(time)).await {
+					eprintln!("Failed to delete from {table}: {e}");
+				}
+			}
 			let bookshelves = count_rows("Bookshelves", &db_clone).await.unwrap();
 			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
 			let users = count_rows("Authors", &db_clone).await.unwrap();
