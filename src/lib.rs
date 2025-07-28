@@ -8,5 +8,6 @@ pub mod group;
 pub mod html_template;
 pub mod story;
 pub mod structs;
+pub mod thread;
 pub mod user;
 pub mod utility;

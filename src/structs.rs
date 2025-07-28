@@ -212,6 +212,13 @@ pub struct Thread {
 	pub date_cached: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ThreadReturn {
+	pub thread: Thread,
+	pub creator: User,
+	pub last_poster: User,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Parameters {
 	pub cover: Option<Cover>,
