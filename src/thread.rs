@@ -2,7 +2,7 @@ use crate::database::{get_thread, insert_group, insert_thread, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::thread::ThreadApi;
 use crate::group::request_group;
-use crate::structs::{AppState, Group, ThreadReturn, User};
+use crate::structs::{AppState, Group, Thread, ThreadReturn, User};
 use crate::user::request_user;
 use crate::utility::parse_fimfic_response;
 use crate::{check_recache, get_variant, get_variants};
@@ -17,13 +17,9 @@ pub async fn request_thread(
 		Some(thread) => {
 			let (group, founder) = request_group(group_id, app, recache).await?;
 			if thread.group_id != group.id {
-				return Err("Fixfiction error: group ID does not match with thread".into());
+				return Err("FixFiction error: group ID does not match with thread".into());
 			}
-			let data = ThreadReturn {
-				thread: thread.clone(),
-				creator: request_user(thread.creator_id, app, recache).await?,
-				last_poster: request_user(thread.last_poster_id, app, recache).await?,
-			};
+			let data = build_thread_return(thread, app, recache).await?;
 			Ok((group, founder, Some(data)))
 		}
 		None => {
@@ -50,18 +46,23 @@ pub async fn request_thread(
 				.ok_or("Fimfiction API error: no group founder included")?;
 			let thread = threads.into_iter().find(|thread| thread.id == thread_id);
 			if let Some(thread) = thread {
-				if thread.group_id != group.id {
-					return Err("FicFiction error: group ID does not match with thread".into());
-				}
-				let data = ThreadReturn {
-					thread: thread.clone(),
-					creator: request_user(thread.creator_id, app, recache).await?,
-					last_poster: request_user(thread.last_poster_id, app, recache).await?,
-				};
+				let data = build_thread_return(thread, app, recache).await?;
 				Ok((group, founder, Some(data)))
 			} else {
 				Ok((group, founder, None))
 			}
 		}
 	}
+}
+
+async fn build_thread_return(
+	thread: Thread, app: &AppState, recache: bool,
+) -> Result<ThreadReturn, Box<dyn std::error::Error>> {
+	let creator = request_user(thread.creator_id, app, recache).await?;
+	let last_poster = request_user(thread.last_poster_id, app, recache).await?;
+	Ok(ThreadReturn {
+		thread,
+		creator,
+		last_poster,
+	})
 }
