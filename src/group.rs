@@ -67,7 +67,7 @@ pub fn group_html_template(
 			_ => unsupported_cover_opt(
 				&mut errors,
 				cover.to_string(),
-				map_picture(founder.profile_pic_url),
+				map_picture(group.icon_url).or(map_picture(founder.profile_pic_url)),
 			),
 		},
 		None => map_picture(group.icon_url).or(map_picture(founder.profile_pic_url)),
