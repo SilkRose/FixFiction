@@ -13,7 +13,7 @@ use fixfiction::group::{group_html_template, request_group};
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::user::{request_user, user_html_template};
-use fixfiction::utility::{check_slash, parse_embed_parameters, parse_id, parse_second_id};
+use fixfiction::utility::{check_slash, parse_chapter_number, parse_embed_parameters, parse_id};
 use pony::http::Request;
 use reqwest::Client;
 use sqlx::Executor;
@@ -37,7 +37,7 @@ async fn get_story(
 				.body(error_html_template("story", path, err.to_string())));
 		}
 	};
-	let chapter_id = parse_second_id(&path);
+	let chapter_id = parse_chapter_number(&path);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/story/{path}");
 	let body = match chapter_id {

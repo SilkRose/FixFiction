@@ -20,7 +20,7 @@ pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
 	}
 }
 
-pub fn parse_second_id(path: &str) -> Option<i32> {
+pub fn parse_chapter_number(path: &str) -> Option<i32> {
 	let binding = path.to_string();
 	let binding = binding.split('/').collect::<Vec<_>>();
 	if binding.len() >= 3 || binding.len() == 2 && path.ends_with("/") {
