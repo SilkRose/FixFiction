@@ -12,8 +12,11 @@ use fixfiction::fimfiction_api::fimfic_api_headers;
 use fixfiction::group::{group_html_template, request_group};
 use fixfiction::story::{request_story, story_html_template};
 use fixfiction::structs::{AppState, OEmbed};
+use fixfiction::thread::{request_thread, thread_html_template};
 use fixfiction::user::{request_user, user_html_template};
-use fixfiction::utility::{check_slash, parse_chapter_number, parse_embed_parameters, parse_id};
+use fixfiction::utility::{
+	check_slash, parse_chapter_number, parse_embed_parameters, parse_id, parse_thread_id,
+};
 use pony::http::Request;
 use reqwest::Client;
 use sqlx::Executor;
@@ -151,13 +154,29 @@ async fn get_group(
 				.body(error_html_template("group", path, err.to_string())));
 		}
 	};
-	check_slash(&mut path, group_id);
+	let thread_id = parse_thread_id(&path);
+	if thread_id.is_none() {
+		check_slash(&mut path, group_id);
+	}
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/group/{path}");
-	let body = match request_group(group_id, &app, params.refresh).await {
-		Ok((group, founder)) => group_html_template(group, founder, params, link, errors),
-		Err(err) => error_html_template("group", path, err.to_string()),
+
+	let body = match thread_id {
+		Some(thread_id) => match request_thread(group_id, thread_id, &app, params.refresh).await {
+			Ok((group, founder, thread_data)) => match thread_data {
+				Some(thread_data) => {
+					thread_html_template(group, founder, thread_data, params, link, errors)
+				}
+				None => group_html_template(group, founder, params, link, errors),
+			},
+			Err(err) => error_html_template("group", path, err.to_string()),
+		},
+		None => match request_group(group_id, &app, params.refresh).await {
+			Ok((group, founder)) => group_html_template(group, founder, params, link, errors),
+			Err(err) => error_html_template("group", path, err.to_string()),
+		},
 	};
+
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(body))
