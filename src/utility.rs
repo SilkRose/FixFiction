@@ -32,14 +32,11 @@ pub fn parse_chapter_number(path: &str) -> Option<i32> {
 }
 
 pub fn parse_thread_id(path: &str) -> Option<i32> {
-	let binding = path.to_string();
-	let binding = binding.split('/').collect::<Vec<_>>();
-	if binding.len() >= 4 || binding.len() == 3 && path.ends_with("/") {
-		let id = binding.get(3);
-		id.and_then(|id| id.parse::<i32>().ok())
-	} else {
-		None
+	let parts: Vec<_> = path.split('/').collect();
+	if parts.get(2)? != &"thread" {
+		return None;
 	}
+	parts.get(3)?.parse().ok()
 }
 
 pub fn check_slash(path: &mut String, id: i32) {
