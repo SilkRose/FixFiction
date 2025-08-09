@@ -155,6 +155,9 @@ async fn get_group(
 		}
 	};
 	let thread_id = parse_thread_id(&path);
+	if let Some(thread_id) = thread_id {
+		check_slash(&mut path, thread_id);
+	}
 	if thread_id.is_none() {
 		check_slash(&mut path, group_id);
 	}
