@@ -121,7 +121,7 @@ pub fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key:
 		"false" | "0" | "no" | "n" | "f" => *value = false,
 		"true" | "1" | "yes" | "y" | "t" => *value = true,
 		_ => {
-			errors.push(format!("Unsupported {key} value: {value}"));
+			errors.push(format!("Unsupported {key} value: {text}"));
 		}
 	}
 }
