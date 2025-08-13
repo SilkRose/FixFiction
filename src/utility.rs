@@ -106,7 +106,7 @@ pub async fn parse_color(
 				.as_bytes()
 				.iter()
 				.all(|hex| hex.is_ascii_hexdigit())
-				.then_some(Color::Custom(color.repeat(color.len() / 6)));
+				.then_some(Color::Custom(color.repeat(6 / color.len())));
 		} else {
 			errors.push(format!("Unsupported color option: {color}"));
 			params.color = None;
