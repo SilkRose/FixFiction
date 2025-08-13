@@ -7,6 +7,7 @@ use rand::Rng;
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};
+use std::iter;
 use std::{collections::HashMap, error::Error, sync::LazyLock};
 use url::form_urlencoded;
 
@@ -101,12 +102,18 @@ pub async fn parse_color(
 			.unwrap_or_default();
 		if let Some(color) = db_color {
 			params.color = Some(Color::Custom(color.color));
-		} else if matches!(color.len(), 1 | 2 | 3 | 6) {
+		} else if matches!(color.len(), 1 | 2 | 6) {
 			params.color = color
 				.as_bytes()
 				.iter()
 				.all(|hex| hex.is_ascii_hexdigit())
 				.then_some(Color::Custom(color.repeat(6 / color.len())));
+		} else if color.len() == 3 {
+			params.color = color
+				.as_bytes()
+				.iter()
+				.all(|&hex| hex.is_ascii_hexdigit())
+				.then(|| Color::Custom(color.chars().flat_map(|c| iter::repeat_n(c, 2)).collect()));
 		} else {
 			errors.push(format!("Unsupported color option: {color}"));
 			params.color = None;
