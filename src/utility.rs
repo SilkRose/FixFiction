@@ -101,12 +101,12 @@ pub async fn parse_color(
 			.unwrap_or_default();
 		if let Some(color) = db_color {
 			params.color = Some(Color::Custom(color.color));
-		} else if color.len() == 6 {
+		} else if matches!(color.len(), 1 | 2 | 3 | 6) {
 			params.color = color
 				.as_bytes()
 				.iter()
 				.all(|hex| hex.is_ascii_hexdigit())
-				.then_some(Color::Custom(color.to_string()));
+				.then_some(Color::Custom(color.repeat(color.len() / 6)));
 		} else {
 			errors.push(format!("Unsupported color option: {color}"));
 			params.color = None;
