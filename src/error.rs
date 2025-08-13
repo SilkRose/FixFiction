@@ -3,7 +3,7 @@ use crate::{html_template::embed_html_template, structs::EmbedData};
 pub fn error_html_template(endpoint: &str, link: String, errors: String) -> String {
 	let link = format!("https://www.fimfiction.net/{endpoint}/{link}");
 	let desc = format!(
-		"{errors}\n\nThe link above still redirects to Fimfiction. If this error is in error, please report it to Silk Rose on Fimfction, or on the FixFiction GitHub issues page."
+		"{errors}\n\nThe link above still redirects to Fimfiction. If this error is in error, please report it to Silk Rose on Fimfiction, or on the FixFiction GitHub issues page."
 	);
 	let data = EmbedData {
 		title: String::from("Redirect to Fimfiction"),
