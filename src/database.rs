@@ -30,7 +30,7 @@ pub async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn insert_blog(
@@ -73,7 +73,7 @@ pub async fn insert_blog(
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|_| "FixFiction Error: database insertion error".into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
 
 pub async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User>, Box<dyn Error>> {
@@ -88,7 +88,7 @@ pub async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User>, Box<
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn insert_user(
@@ -136,7 +136,7 @@ pub async fn insert_user(
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|_| "FixFiction Error: database insertion error".into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
 
 pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Box<dyn Error>> {
@@ -154,7 +154,7 @@ pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Bo
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn insert_story(
@@ -220,7 +220,7 @@ pub async fn insert_story(
 		data.attributes.num_likes,
 		data.attributes.num_dislikes,
 		user_id,
-		parse_date(data.attributes.date_modified, "modifed")?,
+		parse_date(data.attributes.date_modified, "modified")?,
 		parse_date(data.attributes.date_updated
 			.ok_or("Fimfictiion API error: no updated date")?, "updated")?,
 		parse_date(data.attributes.date_published
@@ -228,7 +228,7 @@ pub async fn insert_story(
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|_| "FixFiction Error: database insertion error".into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
 
 pub async fn get_story_chapter(
@@ -245,7 +245,7 @@ pub async fn get_story_chapter(
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>, Box<dyn Error>> {
@@ -259,7 +259,7 @@ pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn insert_chapter(
@@ -293,11 +293,11 @@ pub async fn insert_chapter(
 		data.attributes.num_views,
 		data.attributes.num_words,
 		parse_date(data.attributes.date_published, "published")?,
-		parse_date(data.attributes.date_modified, "modifed")?,
+		parse_date(data.attributes.date_modified, "modified")?,
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|_| "FixFiction Error: database insertion error".into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
 
 pub async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Group>, Box<dyn Error>> {
@@ -312,7 +312,7 @@ pub async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Group>, Bo
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn insert_group(
@@ -363,7 +363,7 @@ pub async fn insert_group(
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|_| "FixFiction Error: database insertion error".into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
 
 pub async fn get_bookshelf(
@@ -380,7 +380,7 @@ pub async fn get_bookshelf(
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn insert_bookshelf(
@@ -437,7 +437,7 @@ pub async fn insert_bookshelf(
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|_| "FixFiction Error: database insertion error".into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
 
 pub async fn get_thread(id: i32, db: &Pool<Postgres>) -> Result<Option<Thread>, Box<dyn Error>> {
@@ -451,7 +451,7 @@ pub async fn get_thread(id: i32, db: &Pool<Postgres>) -> Result<Option<Thread>, 
 	)
 	.fetch_optional(db)
 	.await
-	.map_err(|_| "FixFiction Error: database retrieval error".into())
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
 pub async fn insert_thread(
@@ -489,9 +489,9 @@ pub async fn insert_thread(
 		data.attributes.sticky,
 		data.attributes.locked,
 		parse_date(data.attributes.date_created, "published")?,
-		parse_date(data.attributes.date_last_post, "modifed")?,
+		parse_date(data.attributes.date_last_post, "modified")?,
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|_| "FixFiction Error: database insertion error".into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
