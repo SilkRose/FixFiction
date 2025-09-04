@@ -46,6 +46,12 @@ pub fn check_slash(path: &mut String, id: i32) {
 	}
 }
 
+pub fn check_thread_slash(path: &mut String, id: i32) {
+	if path.ends_with(&format!("/thread/{id}")) {
+		*path = format!("{path}/");
+	}
+}
+
 pub async fn parse_embed_parameters(
 	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
 ) -> (Parameters, Vec<String>) {

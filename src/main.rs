@@ -15,7 +15,8 @@ use fixfiction::structs::{AppState, OEmbed};
 use fixfiction::thread::{request_thread, thread_html_template};
 use fixfiction::user::{request_user, user_html_template};
 use fixfiction::utility::{
-	check_slash, parse_chapter_number, parse_embed_parameters, parse_id, parse_thread_id,
+	check_slash, check_thread_slash, parse_chapter_number, parse_embed_parameters, parse_id,
+	parse_thread_id,
 };
 use pony::http::Request;
 use reqwest::Client;
@@ -156,9 +157,8 @@ async fn get_group(
 	};
 	let thread_id = parse_thread_id(&path);
 	if let Some(thread_id) = thread_id {
-		check_slash(&mut path, thread_id);
-	}
-	if thread_id.is_none() {
+		check_thread_slash(&mut path, thread_id);
+	} else {
 		check_slash(&mut path, group_id);
 	}
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
