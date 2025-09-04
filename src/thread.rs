@@ -40,12 +40,12 @@ pub async fn request_thread(
 				let user = insert_user(None, user, &app.db).await?;
 				users.push(user);
 			}
+			let group = insert_group(Some(group_id), group, &app.db).await?;
 			let mut threads = Vec::new();
 			for thread in api.data {
 				let thread = insert_thread(None, thread, group_id, &app.db).await?;
 				threads.push(thread);
 			}
-			let group = insert_group(Some(group_id), group, &app.db).await?;
 			let founder = users
 				.into_iter()
 				.find(|user| user.id == group.founder_id)
