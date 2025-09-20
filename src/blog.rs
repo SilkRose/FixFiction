@@ -21,7 +21,7 @@ pub async fn request_blog(
 	match blog {
 		Some(blog) => {
 			let (story, user) = if let Some(story_id) = blog.story_id {
-				let (story, user) = request_story(story_id, app, recache).await?;
+				let (story, user, _tags) = request_story(story_id, app, recache).await?;
 				(Some(story), user)
 			} else {
 				(None, request_user(blog.author_id, app, recache).await?)
@@ -38,7 +38,7 @@ pub async fn request_blog(
 			let story_id = (api.data.relationships.tagged_story.data.id != "0")
 				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);
 			let (story, user) = if let Some(story_id) = story_id {
-				let (story, user) = request_story(story_id, app, recache).await?;
+				let (story, user, _tags) = request_story(story_id, app, recache).await?;
 				(Some(story), user)
 			} else {
 				(None, insert_user(None, author, &app.db).await?)

@@ -1,14 +1,18 @@
-use crate::database::{get_story, insert_story, insert_user};
+use crate::database::{
+	get_story, get_tag, get_tag_links, insert_story, insert_tag, insert_tag_link, insert_user,
+	remove_tag_links,
+};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::embed_html_template;
 use crate::structs::{
-	AppState, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story, User,
+	AppState, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story, Tag,
+	User,
 };
 use crate::user::request_user;
 use crate::utility::{
-	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, unsupported_color,
-	unsupported_cover_opt,
+	compare_tags, get_color, map_cover, map_picture, map_tags, parse_fimfic_response,
+	unsupported_color, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
@@ -16,13 +20,21 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 
 pub async fn request_story(
 	id: i32, app: &AppState, recache: bool,
-) -> Result<(Story, User), Box<dyn std::error::Error>> {
+) -> Result<(Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
 	let story = get_story(id, &app.db).await?;
 	let story = check_recache!(story, recache, app);
 	match story {
 		Some(story) => {
 			let user = request_user(story.author_id, app, recache).await?;
-			Ok((story, user))
+			let tag_links = get_tag_links(story.id, &app.db).await?;
+			let mut tags = Vec::with_capacity(tag_links.len());
+			for link in tag_links {
+				let tag = get_tag(link.tag_id, &app.db)
+					.await?
+					.expect("Database constraint means this will never fail.");
+				tags.push(tag);
+			}
+			Ok((story, user, tags))
 		}
 		None => {
 			let fimfic =
@@ -30,23 +42,32 @@ pub async fn request_story(
 			let api = parse_fimfic_response::<StoryApi<i32>>(&app.api, &fimfic).await?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
-			let tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
-			let tags = map_tags(tags);
+			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
 			let user = insert_user(None, author, &app.db).await?;
-			let story = insert_story(Some(id), api.data, &tags, user.id, &app.db).await?;
-			Ok((story, user))
+			let story = insert_story(Some(id), api.data, user.id, &app.db).await?;
+			remove_tag_links(id, &app.db).await?;
+			let mut tags = Vec::with_capacity(api_tags.len());
+			for tag in api_tags {
+				let tag = insert_tag(None, tag.clone(), &app.db).await?;
+				insert_tag_link(id, tag.id, &app.db).await?;
+				tags.push(tag);
+			}
+			Ok((story, user, tags))
 		}
 	}
 }
 
 pub fn story_html_template(
-	story: Story, user: User, parameters: Parameters, link: String, errors: Vec<String>,
+	story: Story, user: User, mut tags: Vec<Tag>, parameters: Parameters, link: String,
+	errors: Vec<String>,
 ) -> String {
 	let mut errors = errors;
 	let mut text = String::new();
-	let author = match parameters.tags {
-		true => format!("{}\nTags: {}", user.name, story.tags),
-		false => user.name,
+	let author = if parameters.tags {
+		tags.sort_by(compare_tags);
+		format!("{}\nTags: {}", user.name, map_tags(&tags))
+	} else {
+		user.name
 	};
 	let color = match parameters.color {
 		Some(color) => match color {

@@ -47,14 +47,14 @@ async fn get_story(
 	let body = match chapter_id {
 		Some(chapter_num) => {
 			match request_story_chapters(story_id, chapter_num, &app, params.refresh).await {
-				Ok((chapter, story, user)) => {
-					chapter_html_template(chapter, story, user, params, link, errors)
+				Ok((chapter, story, user, tags)) => {
+					chapter_html_template(chapter, story, user, tags, params, link, errors)
 				}
 				Err(err) => error_html_template("story", path, err.to_string()),
 			}
 		}
 		None => match request_story(story_id, &app, params.refresh).await {
-			Ok((story, user)) => story_html_template(story, user, params, link, errors),
+			Ok((story, user, tags)) => story_html_template(story, user, tags, params, link, errors),
 			Err(err) => error_html_template("story", path, err.to_string()),
 		},
 	};
@@ -80,8 +80,8 @@ async fn get_chapter(
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
 	let link = format!("https://www.fimfiction.net/chapter/{path}");
 	let body = match request_chapter(chapter_id, &app, params.refresh).await {
-		Ok((chapter, story, user)) => {
-			chapter_html_template(chapter, story, user, params, link, errors)
+		Ok((chapter, story, user, tags)) => {
+			chapter_html_template(chapter, story, user, tags, params, link, errors)
 		}
 		Err(err) => error_html_template("chapter", path, err.to_string()),
 	};

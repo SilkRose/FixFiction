@@ -1,4 +1,7 @@
-use crate::database::{get_chapter, get_story_chapter, insert_chapter, insert_story, insert_user};
+use crate::database::{
+	get_chapter, get_story_chapter, insert_chapter, insert_story, insert_tag, insert_tag_link,
+	insert_user, remove_tag_links,
+};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::chapter::ChapterApi;
 use crate::fimfiction_api::story::StoryApi;
@@ -6,11 +9,11 @@ use crate::html_template::embed_html_template;
 use crate::story::request_story;
 use crate::structs::{
 	AppState, Chapter, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story,
-	User,
+	Tag, User,
 };
 use crate::utility::{
-	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, unsupported_color,
-	unsupported_cover_opt,
+	compare_tags, get_color, map_cover, map_picture, map_tags, parse_fimfic_response,
+	unsupported_color, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
@@ -18,42 +21,48 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 
 pub async fn request_chapter(
 	id: i32, app: &AppState, recache: bool,
-) -> Result<(Chapter, Story, User), Box<dyn std::error::Error>> {
+) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
 	let chapter = get_chapter(id, &app.db).await?;
 	let chapter = check_recache!(chapter, recache, app);
 	match chapter {
 		Some(chapter) => {
-			let (story, user) = request_story(chapter.story_id, app, recache).await?;
-			Ok((chapter, story, user))
+			let (story, user, tags) = request_story(chapter.story_id, app, recache).await?;
+			Ok((chapter, story, user, tags))
 		}
 		None => {
 			let fimfic = format!(
-				"https://www.fimfiction.net/api/v2/chapters/{id}?include=story,story.author"
+				"https://www.fimfiction.net/api/v2/chapters/{id}?include=story,story.author,story.tags"
 			);
 			let api = parse_fimfic_response::<ChapterApi<i32>>(&app.api, &fimfic).await?;
 			let story = get_variant!(api.included, ApiIncluded::Story)
 				.ok_or("Fimfiction API error: no story included")?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
-			let tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
-			let tags = map_tags(tags);
+			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
 			let author = insert_user(None, author, &app.db).await?;
-			let story = insert_story(None, story.clone(), &tags, author.id, &app.db).await?;
+			let story = insert_story(None, story.clone(), author.id, &app.db).await?;
+			remove_tag_links(story.id, &app.db).await?;
+			let mut tags = Vec::with_capacity(api_tags.len());
+			for tag in api_tags {
+				let tag = insert_tag(None, tag.clone(), &app.db).await?;
+				insert_tag_link(story.id, tag.id, &app.db).await?;
+				tags.push(tag);
+			}
 			let chapter = insert_chapter(Some(id), api.data, story.id, &app.db).await?;
-			Ok((chapter, story, author))
+			Ok((chapter, story, author, tags))
 		}
 	}
 }
 
 pub async fn request_story_chapters(
 	story_id: i32, chapter_num: i32, app: &AppState, recache: bool,
-) -> Result<(Chapter, Story, User), Box<dyn std::error::Error>> {
+) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
 	let chapter = get_story_chapter(story_id, chapter_num, &app.db).await?;
 	let chapter = check_recache!(chapter, recache, app);
 	match chapter {
 		Some(chapter) => {
-			let (story, user) = request_story(chapter.story_id, app, recache).await?;
-			Ok((chapter, story, user))
+			let (story, user, tags) = request_story(chapter.story_id, app, recache).await?;
+			Ok((chapter, story, user, tags))
 		}
 		None => {
 			let fimfic = format!(
@@ -62,10 +71,16 @@ pub async fn request_story_chapters(
 			let api = parse_fimfic_response::<StoryApi<i32>>(&app.api, &fimfic).await?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
-			let tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
-			let tags = map_tags(tags);
 			let author = insert_user(None, author, &app.db).await?;
-			let story = insert_story(None, api.data, &tags, author.id, &app.db).await?;
+			let story = insert_story(None, api.data, author.id, &app.db).await?;
+			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
+			remove_tag_links(story_id, &app.db).await?;
+			let mut tags = Vec::with_capacity(api_tags.len());
+			for tag in api_tags {
+				let tag = insert_tag(None, tag.clone(), &app.db).await?;
+				insert_tag_link(story_id, tag.id, &app.db).await?;
+				tags.push(tag);
+			}
 			let mut chapters = Vec::new();
 			for chapter in &api.included {
 				if let ApiIncluded::Chapter(data) = chapter {
@@ -79,19 +94,21 @@ pub async fn request_story_chapters(
 				.into_iter()
 				.find(|chapter| chapter.chapter_num == chapter_num)
 				.ok_or("FixFiction error: chapter not found")?;
-			Ok((chapter, story, author))
+			Ok((chapter, story, author, tags))
 		}
 	}
 }
 
 pub fn chapter_html_template(
-	chapter: Chapter, story: Story, user: User, parameters: Parameters, link: String,
-	errors: Vec<String>,
+	chapter: Chapter, story: Story, user: User, mut tags: Vec<Tag>, parameters: Parameters,
+	link: String, errors: Vec<String>,
 ) -> String {
 	let mut errors = errors;
-	let author = match parameters.tags {
-		true => format!("{} – {}\nTags: {}", user.name, story.title, story.tags),
-		false => format!("{} – {}", user.name, story.title),
+	let author = if parameters.tags {
+		tags.sort_by(compare_tags);
+		format!("{} – {}\nTags: {}", user.name, story.title, map_tags(&tags))
+	} else {
+		format!("{} – {}", user.name, story.title)
 	};
 	let color = match parameters.color {
 		Some(color) => match color {

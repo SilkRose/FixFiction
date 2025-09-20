@@ -3,10 +3,12 @@ use crate::fimfiction_api::bookshelf::BookshelfData;
 use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
+use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::thread::ThreadData;
 use crate::fimfiction_api::user::UserData;
 use crate::structs::{
-	Blog, Bookshelf, Chapter, CompletionStatus, ContentRating, Group, Story, Thread, User,
+	Blog, Bookshelf, Chapter, CompletionStatus, ContentRating, Group, Story, Tag, TagLink, TagType,
+	Thread, User,
 };
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
@@ -147,7 +149,7 @@ pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Bo
 			color_hex, views, total_views, words, chapters, comments, rating,
 			completion_status AS "completion_status: CompletionStatus",
 			content_rating AS "content_rating: ContentRating",
-			tags, likes, dislikes, author_id, date_modified,
+			likes, dislikes, author_id, date_modified,
 			date_updated, date_published, date_cached
 		FROM Stories WHERE id = $1 LIMIT 1;"#,
 		id
@@ -158,17 +160,17 @@ pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Bo
 }
 
 pub async fn insert_story(
-	id: Option<i32>, data: StoryData<i32>, tags: &str, user_id: i32, db: &Pool<Postgres>,
+	id: Option<i32>, data: StoryData<i32>, user_id: i32, db: &Pool<Postgres>,
 ) -> Result<Story, Box<dyn Error>> {
 	sqlx::query_as!(
 		Story,
 		r#"INSERT INTO Stories (
 			id, title, short_description, description, published, link, cover_url,
 			color_hex, views, total_views, words, chapters, comments, rating,
-			completion_status, content_rating, tags, likes, dislikes, author_id,
+			completion_status, content_rating, likes, dislikes, author_id,
 			date_modified, date_updated, date_published)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
 		ON CONFLICT(id) DO UPDATE SET
 			title = EXCLUDED.title,
 			short_description = EXCLUDED.short_description,
@@ -185,7 +187,6 @@ pub async fn insert_story(
 			rating = EXCLUDED.rating,
 			completion_status = EXCLUDED.completion_status,
 			content_rating = EXCLUDED.content_rating,
-			tags = EXCLUDED.tags,
 			likes = EXCLUDED.likes,
 			dislikes = EXCLUDED.dislikes,
 			author_id = EXCLUDED.author_id,
@@ -198,7 +199,7 @@ pub async fn insert_story(
 			color_hex, views, total_views, words, chapters, comments, rating,
 			completion_status AS "completion_status: CompletionStatus",
 			content_rating AS "content_rating: ContentRating",
-			tags, likes, dislikes, author_id, date_modified,
+			likes, dislikes, author_id, date_modified,
 			date_updated, date_published, date_cached;"#,
 		id.unwrap_or(data.id.parse::<i32>()?),
 		clean_content(data.attributes.title),
@@ -216,7 +217,6 @@ pub async fn insert_story(
 		data.attributes.rating,
 		CompletionStatus::from(data.attributes.completion_status) as _,
 		ContentRating::from(data.attributes.content_rating) as _,
-		tags,
 		data.attributes.num_likes,
 		data.attributes.num_dislikes,
 		user_id,
@@ -494,4 +494,90 @@ pub async fn insert_thread(
 	.fetch_one(db)
 	.await
 	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+}
+
+pub async fn get_tag(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dyn Error>> {
+	sqlx::query_as!(
+		Tag,
+		r#"SELECT
+			id, name, type AS "tag_type: TagType", old_id, link, date_cached
+		FROM Tags WHERE id = $1 LIMIT 1;"#,
+		id
+	)
+	.fetch_optional(db)
+	.await
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
+}
+
+pub async fn insert_tag(
+	id: Option<i32>, tag: TagData<i32>, db: &Pool<Postgres>,
+) -> Result<Tag, Box<dyn Error>> {
+	sqlx::query_as!(
+		Tag,
+		r#"INSERT INTO Tags
+			(id, name, type, old_id, link)
+		VALUES
+			($1, $2, $3, $4, $5)
+		ON CONFLICT(id) DO UPDATE SET
+			name = EXCLUDED.name,
+			type = EXCLUDED.type,
+			old_id = EXCLUDED.old_id,
+			link = EXCLUDED.link,
+			date_cached = now()
+		RETURNING
+			id, name, type AS "tag_type: TagType", old_id, link, date_cached;"#,
+		id.unwrap_or(tag.id.parse::<i32>()?),
+		tag.attributes.name,
+		TagType::from(tag.attributes.r#type) as _,
+		tag.meta.old_id,
+		tag.meta.url,
+	)
+	.fetch_one(db)
+	.await
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+}
+
+pub async fn get_tag_links(
+	story_id: i32, db: &Pool<Postgres>,
+) -> Result<Vec<TagLink>, Box<dyn Error>> {
+	sqlx::query_as!(
+		TagLink,
+		r#"SELECT
+			story_id, tag_id, date_cached
+		FROM Tag_links WHERE story_id = $1;"#,
+		story_id
+	)
+	.fetch_all(db)
+	.await
+	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
+}
+
+pub async fn insert_tag_link(
+	story_id: i32, tag_id: i32, db: &Pool<Postgres>,
+) -> Result<TagLink, Box<dyn Error>> {
+	sqlx::query_as!(
+		TagLink,
+		r#"INSERT INTO Tag_links
+			(story_id, tag_id)
+		VALUES
+			($1, $2)
+		ON CONFLICT(story_id, tag_id) DO UPDATE SET
+			date_cached = now()
+		RETURNING
+			story_id, tag_id, date_cached;"#,
+		story_id,
+		tag_id
+	)
+	.fetch_one(db)
+	.await
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+}
+
+pub async fn remove_tag_links(story_id: i32, db: &Pool<Postgres>) -> Result<u64, Box<dyn Error>> {
+	let rows = sqlx::query!("DELETE FROM Tag_links WHERE story_id = $1", story_id)
+		.execute(db)
+		.await
+		.map_err(|e| format!("FixFiction Error: database removal error.\n{e}"))?
+		.rows_affected();
+	Ok(rows)
 }
