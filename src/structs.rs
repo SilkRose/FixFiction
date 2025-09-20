@@ -4,6 +4,7 @@ use pony::http::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Type};
 use std::fmt;
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "content_rating", rename_all = "lowercase")]
@@ -72,6 +73,34 @@ impl From<String> for TagType {
 	}
 }
 
+impl PartialOrd for TagType {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(Self::cmp(self, other))
+	}
+}
+
+impl Ord for TagType {
+	fn cmp(&self, other: &Self) -> Ordering {
+		macro_rules! to_int {
+			($tag:ident) => {
+				match *$tag {
+					TagType::Rating => 1,
+					TagType::Series => 2,
+					TagType::Universe => 3,
+					TagType::Warning => 4,
+					TagType::Genre => 5,
+					TagType::Content => 6,
+					TagType::Character => 7,
+				}
+			}
+		}
+
+		let this = to_int!(self);
+		let other = to_int!(other);
+		Ord::cmp(&this, &other)
+	}
+}
+
 #[derive(Debug, Clone)]
 pub struct Story {
 	pub id: i32,
@@ -107,6 +136,29 @@ pub struct Tag {
 	pub old_id: Option<String>,
 	pub link: String,
 	pub date_cached: DateTime<Utc>,
+}
+
+impl PartialEq for Tag {
+	fn eq(&self, other: &Self) -> bool {
+		matches!(Ord::cmp(self, other), Ordering::Equal)
+	}
+}
+
+impl Eq for Tag {}
+
+impl PartialOrd for Tag {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(Self::cmp(self, other))
+	}
+}
+
+impl Ord for Tag {
+	fn cmp(&self, other: &Self) -> Ordering {
+		let cmp = Ord::cmp(&self.tag_type, &other.tag_type);
+		if cmp != Ordering::Equal { return cmp }
+
+		Ord::cmp(&self.id, &other.id)
+	}
 }
 
 #[derive(Debug, Clone)]
