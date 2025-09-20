@@ -12,8 +12,8 @@ use crate::structs::{
 	Tag, User,
 };
 use crate::utility::{
-	compare_tags, get_color, map_cover, map_picture, map_tags, parse_fimfic_response,
-	unsupported_color, unsupported_cover_opt,
+	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, unsupported_color,
+	unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
@@ -105,7 +105,7 @@ pub fn chapter_html_template(
 ) -> String {
 	let mut errors = errors;
 	let author = if parameters.tags {
-		tags.sort_by(compare_tags);
+		tags.sort();
 		format!("{} – {}\nTags: {}", user.name, story.title, map_tags(&tags))
 	} else {
 		format!("{} – {}", user.name, story.title)

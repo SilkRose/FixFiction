@@ -3,8 +3,8 @@ use core::str;
 use pony::http::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Type};
-use std::fmt;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "content_rating", rename_all = "lowercase")]
@@ -92,7 +92,7 @@ impl Ord for TagType {
 					TagType::Content => 6,
 					TagType::Character => 7,
 				}
-			}
+			};
 		}
 
 		let this = to_int!(self);
@@ -155,7 +155,9 @@ impl PartialOrd for Tag {
 impl Ord for Tag {
 	fn cmp(&self, other: &Self) -> Ordering {
 		let cmp = Ord::cmp(&self.tag_type, &other.tag_type);
-		if cmp != Ordering::Equal { return cmp }
+		if cmp != Ordering::Equal {
+			return cmp;
+		}
 
 		Ord::cmp(&self.id, &other.id)
 	}

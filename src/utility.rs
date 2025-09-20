@@ -1,12 +1,11 @@
 use crate::fimfiction_api::error::FimficError;
-use crate::structs::{Color, Cover, Parameters, Tag, TagType};
+use crate::structs::{Color, Cover, Parameters, Tag};
 use chrono::{DateTime, FixedOffset};
 use pony::http::{Request, api_get_request};
 use rand::Rng;
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};
-use std::cmp::Ordering;
 use std::iter;
 use std::{collections::HashMap, error::Error, sync::LazyLock};
 use url::form_urlencoded;
@@ -301,28 +300,4 @@ pub fn unsupported_cover(errors: &mut Vec<String>, option: String, res: String) 
 pub fn unsupported_color(errors: &mut Vec<String>, option: String, res: String) -> Option<String> {
 	errors.push(format!("Unsupported color option: {option}"));
 	Some(res)
-}
-
-pub fn compare_tags(a: &Tag, b: &Tag) -> Ordering {
-	let a = tag_type_to_u32(a.tag_type) + a.id;
-	let b = tag_type_to_u32(b.tag_type) + b.id;
-	if a < b {
-		Ordering::Less
-	} else if a > b {
-		Ordering::Greater
-	} else {
-		Ordering::Equal
-	}
-}
-
-pub fn tag_type_to_u32(tag: TagType) -> i32 {
-	match tag {
-		TagType::Rating => 0,
-		TagType::Series => 5_000,
-		TagType::Universe => 10_000,
-		TagType::Warning => 15_000,
-		TagType::Genre => 20_000,
-		TagType::Content => 25_000,
-		TagType::Character => 30_000,
-	}
 }
