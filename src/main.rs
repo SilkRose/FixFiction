@@ -261,6 +261,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			let tables = [
 				"Stories",
 				"Chapters",
+				"Tags",
+				"Tag_links",
 				"Authors",
 				"Blogs",
 				"Bookshelves",
@@ -273,15 +275,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 					eprintln!("Failed to delete from {table}: {e}");
 				}
 			}
-			let bookshelves = count_rows("Bookshelves", &db_clone).await.unwrap();
-			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
-			let users = count_rows("Authors", &db_clone).await.unwrap();
 			let stories = count_rows("Stories", &db_clone).await.unwrap();
 			let chapters = count_rows("Chapters", &db_clone).await.unwrap();
+			let tags = count_rows("Tags", &db_clone).await.unwrap();
+			let tag_links = count_rows("Tag_links", &db_clone).await.unwrap();
+			let users = count_rows("Authors", &db_clone).await.unwrap();
+			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
+			let bookshelves = count_rows("Bookshelves", &db_clone).await.unwrap();
 			let groups = count_rows("Groups", &db_clone).await.unwrap();
 			let threads = count_rows("Threads", &db_clone).await.unwrap();
 			let time = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 			print!("{time}: stories: {stories}, chapters: {chapters},");
+			print!(" tags: {tags}, tag links: {tag_links}");
 			print!(" users: {users}, blogs: {blogs}, bookshelves: {bookshelves},");
 			println!(" groups: {groups}, threads: {threads}");
 			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
