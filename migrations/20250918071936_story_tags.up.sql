@@ -9,6 +9,7 @@ CREATE TYPE tag_type AS enum (
 );
 
 ALTER TABLE Stories DROP COLUMN tags;
+DELETE FROM Stories;
 
 CREATE TABLE IF NOT EXISTS Tags (
 	id          integer     NOT NULL PRIMARY KEY,
