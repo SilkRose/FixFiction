@@ -6,8 +6,10 @@ use rand::Rng;
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};
+use std::collections::HashMap;
+use std::error::Error;
 use std::iter;
-use std::{collections::HashMap, error::Error, sync::LazyLock};
+use std::sync::LazyLock;
 use url::form_urlencoded;
 
 pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
@@ -221,10 +223,59 @@ pub fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>, Box
 
 pub fn map_tags(tags: &[Tag]) -> String {
 	tags.iter()
-		.map(|tag| tag.name.clone())
+		.map(|tag| SHORT_TAGS.get(&tag.id).copied().unwrap_or(&tag.name))
 		.collect::<Vec<_>>()
 		.join(", ")
 }
+
+static SHORT_TAGS: LazyLock<HashMap<i32, &str>> = LazyLock::new(|| {
+	let mut tags = HashMap::new();
+	tags.insert(4, "MLP FiM");
+	tags.insert(6, "Twilight");
+	tags.insert(7, "Rainbow");
+	tags.insert(8, "Pinkie"); // Best pony!
+	tags.insert(16, "Celestia");
+	tags.insert(17, "Luna");
+	tags.insert(21, "Big Mac");
+	tags.insert(40, "Opal");
+	tags.insert(44, "Derpy");
+	tags.insert(47, "Vinyl");
+	tags.insert(48, "OC");
+	tags.insert(64, "Flim & Flam");
+	tags.insert(69, "Dinky");
+	tags.insert(71, "Cadence");
+	tags.insert(73, "Mane 6 (G4)");
+	tags.insert(74, "CMC");
+	tags.insert(77, "Chrysalis");
+	tags.insert(79, "Flitter & Cloudchaser");
+	tags.insert(93, "Sunset");
+	tags.insert(98, "Brad");
+	tags.insert(113, "Adagio");
+	tags.insert(114, "Sonata");
+	tags.insert(115, "Aria");
+	tags.insert(123, "Equestria Girls");
+	tags.insert(128, "Starlight");
+	tags.insert(136, "Starswirl");
+	tags.insert(166, "Pinkie (EqG)"); // Best girl!
+	tags.insert(169, "Rainbow (EqG)");
+	tags.insert(177, "Sunset (Demon)");
+	tags.insert(178, "Sci-Twi");
+	tags.insert(180, "Nightmarity");
+	tags.insert(211, "Mane 7 (EqG)");
+	tags.insert(225, "2nd Person");
+	tags.insert(236, "Sci-Fi");
+	tags.insert(240, "AU");
+	tags.insert(242, "MLP G4 Movie");
+	tags.insert(243, "MLP Comic");
+	tags.insert(516, "Hitch");
+	tags.insert(517, "Izzy");
+	tags.insert(518, "Sunny");
+	tags.insert(528, "Pipp");
+	tags.insert(529, "Zipp");
+	tags.insert(531, "MLP G5");
+	tags.insert(557, "Mane 5 (G5)");
+	tags
+});
 
 #[macro_export]
 macro_rules! get_variant {
