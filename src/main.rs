@@ -2,7 +2,6 @@ use actix_cors::Cors;
 use actix_web::web::{Data, Path, Query};
 use actix_web::{App, HttpResponse, HttpServer, Responder, get};
 use chrono::{TimeDelta, Utc};
-use dotenvy::dotenv;
 use fixfiction::blog::{blog_html_template, request_blog};
 use fixfiction::bookshelf::{bookshelf_html_template, request_bookshelf};
 use fixfiction::chapter::{chapter_html_template, request_chapter, request_story_chapters};
@@ -18,6 +17,7 @@ use fixfiction::utility::{
 	check_slash, check_thread_slash, parse_chapter_number, parse_embed_parameters, parse_id,
 	parse_thread_id,
 };
+use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
 use sqlx::Executor;
