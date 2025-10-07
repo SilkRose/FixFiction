@@ -1,10 +1,16 @@
-use crate::{html_template::embed_html_template, structs::EmbedData};
+use crate::html_template::embed_html_template;
+use crate::structs::EmbedData;
+use crate::utility::LOG;
 
 pub fn error_html_template(endpoint: &str, link: String, errors: String) -> String {
 	let link = format!("https://www.fimfiction.net/{endpoint}/{link}");
 	let desc = format!(
 		"{errors}\n\nThe link above still redirects to Fimfiction. If this error is in error, please report it to Silk Rose on Fimfiction, or on the FixFiction GitHub issues page."
 	);
+	let msg = format!("{errors} -- Link: {link}");
+	if let Err(e) = LOG.error(&msg) {
+		eprintln!("Failed to log error: {e}")
+	}
 	let data = EmbedData {
 		title: String::from("Redirect to Fimfiction"),
 		description: desc,

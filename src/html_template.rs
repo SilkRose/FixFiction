@@ -1,8 +1,14 @@
-use crate::structs::EmbedData;
+use crate::{structs::EmbedData, utility::LOG};
 use maud::{DOCTYPE, PreEscaped, html};
 use url::form_urlencoded;
 
 pub fn embed_html_template(embed: EmbedData) -> String {
+	for warning in &embed.errors {
+		let msg = format!("{warning} -- Link: {}", embed.link);
+		if let Err(e) = LOG.warn(&msg) {
+			eprintln!("{e}")
+		}
+	}
 	html! {
 		(DOCTYPE) html lang = "en" {
 			head {

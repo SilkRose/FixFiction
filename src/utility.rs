@@ -2,6 +2,7 @@ use crate::fimfiction_api::error::FimficError;
 use crate::structs::{Color, Cover, Parameters, Tag};
 use chrono::{DateTime, FixedOffset};
 use pony::http::{Request, api_get_request};
+use pony::log::{FileLimit, LogLevel, Logger};
 use rand::Rng;
 use regex::Regex;
 use serde::de::DeserializeOwned;
@@ -11,6 +12,12 @@ use std::error::Error;
 use std::iter;
 use std::sync::LazyLock;
 use url::form_urlencoded;
+
+pub static LOG: LazyLock<Logger> = LazyLock::new(|| {
+	Logger::new(LogLevel::Debug)
+		.set_file("./logs", LogLevel::Debug, FileLimit::Lines(1_000), 20)
+		.expect("Should never fail")
+});
 
 pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
 	let binding = path.to_string();
