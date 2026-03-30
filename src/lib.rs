@@ -1,6 +1,7 @@
 pub mod blog;
 pub mod bookshelf;
 pub mod chapter;
+pub mod cookie;
 pub mod database;
 pub mod error;
 pub mod fimfiction_api;

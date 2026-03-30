@@ -5,6 +5,7 @@ use chrono::{TimeDelta, Utc};
 use fixfiction::blog::{blog_html_template, request_blog};
 use fixfiction::bookshelf::{bookshelf_html_template, request_bookshelf};
 use fixfiction::chapter::{chapter_html_template, request_chapter, request_story_chapters};
+use fixfiction::cookie::get_cookie;
 use fixfiction::database::count_rows;
 use fixfiction::error::error_html_template;
 use fixfiction::fimfiction_api::fimfic_api_headers;
@@ -236,6 +237,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		timeout: Duration::from_secs(10),
 		max_tries: 4,
 	};
+	let cf_data = get_cookie(&api.client).await?;
 
 	let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
 	let db_pool = sqlx::postgres::PgPoolOptions::new()
@@ -246,16 +248,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	sqlx::migrate!("./migrations").run(&db_pool).await?;
 
-	let db_clone = db_pool.clone();
 	let app_data = AppState {
 		api,
 		db: db_pool,
+		cf_data,
 		gc_interval: 3600,
 		cache_max_age: 86400,
 		cache_recache_age: 60,
 	};
+	let app_data = Arc::new(app_data);
+	let app_data_clone = app_data.clone();
 
 	tokio::task::spawn(async move {
+		let mut binding = app_data_clone.clone();
+		let app_data = Arc::make_mut(&mut binding);
+		let db = app_data.db.clone();
+		let mut iterations = 0;
 		loop {
 			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
 			let tables = [
@@ -271,31 +279,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			];
 			for table in tables {
 				let query = format!("DELETE FROM {table} WHERE date_cached < $1");
-				if let Err(e) = db_clone.execute(sqlx::query(&query).bind(time)).await {
+				if let Err(e) = db.execute(sqlx::query(&query).bind(time)).await {
 					eprintln!("Failed to delete from {table}: {e}");
 				}
 			}
-			let stories = count_rows("Stories", &db_clone).await.unwrap();
-			let chapters = count_rows("Chapters", &db_clone).await.unwrap();
-			let tags = count_rows("Tags", &db_clone).await.unwrap();
-			let tag_links = count_rows("Tag_links", &db_clone).await.unwrap();
-			let users = count_rows("Authors", &db_clone).await.unwrap();
-			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
-			let bookshelves = count_rows("Bookshelves", &db_clone).await.unwrap();
-			let groups = count_rows("Groups", &db_clone).await.unwrap();
-			let threads = count_rows("Threads", &db_clone).await.unwrap();
+			let stories = count_rows("Stories", &db).await.unwrap();
+			let chapters = count_rows("Chapters", &db).await.unwrap();
+			let tags = count_rows("Tags", &db).await.unwrap();
+			let tag_links = count_rows("Tag_links", &db).await.unwrap();
+			let users = count_rows("Authors", &db).await.unwrap();
+			let blogs = count_rows("Blogs", &db).await.unwrap();
+			let bookshelves = count_rows("Bookshelves", &db).await.unwrap();
+			let groups = count_rows("Groups", &db).await.unwrap();
+			let threads = count_rows("Threads", &db).await.unwrap();
 			let time = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 			print!("{time}: stories: {stories}, chapters: {chapters},");
 			print!(" tags: {tags}, tag links: {tag_links}");
 			print!(" users: {users}, blogs: {blogs}, bookshelves: {bookshelves},");
 			println!(" groups: {groups}, threads: {threads}");
 			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
+			iterations += 1;
+			if iterations >= 3 {
+				let _ = app_data.refresh_cookie().await;
+			}
 		}
 	});
 
 	HttpServer::new(move || {
 		App::new()
-			.app_data(Data::new(Arc::new(app_data.clone())))
+			.app_data(Data::new(app_data.clone()))
 			.wrap(
 				Cors::default()
 					.allow_any_origin()
