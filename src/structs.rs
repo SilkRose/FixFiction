@@ -2,7 +2,7 @@ use crate::cookie::{CloudFlareData, get_cookie};
 use chrono::{DateTime, Utc};
 use core::str;
 use pony::http::Request;
-use reqwest::header::{COOKIE, HeaderValue};
+use reqwest::header::{COOKIE, HeaderValue, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Type};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
@@ -370,6 +370,9 @@ impl AppState {
 				.headers
 				.insert(COOKIE, HeaderValue::from_str(cookie)?);
 		}
+		self.api
+			.headers
+			.insert(USER_AGENT, HeaderValue::from_str(&self.cf_data.user_agent)?);
 		Ok(())
 	}
 }

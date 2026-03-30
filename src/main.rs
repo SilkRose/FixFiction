@@ -230,7 +230,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	// API and site request structs, client, headers, and time intervals.
 	let api = Request {
 		client: Client::new(),
-		headers: fimfic_api_headers(Some("FixFiction"), &token)?,
+		headers: fimfic_api_headers(None, &token)?,
 		interval: Duration::from_millis(500),
 		interval_step: Duration::from_secs(2),
 		interval_max: Duration::from_secs(120),
