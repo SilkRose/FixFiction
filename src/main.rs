@@ -226,10 +226,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 	// API Bearer token is required to scrape the data.
 	let token = env::var("BEARER_TOKEN").expect("BEARER_TOKEN should be set");
 
+	let user_agent = format!("FixFiction/{}", env!("CARGO_PKG_VERSION"));
+
 	// API and site request structs, client, headers, and time intervals.
 	let api = Request {
 		client: Client::new(),
-		headers: fimfic_api_headers(None, &token)?,
+		headers: fimfic_api_headers(Some(&user_agent), &token)?,
 		interval: Duration::from_millis(500),
 		interval_step: Duration::from_secs(2),
 		interval_max: Duration::from_secs(120),
