@@ -1,6 +1,6 @@
 [package]
 name = "fixfiction"
-version = "2.1.1"
+version = "2.1.2"
 description = "Service to fix FIMFiction embeds."
 repository = "https://github.com/SilkRose/FixFiction"
 authors = ["Silk Rose", "Meadowsys"]
