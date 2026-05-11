@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\tid, group_id, creator_id, last_poster_id, title, link, posts,\n\t\t\tsticky, locked, date_created, date_last_post, date_cached\n\t\tFROM Threads WHERE id = $1 LIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "group_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "creator_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_poster_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "link",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "posts",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "sticky",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "locked",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "date_created",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "date_last_post",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "date_cached",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ad7fdffbca23f4033e16bec091fc5fb13c3567e8acd2ae6fc16b594da2d84e10"
+}

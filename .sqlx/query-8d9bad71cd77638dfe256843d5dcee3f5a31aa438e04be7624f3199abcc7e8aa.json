@@ -1,0 +1,105 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO Groups\n\t\t\t(id, name, description, link, members,\n\t\t\tstories, founder_id, icon_url, nsfw,\n\t\t\topen, hidden, date_created)\n\t\tVALUES\n\t\t\t($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n\t\tON CONFLICT(id) DO UPDATE SET\n\t\t\tname = EXCLUDED.name,\n\t\t\tdescription = EXCLUDED.description,\n\t\t\tlink = EXCLUDED.link,\n\t\t\tmembers = EXCLUDED.members,\n\t\t\tstories = EXCLUDED.stories,\n\t\t\tfounder_id = EXCLUDED.founder_id,\n\t\t\ticon_url = EXCLUDED.icon_url,\n\t\t\tnsfw = EXCLUDED.nsfw,\n\t\t\topen = EXCLUDED.open,\n\t\t\thidden = EXCLUDED.hidden,\n\t\t\tdate_created = EXCLUDED.date_created,\n\t\t\tdate_cached = now()\n\t\tRETURNING\n\t\t\tid, name, description, link, members,\n\t\t\tstories, founder_id, icon_url, nsfw,\n\t\t\topen, hidden, date_created, date_cached;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "link",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "members",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "stories",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "founder_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "icon_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "nsfw",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "open",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "hidden",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "date_created",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "date_cached",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8d9bad71cd77638dfe256843d5dcee3f5a31aa438e04be7624f3199abcc7e8aa"
+}

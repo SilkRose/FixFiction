@@ -1,0 +1,91 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO Authors\n\t\t\t(id, name, bio, link, followers, stories,\n\t\t\tblogs, profile_pic_url, color_hex, date_joined)\n\t\tVALUES\n\t\t\t($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n\t\tON CONFLICT(id) DO UPDATE SET\n\t\t\tname = EXCLUDED.name,\n\t\t\tbio = EXCLUDED.bio,\n\t\t\tlink = EXCLUDED.link,\n\t\t\tfollowers = EXCLUDED.followers,\n\t\t\tstories = EXCLUDED.stories,\n\t\t\tblogs = EXCLUDED.blogs,\n\t\t\tprofile_pic_url = EXCLUDED.profile_pic_url,\n\t\t\tcolor_hex = EXCLUDED.color_hex,\n\t\t\tdate_joined = EXCLUDED.date_joined,\n\t\t\tdate_cached = now()\n\t\tRETURNING\n\t\t\tid, name, bio, link, followers,\n\t\t\tstories, blogs, profile_pic_url,\n\t\t\tcolor_hex, date_joined, date_cached;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "bio",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "link",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "followers",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "stories",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "blogs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "profile_pic_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "color_hex",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "date_joined",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "date_cached",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text",
+        "Bpchar",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fe3df97bb16395c9fb1197a169622731316d1e7f7c4b46d188bd96b644d87a94"
+}

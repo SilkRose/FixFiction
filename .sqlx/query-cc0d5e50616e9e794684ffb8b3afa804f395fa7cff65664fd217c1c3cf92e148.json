@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\tid, name, bio, link, followers,\n\t\t\tstories, blogs, profile_pic_url,\n\t\t\tcolor_hex, date_joined, date_cached\n\t\tFROM Authors WHERE id = $1 LIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "bio",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "link",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "followers",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "stories",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "blogs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "profile_pic_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "color_hex",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "date_joined",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "date_cached",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "cc0d5e50616e9e794684ffb8b3afa804f395fa7cff65664fd217c1c3cf92e148"
+}

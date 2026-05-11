@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\tid, name, type AS \"tag_type: TagType\", old_id, link, date_cached\n\t\tFROM Tags WHERE id = $1 LIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "tag_type: TagType",
+        "type_info": {
+          "Custom": {
+            "name": "tag_type",
+            "kind": {
+              "Enum": [
+                "character",
+                "genre",
+                "rating",
+                "content",
+                "series",
+                "warning",
+                "universe"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "old_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "link",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "date_cached",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "3042d792b37adcd82841ebfce160f9995b3d17a78e9bf620c04eac361de8b82b"
+}
