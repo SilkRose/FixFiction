@@ -108,12 +108,13 @@ pub fn bookshelf_html_template(
 			(false, false, false) => "Track Unread: 🚫 Email Updates: 🚫 Quick Add: 🚫",
 		};
 		let stories =
-			format_number_unit_metric(bookshelf.stories as f64, FormatType::MetricPrefix, 1)
+			format_number_unit_metric(bookshelf.stories as f64, FormatType::MetricPrefix, 1, true)
 				.unwrap();
 		let counts = match bookshelf.num_unread {
 			Some(unread) => format!(
 				"Stories: {stories} 📚 Unread Chapters: {} 📖",
-				format_number_unit_metric(unread as f64, FormatType::MetricPrefix, 1).unwrap()
+				format_number_unit_metric(unread as f64, FormatType::MetricPrefix, 1, true)
+					.unwrap()
 			),
 			None => format!("Stories: {stories} 📚"),
 		};

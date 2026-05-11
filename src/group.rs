@@ -84,8 +84,10 @@ pub fn group_html_template(
 		};
 		format!(
 			"Fimfiction - Created: {time} 📅\nMembers: {} 👥 Stories: {} 📚\n{open} {mature}",
-			format_number_unit_metric(group.members as f64, FormatType::MetricPrefix, 1).unwrap(),
-			format_number_unit_metric(group.stories as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(group.members as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
+			format_number_unit_metric(group.stories as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
 		)
 	} else {
 		"Fimfiction".to_string()

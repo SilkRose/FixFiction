@@ -3,7 +3,7 @@ use crate::structs::{Color, Cover, Parameters, Tag};
 use chrono::{DateTime, FixedOffset};
 use pony::http::{Request, api_get_request};
 use pony::log::{FileLimit, LogLevel, Logger};
-use rand::Rng;
+use rand::RngExt;
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use sqlx::{Pool, Postgres, query};

@@ -95,7 +95,8 @@ pub fn thread_html_template(
 			"Group thread post.\nCreated: {} 📅, Last post: {} 📅\nPosts: {} 🔢, {stickied}, {locked}\nCreator: {}, Last poster: {}",
 			thread.date_created.format("%a %b %e %Y"),
 			thread.date_last_post.format("%a %b %e %Y"),
-			format_number_unit_metric(thread.posts as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(thread.posts as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
 			creator.name,
 			last_poster.name
 		),

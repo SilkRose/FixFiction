@@ -121,17 +121,22 @@ pub fn story_html_template(
 		} else {
 			format!(
 				"Likes: {} 👍 Dislikes: {} 👎 ",
-				format_number_unit_metric(story.likes as f64, FormatType::MetricPrefix, 1).unwrap(),
-				format_number_unit_metric(story.dislikes as f64, FormatType::MetricPrefix, 1)
+				format_number_unit_metric(story.likes as f64, FormatType::MetricPrefix, 1, true)
+					.unwrap(),
+				format_number_unit_metric(story.dislikes as f64, FormatType::MetricPrefix, 1, true)
 					.unwrap()
 			)
 		};
 		format!(
 			"Fimfiction - Published: {time} 📅 Status: {status}\nRating: {rating} {likes_dislikes}Views: {} 📈\nComments: {} 💬 Chapters: {} 📖 Words: {} 📝",
-			format_number_unit_metric(story.views as f64, FormatType::MetricPrefix, 1).unwrap(),
-			format_number_unit_metric(story.comments as f64, FormatType::MetricPrefix, 1).unwrap(),
-			format_number_unit_metric(story.chapters as f64, FormatType::MetricPrefix, 1).unwrap(),
-			format_number_unit_metric(story.words as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(story.views as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
+			format_number_unit_metric(story.comments as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
+			format_number_unit_metric(story.chapters as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
+			format_number_unit_metric(story.words as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
 		)
 	} else {
 		"Fimfiction".to_string()

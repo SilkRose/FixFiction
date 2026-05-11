@@ -55,10 +55,11 @@ pub fn user_html_template(
 			let time = user.date_joined.format("%a %b %e %Y").to_string();
 			format!(
 				"Fimfiction - Joined: {time} 📅\nStories: {} 📚 Blogs: {} 📑 Followers: {} 👥",
-				format_number_unit_metric(user.stories as f64, FormatType::MetricPrefix, 1)
+				format_number_unit_metric(user.stories as f64, FormatType::MetricPrefix, 1, true)
 					.unwrap(),
-				format_number_unit_metric(user.blogs as f64, FormatType::MetricPrefix, 1).unwrap(),
-				format_number_unit_metric(user.followers as f64, FormatType::MetricPrefix, 1)
+				format_number_unit_metric(user.blogs as f64, FormatType::MetricPrefix, 1, true)
+					.unwrap(),
+				format_number_unit_metric(user.followers as f64, FormatType::MetricPrefix, 1, true)
 					.unwrap(),
 			)
 		}

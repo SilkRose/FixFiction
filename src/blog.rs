@@ -107,8 +107,10 @@ pub fn blog_html_template(
 		let time = blog.date_posted.format("%a %b %e %Y").to_string();
 		format!(
 			"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬",
-			format_number_unit_metric(blog.views as f64, FormatType::MetricPrefix, 1).unwrap(),
-			format_number_unit_metric(blog.comments as f64, FormatType::MetricPrefix, 1).unwrap(),
+			format_number_unit_metric(blog.views as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
+			format_number_unit_metric(blog.comments as f64, FormatType::MetricPrefix, 1, true)
+				.unwrap(),
 		)
 	} else {
 		"Fimfiction".to_string()
