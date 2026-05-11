@@ -1,12 +1,9 @@
-use crate::cookie::{CloudFlareData, get_cookie};
 use chrono::{DateTime, Utc};
 use core::str;
 use pony::http::Request;
-use reqwest::header::{COOKIE, HeaderValue, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Type};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::error::Error;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
@@ -351,30 +348,9 @@ impl fmt::Display for Color {
 pub struct AppState {
 	pub api: Request,
 	pub db: Pool<Postgres>,
-	pub cf_data: CloudFlareData,
 	pub gc_interval: u64,
 	pub cache_max_age: i64,
 	pub cache_recache_age: i64,
-}
-
-impl AppState {
-	pub async fn refresh_cookie(&mut self) -> Result<(), Box<dyn Error>> {
-		self.cf_data = get_cookie(&self.api.client).await?;
-		self.insert_cookie()?;
-		Ok(())
-	}
-
-	pub fn insert_cookie(&mut self) -> Result<(), Box<dyn Error>> {
-		for cookie in &self.cf_data.cookies {
-			self.api
-				.headers
-				.insert(COOKIE, HeaderValue::from_str(cookie)?);
-		}
-		self.api
-			.headers
-			.insert(USER_AGENT, HeaderValue::from_str(&self.cf_data.user_agent)?);
-		Ok(())
-	}
 }
 
 #[derive(Debug, Clone)]
