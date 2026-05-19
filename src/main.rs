@@ -27,6 +27,10 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// The `story/` endpoint.
+///
+/// Requests a story by ID.
+/// May also include an ordinal chapter number.
 #[get("/story/{id:.*}")]
 async fn get_story(
 	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
@@ -63,6 +67,10 @@ async fn get_story(
 		.body(body))
 }
 
+/// The `chapter/` endpoint.
+///
+/// Requests a chapter by ID.
+/// More direct than `story/{id}/chapter/{num}`.
 #[get("/chapter/{id:.*}")]
 async fn get_chapter(
 	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
@@ -90,6 +98,9 @@ async fn get_chapter(
 		.body(body))
 }
 
+/// The `user/` endpoint.
+/// 
+/// Requests a user by ID.
 #[get("/user/{id:.*}")]
 async fn get_user(
 	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
@@ -116,6 +127,9 @@ async fn get_user(
 		.body(body))
 }
 
+/// The `blog/` endpoint.
+/// 
+/// Requests a blog by ID.
 #[get("/blog/{id:.*}")]
 async fn get_blog(
 	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
@@ -141,6 +155,9 @@ async fn get_blog(
 		.body(body))
 }
 
+/// The `group/` endpoint.
+/// 
+/// Requests a group by ID.
 #[get("/group/{id:.*}")]
 async fn get_group(
 	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
@@ -185,6 +202,9 @@ async fn get_group(
 		.body(body))
 }
 
+/// The `bookshelf/` endpoint.
+/// 
+/// Requests a bookshelf by ID.
 #[get("/bookshelf/{id:.*}")]
 async fn get_bookshelf(
 	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
