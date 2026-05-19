@@ -5,7 +5,7 @@ description = "Service to fix FIMFiction embeds."
 repository = "https://github.com/SilkRose/FixFiction"
 authors = ["Silk Rose", "Meadowsys"]
 edition = "2024"
-license = "MIT"
+license = "AGPL-3.0"
 publish = false
 
 [dependencies]
