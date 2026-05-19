@@ -277,6 +277,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		cache_recache_age: 60,
 	};
 
+	// Set up a task loop to decache old data occasionally
 	tokio::task::spawn(async move {
 		loop {
 			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
