@@ -1,3 +1,7 @@
+//! Submodule for getting data from the [Fimfiction API].
+//! 
+//! [Fimfiction API]: https://www.fimfiction.net/developers/api/v2/docs
+
 use crate::fimfiction_api::{
 	chapter::ChapterData, group::GroupData, story::StoryData, tag::TagData, user::UserData,
 };
@@ -42,28 +46,34 @@ pub struct ApiDebug {
 	pub duration: String,
 }
 
+/// A color attribute as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AttributesColor {
 	pub hex: String,
 	pub rgb: (u8, u8, u8),
 }
 
+/// A vector of relationship objects returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RelationshipDataVec {
 	pub data: Vec<DataType>,
 }
 
+/// A relationship object returned by the API.
+/// For example, the author of a story.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RelationshipData {
 	pub data: DataType,
 }
 
+/// A generic "data" object returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DataType {
 	pub r#type: String,
 	pub id: String,
 }
 
+/// Converts a user-agent and a bearer token into a HeaderMap appropriate for use with the API.
 pub fn fimfic_api_headers(
 	user_agent: Option<&str>, token: &str,
 ) -> Result<HeaderMap, Box<dyn Error>> {
