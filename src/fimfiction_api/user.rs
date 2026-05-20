@@ -1,6 +1,11 @@
+//! A [user] resource.
+//! 
+//! [user]: https://www.fimfiction.net/developers/api/v2/docs/resources#user
+
 use super::{ApiDebug, ApiLinks, ApiMeta, AttributesColor};
 use serde::{Deserialize, Serialize};
 
+/// A full user object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserApi<T = u32> {
 	pub data: UserData<T>,
@@ -10,6 +15,7 @@ pub struct UserApi<T = u32> {
 	pub debug: ApiDebug,
 }
 
+/// All properties of a user.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserData<T = u32> {
 	pub id: String,
@@ -19,6 +25,7 @@ pub struct UserData<T = u32> {
 	pub meta: ApiMeta,
 }
 
+/// Self-contained properties of a user.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserAttributes<T = u32> {
 	pub name: String,
@@ -33,6 +40,7 @@ pub struct UserAttributes<T = u32> {
 	pub date_joined: String,
 }
 
+/// The image selected as an avatar for a user, optionally in various sizes.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AttributesAvatar {
 	#[serde(rename = "32")]
