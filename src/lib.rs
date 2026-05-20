@@ -1,4 +1,4 @@
-//! FixFiction is a service that fixes embedded content from FimFiction.net.
+//! FixFiction is a service that fixes embedded content from Fimfiction.net.
 
 pub mod blog;
 pub mod bookshelf;
