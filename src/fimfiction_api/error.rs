@@ -1,3 +1,7 @@
+//!	An [error] returned by the API instead of the requested resource.
+//!
+//! [error]: https://www.fimfiction.net/developers/api/v2/docs/error-codes
+
 use serde::{Deserialize, Serialize};
 
 /// A list of errors returned by the API.
