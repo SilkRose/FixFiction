@@ -1,5 +1,5 @@
 //! A [blog] post resource.
-//! 
+//!
 //! [blog]: https://www.fimfiction.net/developers/api/v2/docs/resources#blog_post
 
 use super::{ApiDebug, ApiMeta, RelationshipData};

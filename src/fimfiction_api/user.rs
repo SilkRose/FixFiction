@@ -1,5 +1,5 @@
 //! A [user] resource.
-//! 
+//!
 //! [user]: https://www.fimfiction.net/developers/api/v2/docs/resources#user
 
 use super::{ApiDebug, ApiLinks, ApiMeta, AttributesColor};

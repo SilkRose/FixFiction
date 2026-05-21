@@ -1,5 +1,5 @@
 //! A story [chapter] resource.
-//! 
+//!
 //! [chapter]: https://www.fimfiction.net/developers/api/v2/docs/resources#chapter
 
 use super::{ApiDebug, ApiLinks, ApiMeta, RelationshipData};

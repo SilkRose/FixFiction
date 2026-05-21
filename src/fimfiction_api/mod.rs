@@ -1,5 +1,5 @@
 //! Submodule for getting data from the [Fimfiction API].
-//! 
+//!
 //! [Fimfiction API]: https://www.fimfiction.net/developers/api/v2/docs
 
 use crate::fimfiction_api::{
@@ -20,7 +20,7 @@ pub mod thread;
 pub mod user;
 
 /// Optional resources to include in a request which the API may not return, or only return in truncated form, by default.
-/// 
+///
 /// Types of resources include:
 /// - The author of a story or blog post.
 /// - The chapters of a story.

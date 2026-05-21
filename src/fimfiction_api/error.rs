@@ -18,7 +18,7 @@ pub struct FimficErrorInner<T = u32> {
 }
 
 /// Properties of a potential resource related to an error.
-/// 
+///
 /// The resource may not exist if, for example, the error was "Resource not found".
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ErrorMeta<T = u32> {

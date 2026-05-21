@@ -1,5 +1,5 @@
 //! A story [tag] resource.
-//! 
+//!
 //! [tag]: https://www.fimfiction.net/developers/api/v2/docs/resources#story_tag
 
 use super::ApiDebug;

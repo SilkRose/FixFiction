@@ -1,5 +1,5 @@
 //! A [bookshelf] resource.
-//! 
+//!
 //! [bookshelf]: https://www.fimfiction.net/developers/api/v2/docs/resources#bookshelf
 
 use super::{ApiDebug, ApiLinks, ApiMeta, RelationshipData};

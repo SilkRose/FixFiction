@@ -99,7 +99,7 @@ async fn get_chapter(
 }
 
 /// The `user/` endpoint.
-/// 
+///
 /// Requests a user by ID.
 #[get("/user/{id:.*}")]
 async fn get_user(
@@ -128,7 +128,7 @@ async fn get_user(
 }
 
 /// The `blog/` endpoint.
-/// 
+///
 /// Requests a blog by ID.
 #[get("/blog/{id:.*}")]
 async fn get_blog(
@@ -156,7 +156,7 @@ async fn get_blog(
 }
 
 /// The `group/` endpoint.
-/// 
+///
 /// Requests a group by ID.
 #[get("/group/{id:.*}")]
 async fn get_group(
@@ -203,7 +203,7 @@ async fn get_group(
 }
 
 /// The `bookshelf/` endpoint.
-/// 
+///
 /// Requests a bookshelf by ID.
 #[get("/bookshelf/{id:.*}")]
 async fn get_bookshelf(

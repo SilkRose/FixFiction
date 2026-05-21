@@ -1,5 +1,5 @@
 //! A group [thread] resource.
-//! 
+//!
 //! [thread]: https://www.fimfiction.net/developers/api/v2/docs/resources#group_thread
 
 use super::{ApiDebug, ApiMeta, RelationshipData};

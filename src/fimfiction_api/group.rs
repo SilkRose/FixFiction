@@ -1,5 +1,5 @@
 //! A [group] resource.
-//! 
+//!
 //! [group]: https://www.fimfiction.net/developers/api/v2/docs/resources#group
 
 use super::{ApiDebug, ApiLinks, ApiMeta, RelationshipData};

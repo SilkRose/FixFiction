@@ -1,5 +1,5 @@
 //! A [story] resource.
-//! 
+//!
 //! [story]: https://www.fimfiction.net/developers/api/v2/docs/resources#story
 
 use super::{ApiDebug, ApiLinks, ApiMeta, AttributesColor, RelationshipData, RelationshipDataVec};
