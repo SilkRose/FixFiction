@@ -19,6 +19,14 @@ pub mod tag;
 pub mod thread;
 pub mod user;
 
+/// Optional resources to include in a request which the API may not return, or only return in truncated form, by default.
+/// 
+/// Types of resources include:
+/// - The author of a story or blog post.
+/// - The chapters of a story.
+/// - The story linked to by a blog post.
+/// - The tags of a story.
+/// - The parent group of a group thread.
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
@@ -30,17 +38,20 @@ pub enum ApiIncluded<T = u32> {
 	Group(GroupData<T>),
 }
 
+/// A link to find the resource on the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ApiLinks {
 	#[serde(rename = "self")]
 	pub link: String,
 }
 
+/// A link to find the resource on the Fimfiction website.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ApiMeta {
 	pub url: String,
 }
 
+/// Debug information returned by the API. Currently only contains the duration of the request.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ApiDebug {
 	pub duration: String,
