@@ -1,4 +1,4 @@
-//!	An [error] returned by the API instead of the requested resource.
+//! An [error] returned by the API instead of the requested resource.
 //!
 //! [error]: https://www.fimfiction.net/developers/api/v2/docs/error-codes
 
