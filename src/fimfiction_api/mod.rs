@@ -1,4 +1,4 @@
-//! Submodule for getting data from the [Fimfiction API].
+//! Submodule for deserializing data from the [Fimfiction API].
 //!
 //! [Fimfiction API]: https://www.fimfiction.net/developers/api/v2/docs
 
