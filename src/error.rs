@@ -1,7 +1,10 @@
+//! Functions to format errors in HTML.
+
 use crate::html_template::embed_html_template;
 use crate::structs::EmbedData;
 use crate::utility::LOG;
 
+/// Formats errors to an HTML string for embedding.
 pub fn error_html_template(endpoint: &str, link: String, errors: String) -> String {
 	let link = format!("https://www.fimfiction.net/{endpoint}/{link}");
 	let desc = format!(
