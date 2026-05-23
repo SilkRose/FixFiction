@@ -63,7 +63,7 @@ pub async fn request_blog(
 ///
 /// #### Panics
 ///
-/// Panics if the [Blog]'s view or comment count can't be formatted.
+/// Panics if stats are requested and the [Blog]'s number of views or comments can't be formatted.
 pub fn blog_html_template(
 	blog: Blog, user: User, story: Option<Story>, parameters: Parameters, link: String,
 	errors: Vec<String>,
