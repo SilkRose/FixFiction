@@ -1,3 +1,5 @@
+//! This module contains common structs used in other modules.
+
 use chrono::{DateTime, Utc};
 use core::str;
 use pony::http::Request;
