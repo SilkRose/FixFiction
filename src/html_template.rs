@@ -1,7 +1,10 @@
+//! This module provides functions for building HTML and oEmbed data for embedding.
+
 use crate::{structs::EmbedData, utility::LOG};
 use maud::{DOCTYPE, PreEscaped, html};
 use url::form_urlencoded;
 
+/// Builds an HTML string to present as the embedded page.
 pub fn embed_html_template(embed: EmbedData) -> String {
 	for warning in &embed.errors {
 		let msg = format!("{warning} -- Link: {}", embed.link);
@@ -60,6 +63,7 @@ pub fn embed_html_template(embed: EmbedData) -> String {
 	.into()
 }
 
+/// Builds [oEmbed](https://oembed.com/) data for embedding.
 fn encode_url(
 	site_name: &str, site_url: &str, title: &str, username: Option<String>,
 	user_link: Option<String>,
