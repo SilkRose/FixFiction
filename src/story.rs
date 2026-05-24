@@ -1,3 +1,5 @@
+//! This module provides functions to request a [Story] and to format it in HTML.
+
 use crate::database::{
 	get_story, get_tag, get_tag_links, insert_story, insert_tag, insert_tag_link, insert_user,
 	remove_tag_links,
@@ -18,6 +20,14 @@ use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 
+/// Requests a [Story] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the story is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_story(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
@@ -57,6 +67,11 @@ pub async fn request_story(
 	}
 }
 
+/// Formats a [Story] to an HTML string for embedding. All stories are authored by a [User].
+///
+/// #### Panics
+///
+/// Panics if stats are requested and the [Story]'s stats can't be formatted.
 pub fn story_html_template(
 	story: Story, user: User, mut tags: Vec<Tag>, parameters: Parameters, link: String,
 	errors: Vec<String>,
