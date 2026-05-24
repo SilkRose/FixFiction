@@ -1,3 +1,5 @@
+//! This module provides functions to request a [Group] and to format it in HTML.
+
 use crate::database::{get_group, insert_group, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::GroupApi;
@@ -12,6 +14,14 @@ use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 use std::error::Error;
 
+/// Requests a [Group] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the group is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_group(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Group, User), Box<dyn Error>> {
@@ -34,6 +44,11 @@ pub async fn request_group(
 	}
 }
 
+/// Formats a [Group] to an HTML string for embedding. All groups have a founding [User].
+///
+/// #### Panics
+///
+/// Panics if stats are requested and the [Group]'s stats can't be formatted.
 pub fn group_html_template(
 	group: Group, founder: User, parameters: Parameters, link: String, errors: Vec<String>,
 ) -> String {
