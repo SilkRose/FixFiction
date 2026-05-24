@@ -26,7 +26,7 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 /// #### Errors
 /// This function will return an error in the following cases:
 /// - Can't connect to the database
-/// - If the bookshelf is uncached:
+/// - If the chapter is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub async fn request_chapter(
@@ -69,7 +69,7 @@ pub async fn request_chapter(
 /// #### Errors
 /// This function will return an error in the following cases:
 /// - Can't connect to the database
-/// - If the bookshelf is uncached:
+/// - If the chapter is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub async fn request_story_chapters(
