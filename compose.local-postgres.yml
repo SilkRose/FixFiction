@@ -1,0 +1,10 @@
+services:
+  app:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app-prebuilt:
+    depends_on:
+      postgres:
+        condition: service_healthy

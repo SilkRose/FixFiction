@@ -1,0 +1,42 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./.env:/app/.env:ro
+    ports:
+      - "7669:7669"
+    restart: unless-stopped
+
+  app-prebuilt:
+    profiles:
+      - prebuilt
+    build:
+      context: .
+      dockerfile: Dockerfile.prebuilt
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./target/release/fixfiction:/usr/local/bin/fixfiction:ro
+    ports:
+      - "7669:7669"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-db}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+      POSTGRES_DB: ${POSTGRES_DB:-fixfiction}
+    volumes:
+      - fixfiction-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  fixfiction-postgres-data:
