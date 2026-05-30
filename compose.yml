@@ -8,6 +8,9 @@ services:
     ports:
       - "7669:7669"
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   app-prebuilt:
     profiles:
@@ -21,6 +24,9 @@ services:
     ports:
       - "7669:7669"
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine

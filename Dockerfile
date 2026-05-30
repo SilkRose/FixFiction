@@ -1,14 +1,14 @@
-FROM rust:1.95-bookworm AS builder
+FROM rust:1.95-slim-bookworm AS builder
 
 WORKDIR /app
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
-		ca-certificates \
-		cmake \
-		git \
-		libssl-dev \
-		pkg-config \
+	ca-certificates \
+	cmake \
+	git \
+	libssl-dev \
+	pkg-config \
 	&& rm -rf /var/lib/apt/lists/*
 
 ENV SQLX_OFFLINE=true
@@ -24,8 +24,8 @@ FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
-		ca-certificates \
-		libssl3 \
+	ca-certificates \
+	libssl3 \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& groupadd --system --gid 10001 app \
 	&& useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app \
