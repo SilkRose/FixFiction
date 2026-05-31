@@ -44,6 +44,8 @@ cargo build
 
 No env file is required to build the project.
 
+Other startup methods are described in [STARTUP.md](STARTUP.md).
+
 
 ## Docker
 
