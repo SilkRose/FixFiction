@@ -1,9 +1,11 @@
 services:
+  # This service will compile the source code before initializing
   app:
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
+      # The .env file at project root
       - ./.env:/app/.env:ro
     ports:
       - "7669:7669"
@@ -12,6 +14,7 @@ services:
       postgres:
         condition: service_healthy
 
+  # This service uses a prebuilt application binary
   app-prebuilt:
     profiles:
       - prebuilt
@@ -19,7 +22,9 @@ services:
       context: .
       dockerfile: Dockerfile.prebuilt
     volumes:
+      # The .env file at project root
       - ./.env:/app/.env:ro
+      # Assumed location of the application binary
       - ./target/release/fixfiction:/usr/local/bin/fixfiction:ro
     ports:
       - "7669:7669"
@@ -28,6 +33,7 @@ services:
       postgres:
         condition: service_healthy
 
+  # It's postgres!
   postgres:
     image: postgres:16-alpine
     environment:

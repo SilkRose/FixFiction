@@ -1,4 +1,7 @@
+# This image builds its own application binary from source code.
+
 FROM rust:1.95-slim-bookworm AS builder
+# From here, build the binary
 
 WORKDIR /app
 
@@ -11,6 +14,7 @@ RUN apt-get update \
 	pkg-config \
 	&& rm -rf /var/lib/apt/lists/*
 
+# Ensures sqlx will not complain about no accessible database
 ENV SQLX_OFFLINE=true
 
 COPY Cargo.toml Cargo.lock build.rs ./
@@ -21,6 +25,7 @@ COPY src ./src
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim AS runtime
+# From here, run the binary
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
