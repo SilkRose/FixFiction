@@ -5,7 +5,7 @@ FixFiction is a service that fixes embedded content from FimFiction.net.
 Maintained by [Silk Rose](https://github.com/SilkRose).
 
 
-## Quickstart (Docker)
+## Quickstart (Docker) (Preferred Method)
 
 Clone this repo:
 
@@ -58,4 +58,23 @@ cargo build
 
 No env file is required to build the project.
 
-Other startup methods are described in [STARTUP.md](STARTUP.md).
+## Docker w/ prebuilt binary
+
+An alternate profile is provided to compose-up this project with a prebuilt binary. The binary is assumed to be present in `./target/release/fixfiction`, and it must be compatible with the container runtime.
+
+```bash
+docker compose --profile prebuilt up app-prebuilt postgres
+```
+
+## No container
+
+The FixFiction application can be started up as a standalone binary, without a container, though in that case it is left to the user to host a suitable Postgres database.
+
+A config file like as shown below is required:
+
+```
+DATABASE_URL=postgres://user:pass@postgres:5432/fixfiction
+BEARER_TOKEN=your_fimfiction_api_token
+```
+
+Just make sure to configure the DATABASE_URL property so the application can access the database during execution.
