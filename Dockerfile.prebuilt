@@ -1,3 +1,5 @@
+# This image relies on a prebuilt application binary.
+
 FROM debian:bookworm-slim
 
 RUN apt-get update \
