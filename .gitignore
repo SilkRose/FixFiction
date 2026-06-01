@@ -2,3 +2,5 @@ target/
 *.log
 .env
 .DS_Store
+logs/
+postgres-data/

@@ -7,6 +7,8 @@ services:
     volumes:
       # The .env file at project root
       - ./.env:/app/.env:ro
+      # Persist application logs out-of-container
+      - ${FIXFICTION_LOGS_DIR:-./logs}:/app/logs
     ports:
       - "7669:7669"
     restart: unless-stopped
@@ -24,6 +26,8 @@ services:
     volumes:
       # The .env file at project root
       - ./.env:/app/.env:ro
+      # Persist application logs out-of-container
+      - ${FIXFICTION_LOGS_DIR:-./logs}:/app/logs
       # Assumed location of the application binary
       - ./target/release/fixfiction:/usr/local/bin/fixfiction:ro
     ports:
@@ -41,7 +45,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
       POSTGRES_DB: ${POSTGRES_DB:-fixfiction}
     volumes:
-      - fixfiction-postgres-data:/var/lib/postgresql/data
+      # Persist PostgreSQL data in a host bind mount
+      - ${POSTGRES_DATA_DIR:-./postgres-data}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
@@ -49,6 +54,3 @@ services:
       retries: 5
       start_period: 5s
     restart: unless-stopped
-
-volumes:
-  fixfiction-postgres-data:

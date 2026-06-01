@@ -22,6 +22,8 @@ BEARER_TOKEN=your_fimfiction_api_token
 POSTGRES_USER=user
 POSTGRES_PASSWORD=pass
 POSTGRES_DB=fixfiction
+POSTGRES_DATA_DIR=./postgres-data
+FIXFICTION_LOGS_DIR=./logs
 ```
 
 Then compose up with Docker:
@@ -29,6 +31,9 @@ Then compose up with Docker:
 ```bash
 docker compose up --build app postgres
 ```
+
+PostgreSQL data is persisted in `POSTGRES_DATA_DIR`, which defaults to `./postgres-data`.
+Application logs are persisted in `FIXFICTION_LOGS_DIR`, which defaults to `./logs`.
 
 ### Cleanup
 
@@ -38,10 +43,10 @@ Stop the stack:
 docker compose down
 ```
 
-Remove the bundled PostgreSQL volume as well:
+Remove persisted PostgreSQL data and logs as needed:
 
 ```bash
-docker compose down -v
+rm -rf postgres-data logs
 ```
 
 ## Quickstart (Cargo)

@@ -14,8 +14,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-USER app
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 7669
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["/usr/local/bin/fixfiction"]
