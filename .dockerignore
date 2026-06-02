@@ -1,0 +1,15 @@
+target/
+.git/
+.env
+*.log
+.DS_Store
+
+.cache/
+tmp/
+temp/
+
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

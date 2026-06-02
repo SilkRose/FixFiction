@@ -4,7 +4,52 @@ FixFiction is a service that fixes embedded content from FimFiction.net.
 
 Maintained by [Silk Rose](https://github.com/SilkRose).
 
-## Quickstart
+
+## Quickstart (Docker) (Preferred Method)
+
+Clone this repo:
+
+```bash
+git clone https://github.com/SilkRose/FixFiction.git
+cd FixFiction
+```
+
+Add a .env file with details for the postgres database, and a Fimfiction API bearer token, like so:
+
+```
+DATABASE_URL=postgres://user:pass@postgres:5432/fixfiction
+BEARER_TOKEN=your_fimfiction_api_token
+POSTGRES_USER=user
+POSTGRES_PASSWORD=pass
+POSTGRES_DB=fixfiction
+POSTGRES_DATA_DIR=./postgres-data
+FIXFICTION_LOGS_DIR=./logs
+```
+
+Then compose up with Docker:
+
+```bash
+docker compose up --build app postgres
+```
+
+PostgreSQL data is persisted in `POSTGRES_DATA_DIR`, which defaults to `./postgres-data`.
+Application logs are persisted in `FIXFICTION_LOGS_DIR`, which defaults to `./logs`.
+
+### Cleanup
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+Remove persisted PostgreSQL data and logs as needed:
+
+```bash
+rm -rf postgres-data logs
+```
+
+## Quickstart (Cargo)
 
 Clone this repo and build it with Cargo:
 
@@ -12,11 +57,29 @@ Clone this repo and build it with Cargo:
 git clone https://github.com/SilkRose/FixFiction.git
 
 cd FixFiction
+rustup toolchain install # <-- for windows users
 cargo build
 ```
 
-If you wish to run FixFiction, or change the database schema, you will need:
+No env file is required to build the project.
 
-- A PostgreSQL server with a suitable (empty) database
-- A `.env` file at the project root with DATABASE_URL = a [Connection URI](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS), e.g.:
-  `DATABASE_URL=postgres://user:password@host/database`
+## Docker w/ prebuilt binary
+
+An alternate profile is provided to compose-up this project with a prebuilt binary. The binary is assumed to be present in `./target/release/fixfiction`, and it must be compatible with the container runtime.
+
+```bash
+docker compose --profile prebuilt up app-prebuilt postgres
+```
+
+## No container
+
+The FixFiction application can be started up as a standalone binary, without a container, though in that case it is left to the user to host a suitable Postgres database.
+
+A config file like as shown below is required:
+
+```
+DATABASE_URL=postgres://user:pass@postgres:5432/fixfiction
+BEARER_TOKEN=your_fimfiction_api_token
+```
+
+Just make sure to configure the DATABASE_URL property so the application can access the database during execution.

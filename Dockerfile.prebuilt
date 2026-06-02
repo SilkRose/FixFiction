@@ -1,0 +1,24 @@
+# This image relies on a prebuilt application binary.
+
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends \
+	ca-certificates \
+	libssl3 \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& groupadd --system --gid 10001 app \
+	&& useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app \
+	&& mkdir -p /app \
+	&& chown app:app /app
+
+WORKDIR /app
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 7669
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["/usr/local/bin/fixfiction"]
