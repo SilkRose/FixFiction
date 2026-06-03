@@ -4,6 +4,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      # The database URL for use in containers
+      DATABASE_URL: postgres://${POSTGRES_USER:-db}:${POSTGRES_PASSWORD:-pass}@postgres:5432/${POSTGRES_DB:-fixfiction}
     volumes:
       # The .env file at project root
       - ./.env:/app/.env:ro
@@ -23,6 +26,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prebuilt
+    environment:
+      # The database URL for use in containers
+      DATABASE_URL: postgres://${POSTGRES_USER:-db}:${POSTGRES_PASSWORD:-pass}@postgres:5432/${POSTGRES_DB:-fixfiction}
     volumes:
       # The .env file at project root
       - ./.env:/app/.env:ro
