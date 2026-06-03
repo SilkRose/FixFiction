@@ -83,3 +83,20 @@ BEARER_TOKEN=your_fimfiction_api_token
 ```
 
 Just make sure to configure the DATABASE_URL property so the application can access the database during execution.
+
+## License
+
+This project is licensed under the GNU Affero General Public License 3.0 only.
+
+Copyright (C) 2025-2026  Silk Rose
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3 of the License only.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+The full license is available to read [here](./license.md).
