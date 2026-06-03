@@ -1,6 +1,6 @@
 # This image builds its own application binary from source code.
 
-FROM rust:1.95-slim-bookworm AS builder
+FROM rust:1.96-slim-bookworm AS builder
 # From here, build the binary
 
 WORKDIR /app
