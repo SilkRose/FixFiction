@@ -20,7 +20,7 @@ use fixfiction::utility::{
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
-use sqlx::Executor;
+use sqlx::{AssertSqlSafe, Executor};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -273,7 +273,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			];
 			for table in tables {
 				let query = format!("DELETE FROM {table} WHERE date_cached < $1");
-				if let Err(e) = db_clone.execute(sqlx::query(&query).bind(time)).await {
+				if let Err(e) = db_clone
+					.execute(sqlx::query(AssertSqlSafe(query)).bind(time))
+					.await
+				{
 					eprintln!("Failed to delete from {table}: {e}");
 				}
 			}

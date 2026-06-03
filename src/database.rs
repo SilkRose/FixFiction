@@ -12,12 +12,14 @@ use crate::structs::{
 };
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
-use sqlx::{Pool, Postgres};
+use sqlx::{AssertSqlSafe, Pool, Postgres};
 use std::error::Error;
 
 pub async fn count_rows(table: &str, db: &Pool<Postgres>) -> Result<i64, Box<dyn Error>> {
 	let query = format!("SELECT count(*) FROM {table}");
-	let count: i64 = sqlx::query_scalar(&query).fetch_one(db).await?;
+	let count: i64 = sqlx::query_scalar(AssertSqlSafe(query))
+		.fetch_one(db)
+		.await?;
 	Ok(count)
 }
 
