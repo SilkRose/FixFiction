@@ -14,6 +14,10 @@ use std::sync::LazyLock;
 use url::form_urlencoded;
 
 /// Logger that prints to the console and a file
+///
+/// #### Panics
+///
+/// Panics if it fails to set the file.
 pub static LOG: LazyLock<Logger> = LazyLock::new(|| {
 	Logger::new(LogLevel::Debug)
 		.set_file("./logs", LogLevel::Debug, FileLimit::Lines(1_000), 20)
@@ -21,6 +25,10 @@ pub static LOG: LazyLock<Logger> = LazyLock::new(|| {
 });
 
 /// Parses Fimfiction IDs to [i32]
+///
+/// #### Panics
+///
+/// Panics if the first segment doesn't exist.
 pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
 	let binding = path.to_string();
 	let id = binding.split('/').collect::<Vec<_>>();
@@ -219,6 +227,10 @@ pub fn trim_content(content: String, clean: bool) -> String {
 }
 
 /// Cleans content to improve the look of embeds
+///
+/// #### Panics
+///
+/// Panics if the regex fails to compile.
 pub fn clean_content(content: String) -> String {
 	let re = LazyLock::new(|| {
 		Regex::new(
