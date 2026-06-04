@@ -19,6 +19,10 @@ pub enum ContentRating {
 
 impl From<String> for ContentRating {
 	/// Converts a Fimfiction API response string for story rating into [ContentRating]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
 	fn from(value: String) -> Self {
 		match value.as_str() {
 			"everyone" => ContentRating::Everyone,
@@ -41,6 +45,10 @@ pub enum CompletionStatus {
 
 impl From<String> for CompletionStatus {
 	/// Converts a Fimfiction API response string for story status into [CompletionStatus]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
 	fn from(value: String) -> Self {
 		match value.as_str() {
 			"incomplete" => CompletionStatus::Incomplete,
@@ -67,6 +75,10 @@ pub enum TagType {
 
 impl From<String> for TagType {
 	/// Converts a Fimfiction API response string for tag type into [TagType]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
 	fn from(value: String) -> Self {
 		match value.as_str() {
 			"character" => TagType::Character,
