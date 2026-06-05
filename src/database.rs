@@ -16,10 +16,6 @@ use sqlx::{Pool, Postgres};
 use std::error::Error;
 
 /// Counts the rows for a given table name
-///
-/// #### Panics
-///
-/// Panics if the table doesn't exist.
 pub async fn count_rows(table: &str, db: &Pool<Postgres>) -> Result<i64, Box<dyn Error>> {
 	let query = format!("SELECT count(*) FROM {table}");
 	let count: i64 = sqlx::query_scalar(&query).fetch_one(db).await?;
@@ -27,10 +23,6 @@ pub async fn count_rows(table: &str, db: &Pool<Postgres>) -> Result<i64, Box<dyn
 }
 
 /// Selects a [Blog] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Blog,
@@ -46,10 +38,6 @@ pub async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<
 }
 
 /// Inserts a blog into the database, converting it from [BlogData] to a [Blog]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_blog(
 	id: Option<i32>, data: &BlogData<i32>, author_id: i32, story_id: Option<i32>,
 	db: &Pool<Postgres>,
@@ -94,10 +82,6 @@ pub async fn insert_blog(
 }
 
 /// Selects a [User] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User>, Box<dyn Error>> {
 	sqlx::query_as!(
 		User,
@@ -114,10 +98,6 @@ pub async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User>, Box<
 }
 
 /// Inserts a user into the database, converting it from [UserData] to a [User]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_user(
 	id: Option<i32>, data: &UserData<i32>, db: &Pool<Postgres>,
 ) -> Result<User, Box<dyn Error>> {
@@ -167,10 +147,6 @@ pub async fn insert_user(
 }
 
 /// Selects a [Story] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Story,
@@ -190,10 +166,6 @@ pub async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>, Bo
 }
 
 /// Inserts a story into the database, converting it from [StoryData] to a [Story]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_story(
 	id: Option<i32>, data: StoryData<i32>, user_id: i32, db: &Pool<Postgres>,
 ) -> Result<Story, Box<dyn Error>> {
@@ -267,10 +239,6 @@ pub async fn insert_story(
 }
 
 /// Selects a [Chapter] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_story_chapter(
 	story_id: i32, chapter_num: i32, db: &Pool<Postgres>,
 ) -> Result<Option<Chapter>, Box<dyn Error>> {
@@ -289,10 +257,6 @@ pub async fn get_story_chapter(
 }
 
 /// Selects a [Chapter] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Chapter,
@@ -308,10 +272,6 @@ pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>
 }
 
 /// Inserts a chapter into the database, converting it from [ChapterData] to a [Chapter]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_chapter(
 	id: Option<i32>, data: ChapterData<i32>, story_id: i32, db: &Pool<Postgres>,
 ) -> Result<Chapter, Box<dyn Error>> {
@@ -351,10 +311,6 @@ pub async fn insert_chapter(
 }
 
 /// Selects a [Group] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Group>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Group,
@@ -371,10 +327,6 @@ pub async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Group>, Bo
 }
 
 /// Inserts a group into the database, converting it from [GroupData] to a [Group]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_group(
 	id: Option<i32>, data: &GroupData<i32>, db: &Pool<Postgres>,
 ) -> Result<Group, Box<dyn Error>> {
@@ -427,10 +379,6 @@ pub async fn insert_group(
 }
 
 /// Selects a [Bookshelf] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_bookshelf(
 	id: i32, db: &Pool<Postgres>,
 ) -> Result<Option<Bookshelf>, Box<dyn Error>> {
@@ -449,10 +397,6 @@ pub async fn get_bookshelf(
 }
 
 /// Inserts a bookshelf into the database, converting it from [BookshelfData] to a [Bookshelf]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_bookshelf(
 	id: Option<i32>, data: &BookshelfData<i32>, user_id: Option<i32>, db: &Pool<Postgres>,
 ) -> Result<Bookshelf, Box<dyn Error>> {
@@ -511,10 +455,6 @@ pub async fn insert_bookshelf(
 }
 
 /// Selects a [Thread] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_thread(id: i32, db: &Pool<Postgres>) -> Result<Option<Thread>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Thread,
@@ -530,10 +470,6 @@ pub async fn get_thread(id: i32, db: &Pool<Postgres>) -> Result<Option<Thread>, 
 }
 
 /// Inserts a thread into the database, converting it from [ThreadData] to a [Thread]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_thread(
 	id: Option<i32>, data: ThreadData<i32>, group_id: i32, db: &Pool<Postgres>,
 ) -> Result<Thread, Box<dyn Error>> {
@@ -577,10 +513,6 @@ pub async fn insert_thread(
 }
 
 /// Selects a [Tag] from the database
-///
-/// #### Panics
-///
-/// Panics if it can't select the item from the database.
 pub async fn get_tag(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Tag,
@@ -595,10 +527,6 @@ pub async fn get_tag(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dy
 }
 
 /// Inserts a tag into the database, converting it from [TagData] to a [Tag]
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_tag(
 	id: Option<i32>, tag: TagData<i32>, db: &Pool<Postgres>,
 ) -> Result<Tag, Box<dyn Error>> {
@@ -628,10 +556,6 @@ pub async fn insert_tag(
 }
 
 /// Selects [TagLink]s from the database for a given story ID
-///
-/// #### Panics
-///
-/// Panics if it can't select the items from the database.
 pub async fn get_tag_links(
 	story_id: i32, db: &Pool<Postgres>,
 ) -> Result<Vec<TagLink>, Box<dyn Error>> {
@@ -648,10 +572,6 @@ pub async fn get_tag_links(
 }
 
 /// Inserts a link between a [Story] and a [Tag] into the database
-///
-/// #### Panics
-///
-/// Panics if it can't insert the item into the database.
 pub async fn insert_tag_link(
 	story_id: i32, tag_id: i32, db: &Pool<Postgres>,
 ) -> Result<TagLink, Box<dyn Error>> {
@@ -674,10 +594,6 @@ pub async fn insert_tag_link(
 }
 
 /// Deletes all tag links for a given [Story] ID
-///
-/// #### Panics
-///
-/// Panics if it can't delete the items from the database.
 pub async fn remove_tag_links(story_id: i32, db: &Pool<Postgres>) -> Result<u64, Box<dyn Error>> {
 	let rows = sqlx::query!("DELETE FROM Tag_links WHERE story_id = $1", story_id)
 		.execute(db)
