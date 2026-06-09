@@ -29,6 +29,7 @@ use self::utility::{
 	parse_thread_id,
 };
 use actix_cors::Cors;
+use actix_web::middleware::Compress;
 use actix_web::web::{Data, Path, Query};
 use actix_web::{App, HttpResponse, HttpServer, Responder, get};
 use chrono::{TimeDelta, Utc};
@@ -344,6 +345,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 					.allow_any_header()
 					.max_age(3600),
 			)
+			.wrap(Compress::default())
 			.service(get_story)
 			.service(get_chapter)
 			.service(get_user)
