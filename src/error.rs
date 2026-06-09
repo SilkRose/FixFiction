@@ -1,4 +1,4 @@
-//! Functions to format errors in HTML.
+//! Format errors in HTML.
 
 use crate::html_template::embed_html_template;
 use crate::structs::EmbedData;

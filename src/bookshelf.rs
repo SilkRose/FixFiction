@@ -1,4 +1,4 @@
-//! This module provides functions to request a [Bookshelf] and to format it in HTML.
+//! Request a [Bookshelf] and to format it in HTML.
 
 use crate::database::{get_bookshelf, insert_bookshelf, insert_user};
 use crate::fimfiction_api::ApiIncluded;

@@ -1,4 +1,4 @@
-//! This module provides functions for building HTML and oEmbed data for embedding.
+//! Building HTML and oEmbed data for embedding.
 
 use crate::{structs::EmbedData, utility::LOG};
 use maud::{DOCTYPE, PreEscaped, html};

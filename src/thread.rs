@@ -1,4 +1,4 @@
-//! This module provides functions to request a group [Thread] and to format it in HTML.
+//! Request a group [Thread] and to format it in HTML.
 
 use crate::database::{get_thread, insert_group, insert_thread, insert_user};
 use crate::fimfiction_api::ApiIncluded;

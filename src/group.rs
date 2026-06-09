@@ -1,4 +1,4 @@
-//! This module provides functions to request a [Group] and to format it in HTML.
+//! Request a [Group] and to format it in HTML.
 
 use crate::database::{get_group, insert_group, insert_user};
 use crate::fimfiction_api::ApiIncluded;

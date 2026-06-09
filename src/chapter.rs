@@ -1,4 +1,4 @@
-//! This module provides functions to request a [Chapter], or a chapter of a [Story], and to format it in HTML.
+//! Request a [Chapter], or a chapter of a [Story], and to format it in HTML.
 
 use crate::database::{
 	get_chapter, get_story_chapter, insert_chapter, insert_story, insert_tag, insert_tag_link,

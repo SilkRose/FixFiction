@@ -1,4 +1,4 @@
-//! This module provides various utility functions for use in other modules.
+//! Various utility functions for use in other modules.
 
 use crate::fimfiction_api::error::FimficError;
 use crate::structs::{Color, Cover, Parameters, Tag};

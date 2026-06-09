@@ -1,4 +1,4 @@
-//! This module provides functions to request a [User] and to format it in HTML.
+//! Request a [User] and to format it in HTML.
 
 use crate::check_recache;
 use crate::database::{get_user, insert_user};

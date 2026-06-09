@@ -1,4 +1,4 @@
-//! This module provides functions for reading and writing changes to the database.
+//! Reading and writing changes to the database.
 
 use crate::fimfiction_api::blog::BlogData;
 use crate::fimfiction_api::bookshelf::BookshelfData;

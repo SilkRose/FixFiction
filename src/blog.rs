@@ -1,4 +1,4 @@
-//! This module provides functions to request a [Blog] and to format it in HTML.
+//! Request a [Blog] and to format it in HTML.
 
 use crate::database::{get_blog, insert_blog, insert_user};
 use crate::fimfiction_api::ApiIncluded;

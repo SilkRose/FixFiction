@@ -1,4 +1,4 @@
-//! This module provides functions to request a [Story] and to format it in HTML.
+//! Request a [Story] and to format it in HTML.
 
 use crate::database::{
 	get_story, get_tag, get_tag_links, insert_story, insert_tag, insert_tag_link, insert_user,
