@@ -165,7 +165,7 @@ pub fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key:
 	}
 }
 
-/// Appends unknown queries onto the URL that aren't recognized
+/// Appends unknown query parameters onto the target URL
 pub fn append_query(path: &mut String, key: &str, value: &str) {
 	let mut encode = form_urlencoded::Serializer::new(String::new());
 	encode.append_pair(key, value);
@@ -176,7 +176,7 @@ pub fn append_query(path: &mut String, key: &str, value: &str) {
 	}
 }
 
-/// Sends out and parses the response from the Fimfiction API
+/// Sends a request and parses the response from the Fimfiction API
 pub async fn parse_fimfic_response<T: DeserializeOwned>(
 	api: &Request, url: &str,
 ) -> Result<T, Box<dyn Error>> {
@@ -251,7 +251,7 @@ pub fn map_picture(link: Option<String>) -> Option<String> {
 	link.map(|link| format!("{link}-512"))
 }
 
-/// converts a rfc3339 date into [DateTime<FixedOffset>]
+/// Converts a RFC3339 date string into a [DateTime]
 pub fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>, Box<dyn Error>> {
 	Ok(DateTime::parse_from_rfc3339(&date)
 		.map_err(|_| format!("FixFiction Error: failed to parse {name} date"))?)
@@ -359,8 +359,8 @@ macro_rules! check_recache {
 }
 
 /// Returns a mane 6 coat hex-color.
-/// Use's the ID to choose a color from modulo.
-/// Picks one at random if no ID is provided.
+/// Picks a color based on the ID modulo 6.
+/// Picks a color at random if no ID is provided.
 pub fn get_color(id: Option<i32>) -> String {
 	let colors = ["cc9cdf", "faba62", "faf5ab", "f5b7d0", "9bdbf5", "eaeef0"];
 	match id {
