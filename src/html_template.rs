@@ -24,6 +24,9 @@ pub(crate) fn embed_html_template(embed: EmbedData) -> String {
 					meta name = "theme-color" content = { "#" (color) } "/";
 				}
 				link rel = "canonical" href = (embed.link) "/";
+				script {
+					(PreEscaped (format!(r#"window.location.href = "{}" + window.location.hash;"#, embed.link)))
+				};
 				meta http-equiv = "refresh" content={ "0;url=" (embed.link) } "/";
 				meta property = "og:title" content = (embed.title) "/";
 				meta property = "og:description" content = (embed.description) "/";

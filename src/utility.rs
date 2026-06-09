@@ -82,7 +82,6 @@ pub(crate) async fn parse_embed_parameters(
 ) -> (Parameters, Vec<String>) {
 	let mut params = Parameters::default();
 	let mut errors = Vec::new();
-	let mut comment = None;
 	for (key, value) in queries {
 		match key.to_lowercase().as_str() {
 			"cover" | "image" => parse_cover(&mut params, &mut errors, value),
@@ -90,12 +89,8 @@ pub(crate) async fn parse_embed_parameters(
 			"refresh" | "renew" => parse_bool(value, &mut params.refresh, &mut errors, &key),
 			"stats" | "info" => parse_bool(value, &mut params.stats, &mut errors, &key),
 			"tags" | "tag" => parse_bool(value, &mut params.tags, &mut errors, &key),
-			"comment" => comment = Some(value),
 			_ => append_query(path, &key, &value),
 		}
-	}
-	if let Some(comment_id) = comment {
-		*path = format!("{path}#comment/{comment_id}");
 	}
 	(params, errors)
 }
