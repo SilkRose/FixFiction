@@ -1,3 +1,5 @@
+//! Various utility functions for use in other modules.
+
 use crate::fimfiction_api::error::FimficError;
 use crate::structs::{Color, Cover, Parameters, Tag};
 use chrono::{DateTime, FixedOffset};
@@ -13,12 +15,22 @@ use std::iter;
 use std::sync::LazyLock;
 use url::form_urlencoded;
 
+/// Logger that prints to the console and a file
+///
+/// #### Panics
+///
+/// Panics if it fails to set the file.
 pub static LOG: LazyLock<Logger> = LazyLock::new(|| {
 	Logger::new(LogLevel::Debug)
 		.set_file("./logs", LogLevel::Debug, FileLimit::Lines(1_000), 20)
 		.expect("Should never fail")
 });
 
+/// Parses Fimfiction IDs to [i32]
+///
+/// #### Panics
+///
+/// Panics if the first segment doesn't exist.
 pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
 	let binding = path.to_string();
 	let id = binding.split('/').collect::<Vec<_>>();
@@ -29,6 +41,7 @@ pub fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
 	}
 }
 
+/// Parses Fimfiction chapter ID to [i32]
 pub fn parse_chapter_number(path: &str) -> Option<i32> {
 	let binding = path.to_string();
 	let binding = binding.split('/').collect::<Vec<_>>();
@@ -40,6 +53,7 @@ pub fn parse_chapter_number(path: &str) -> Option<i32> {
 	}
 }
 
+/// Parses Fimfiction thread ID to [i32]
 pub fn parse_thread_id(path: &str) -> Option<i32> {
 	let parts: Vec<_> = path.split('/').collect();
 	if parts.get(2)? != &"thread" {
@@ -48,18 +62,21 @@ pub fn parse_thread_id(path: &str) -> Option<i32> {
 	parts.get(3)?.parse().ok()
 }
 
+/// Adds a missing forward slash to the URL if it's missing
 pub fn check_slash(path: &mut String, id: i32) {
 	if !path.starts_with(&format!("{id}/")) {
 		*path = format!("{path}/");
 	}
 }
 
+/// Adds a missing forward slash to the URL if it's missing
 pub fn check_thread_slash(path: &mut String, id: i32) {
 	if path.ends_with(&format!("/thread/{id}")) {
 		*path = format!("{path}/");
 	}
 }
 
+/// Parses a [HashMap<String, String>] into [Parameters]
 pub async fn parse_embed_parameters(
 	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
 ) -> (Parameters, Vec<String>) {
@@ -83,6 +100,7 @@ pub async fn parse_embed_parameters(
 	(params, errors)
 }
 
+/// Converts a string into a [Cover]
 pub fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String) {
 	let cover = match value.to_lowercase().as_str() {
 		"founder" => Ok(Cover::Founder),
@@ -97,6 +115,7 @@ pub fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: Str
 	}
 }
 
+/// Converts a string into a [Color]
 pub async fn parse_color(
 	params: &mut Parameters, errors: &mut Vec<String>, db: &Pool<Postgres>, value: String,
 ) {
@@ -137,6 +156,7 @@ pub async fn parse_color(
 	}
 }
 
+/// Parses a [bool] from a [String] with variable accepted inputs
 pub fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key: &str) {
 	match text.to_lowercase().as_str() {
 		"false" | "0" | "no" | "n" | "f" => *value = false,
@@ -147,6 +167,7 @@ pub fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key:
 	}
 }
 
+/// Appends unknown query parameters onto the target URL
 pub fn append_query(path: &mut String, key: &str, value: &str) {
 	let mut encode = form_urlencoded::Serializer::new(String::new());
 	encode.append_pair(key, value);
@@ -157,6 +178,7 @@ pub fn append_query(path: &mut String, key: &str, value: &str) {
 	}
 }
 
+/// Sends a request and parses the response from the Fimfiction API
 pub async fn parse_fimfic_response<T: DeserializeOwned>(
 	api: &Request, url: &str,
 ) -> Result<T, Box<dyn Error>> {
@@ -182,6 +204,7 @@ pub async fn parse_fimfic_response<T: DeserializeOwned>(
 	}
 }
 
+/// Trims content to improve the look of embeds
 pub fn trim_content(content: String, clean: bool) -> String {
 	let content = match clean {
 		true => clean_content(content),
@@ -205,6 +228,11 @@ pub fn trim_content(content: String, clean: bool) -> String {
 	text.join("\n\n")
 }
 
+/// Cleans content to improve the look of embeds
+///
+/// #### Panics
+///
+/// Panics if the regex fails to compile.
 pub fn clean_content(content: String) -> String {
 	let re = LazyLock::new(|| {
 		Regex::new(
@@ -215,19 +243,23 @@ pub fn clean_content(content: String) -> String {
 	re.replace_all(&content, "").to_string().replace('⠀', "")
 }
 
+/// Selects which story cover size to embed
 pub fn map_cover(link: Option<String>) -> Option<String> {
 	link.map(|link| format!("{link}-full"))
 }
 
+/// Selects which profile picture size to embed
 pub fn map_picture(link: Option<String>) -> Option<String> {
 	link.map(|link| format!("{link}-512"))
 }
 
+/// Converts a RFC3339 date string into a [DateTime]
 pub fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>, Box<dyn Error>> {
 	Ok(DateTime::parse_from_rfc3339(&date)
 		.map_err(|_| format!("FixFiction Error: failed to parse {name} date"))?)
 }
 
+/// Shortens tag names and joins them with a comma
 pub fn map_tags(tags: &[Tag]) -> String {
 	tags.iter()
 		.map(|tag| SHORT_TAGS.get(&tag.id).copied().unwrap_or(&tag.name))
@@ -235,6 +267,7 @@ pub fn map_tags(tags: &[Tag]) -> String {
 		.join(", ")
 }
 
+/// Fimfiction tag name shorthands
 static SHORT_TAGS: LazyLock<HashMap<i32, &str>> = LazyLock::new(|| {
 	let mut tags = HashMap::new();
 	tags.insert(4, "MLP FiM");
@@ -284,6 +317,7 @@ static SHORT_TAGS: LazyLock<HashMap<i32, &str>> = LazyLock::new(|| {
 	tags
 });
 
+/// Takes a [Vec] of an enum and gets a specific variant
 #[macro_export]
 macro_rules! get_variant {
 	($vec:expr, $ty:path) => {{
@@ -297,6 +331,7 @@ macro_rules! get_variant {
 	}};
 }
 
+/// Takes a [Vec] of an enum and gets all variants of a specific variant
 #[macro_export]
 macro_rules! get_variants {
 	($vec:expr, $ty:path) => {{
@@ -310,6 +345,7 @@ macro_rules! get_variants {
 	}};
 }
 
+/// Checks the cache time to see if its been long enough to re-fetch from Fimfiction's API
 #[macro_export]
 macro_rules! check_recache {
 	($item:expr, $recache:expr, $app:expr) => {{
@@ -324,6 +360,9 @@ macro_rules! check_recache {
 	}};
 }
 
+/// Returns a mane 6 coat hex-color.
+/// Picks a color based on the ID modulo 6.
+/// Picks a color at random if no ID is provided.
 pub fn get_color(id: Option<i32>) -> String {
 	let colors = ["cc9cdf", "faba62", "faf5ab", "f5b7d0", "9bdbf5", "eaeef0"];
 	match id {
@@ -336,6 +375,7 @@ pub fn get_color(id: Option<i32>) -> String {
 	}
 }
 
+/// Inserts the error message for an unsupported cover option.
 pub fn unsupported_cover_opt(
 	errors: &mut Vec<String>, option: String, res: Option<String>,
 ) -> Option<String> {
@@ -343,6 +383,7 @@ pub fn unsupported_cover_opt(
 	res
 }
 
+/// Inserts the error message for an unsupported color option.
 pub fn unsupported_color_opt(
 	errors: &mut Vec<String>, option: String, res: Option<String>,
 ) -> Option<String> {
@@ -350,11 +391,15 @@ pub fn unsupported_color_opt(
 	res
 }
 
+/// Inserts the error message for an unsupported cover option.
+/// Has an optional return for easy use in parameter handling.
 pub fn unsupported_cover(errors: &mut Vec<String>, option: String, res: String) -> Option<String> {
 	errors.push(format!("Unsupported cover option: {option}"));
 	Some(res)
 }
 
+/// Inserts the error message for an unsupported color option.
+/// Has an optional return for easy use in parameter handling.
 pub fn unsupported_color(errors: &mut Vec<String>, option: String, res: String) -> Option<String> {
 	errors.push(format!("Unsupported color option: {option}"));
 	Some(res)

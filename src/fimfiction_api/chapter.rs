@@ -1,7 +1,12 @@
+//! A story [chapter] resource.
+//!
+//! [chapter]: https://www.fimfiction.net/developers/api/v2/docs/resources#chapter
+
 use super::{ApiDebug, ApiLinks, ApiMeta, RelationshipData};
 use crate::fimfiction_api::ApiIncluded;
 use serde::{Deserialize, Serialize};
 
+/// A full chapter object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChapterApi<T = u32> {
 	pub data: ChapterData<T>,
@@ -11,6 +16,7 @@ pub struct ChapterApi<T = u32> {
 	pub debug: ApiDebug,
 }
 
+/// All properties of a chapter.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChapterData<T = u32> {
 	pub id: String,
@@ -21,11 +27,13 @@ pub struct ChapterData<T = u32> {
 	pub meta: ApiMeta,
 }
 
+/// Relational properties of a chapter.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChapterRelationship {
 	story: RelationshipData,
 }
 
+/// Self-contained properties of a chapter.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChapterAttributes<T = u32> {
 	pub chapter_number: T,

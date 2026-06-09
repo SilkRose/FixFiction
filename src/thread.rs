@@ -1,3 +1,5 @@
+//! Request a group [Thread] and to format it in HTML.
+
 use crate::database::{get_thread, insert_group, insert_thread, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::thread::ThreadApi;
@@ -14,6 +16,14 @@ use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 
+/// Requests a [Thread] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the thread is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_thread(
 	group_id: i32, thread_id: i32, app: &AppState, recache: bool,
 ) -> Result<(Group, User, Option<ThreadReturn>), Box<dyn std::error::Error>> {
@@ -61,6 +71,14 @@ pub async fn request_thread(
 	}
 }
 
+/// Collects the [User]s who created and last posted in a [Thread] into a common struct.
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the thread is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 async fn build_thread_return(
 	thread: Thread, app: &AppState, recache: bool,
 ) -> Result<ThreadReturn, Box<dyn std::error::Error>> {
@@ -73,6 +91,11 @@ async fn build_thread_return(
 	})
 }
 
+/// Formats a group [Thread] to an HTML string for embedding. All threads are contained in [Group]s, which are founded by [User]s.
+///
+/// #### Panics
+///
+/// Panics if stats are requested and the [Thread]'s stats can't be formatted.
 pub fn thread_html_template(
 	group: Group, founder: User, thread_data: ThreadReturn, parameters: Parameters, link: String,
 	errors: Vec<String>,

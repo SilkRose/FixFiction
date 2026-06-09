@@ -1,6 +1,11 @@
+//! A story [tag] resource.
+//!
+//! [tag]: https://www.fimfiction.net/developers/api/v2/docs/resources#story_tag
+
 use super::ApiDebug;
 use serde::{Deserialize, Serialize};
 
+/// A full tag object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TagApi<T = u32> {
 	pub data: Vec<TagData<T>>,
@@ -10,6 +15,7 @@ pub struct TagApi<T = u32> {
 	pub debug: ApiDebug,
 }
 
+/// All properties of a tag.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TagData<T = u32> {
 	pub id: String,
@@ -18,6 +24,7 @@ pub struct TagData<T = u32> {
 	pub meta: TagMeta,
 }
 
+/// Self-contained properties of a tag.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TagAttributes<T = u32> {
 	pub name: String,
@@ -25,6 +32,7 @@ pub struct TagAttributes<T = u32> {
 	pub num_stories: T,
 }
 
+/// Self-referential properties of a tag.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TagMeta {
 	pub old_id: String,

@@ -1,3 +1,5 @@
+//! Request a [Chapter], or a chapter of a [Story], and to format it in HTML.
+
 use crate::database::{
 	get_chapter, get_story_chapter, insert_chapter, insert_story, insert_tag, insert_tag_link,
 	insert_user, remove_tag_links,
@@ -19,6 +21,14 @@ use crate::{check_recache, get_variant, get_variants};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 
+/// Requests a [Chapter] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the chapter is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_chapter(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
@@ -54,6 +64,14 @@ pub async fn request_chapter(
 	}
 }
 
+/// Requests a [Chapter], indexed ordinally from the parent [Story], from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the chapter is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_story_chapters(
 	story_id: i32, chapter_num: i32, app: &AppState, recache: bool,
 ) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
@@ -99,6 +117,11 @@ pub async fn request_story_chapters(
 	}
 }
 
+/// Formats a [Chapter] to an HTML string for embedding. All chapters are a child of a [Story], which is authored by a [User].
+///
+/// #### Panics
+///
+/// Panics if stats are requested and the [Chapter]'s parent story's stats can't be formatted.
 pub fn chapter_html_template(
 	chapter: Chapter, story: Story, user: User, mut tags: Vec<Tag>, parameters: Parameters,
 	link: String, errors: Vec<String>,

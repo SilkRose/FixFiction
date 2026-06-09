@@ -1,3 +1,5 @@
+//! Request a [Bookshelf] and to format it in HTML.
+
 use crate::database::{get_bookshelf, insert_bookshelf, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::bookshelf::BookshelfApi;
@@ -11,6 +13,14 @@ use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 
+/// Requests a [Bookshelf] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the bookshelf is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_bookshelf(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Bookshelf, Option<User>), Box<dyn std::error::Error>> {
@@ -46,6 +56,11 @@ pub async fn request_bookshelf(
 	}
 }
 
+/// Formats a [Bookshelf] to an HTML string for embedding. Most bookshelves are registered to a [User], but not all.
+///
+/// #### Panics
+///
+/// Panics if stats are requested and the [Bookshelf]'s number of stories or unread chapters can't be formatted.
 pub fn bookshelf_html_template(
 	bookshelf: Bookshelf, user: Option<User>, parameters: Parameters, link: String,
 	errors: Vec<String>,

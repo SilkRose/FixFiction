@@ -1,3 +1,5 @@
+//! Request a [Blog] and to format it in HTML.
+
 use crate::database::{get_blog, insert_blog, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::BlogApi;
@@ -13,6 +15,14 @@ use crate::{check_recache, get_variant};
 use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 
+/// Requests a [Blog] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the blog is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_blog(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
@@ -49,6 +59,11 @@ pub async fn request_blog(
 	}
 }
 
+/// Formats a [Blog] to an HTML string for embedding. Also requires the author (a [User]), and the blog's linked [Story] if present.
+///
+/// #### Panics
+///
+/// Panics if stats are requested and the [Blog]'s number of views or comments can't be formatted.
 pub fn blog_html_template(
 	blog: Blog, user: User, story: Option<Story>, parameters: Parameters, link: String,
 	errors: Vec<String>,

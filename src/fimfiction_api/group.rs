@@ -1,7 +1,12 @@
+//! A [group] resource.
+//!
+//! [group]: https://www.fimfiction.net/developers/api/v2/docs/resources#group
+
 use super::{ApiDebug, ApiLinks, ApiMeta, RelationshipData};
 use crate::fimfiction_api::ApiIncluded;
 use serde::{Deserialize, Serialize};
 
+/// A full group as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GroupApi<T = u32> {
 	pub data: GroupData<T>,
@@ -11,6 +16,7 @@ pub struct GroupApi<T = u32> {
 	pub debug: ApiDebug,
 }
 
+/// All properties of a group.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GroupData<T = u32> {
 	pub id: String,
@@ -21,11 +27,13 @@ pub struct GroupData<T = u32> {
 	pub meta: ApiMeta,
 }
 
+/// Relational properties of a group.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GroupRelationship {
 	pub founder: RelationshipData,
 }
 
+/// Self-contained properties of a group.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GroupAttributes<T = u32> {
 	pub name: String,
@@ -40,6 +48,7 @@ pub struct GroupAttributes<T = u32> {
 	pub description_html: String,
 }
 
+/// The image selected as an icon for a group, optionally in various sizes.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GroupIcon {
 	#[serde(rename = "32")]

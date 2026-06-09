@@ -1,3 +1,5 @@
+//! Request a [User] and to format it in HTML.
+
 use crate::check_recache;
 use crate::database::{get_user, insert_user};
 use crate::fimfiction_api::user::UserApi;
@@ -10,6 +12,14 @@ use chrono::{TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 use std::error::Error;
 
+/// Requests a [User] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
+///
+/// #### Errors
+/// This function will return an error in the following cases:
+/// - Can't connect to the database
+/// - If the user is uncached:
+///   - Can't connect to Fimfiction
+///   - Can't deserialize response from Fimfiction
 pub async fn request_user(id: i32, app: &AppState, recache: bool) -> Result<User, Box<dyn Error>> {
 	let user = get_user(id, &app.db).await?;
 	let user = check_recache!(user, recache, app);
@@ -23,6 +33,11 @@ pub async fn request_user(id: i32, app: &AppState, recache: bool) -> Result<User
 	}
 }
 
+/// Formats a [User] to an HTML string for embedding.
+///
+/// #### Panics
+///
+/// Panics if stats are requested and the [User]'s stats can't be formatted.
 pub fn user_html_template(
 	user: User, parameters: Parameters, link: String, errors: Vec<String>,
 ) -> String {

@@ -1,7 +1,12 @@
+//! A group [thread] resource.
+//!
+//! [thread]: https://www.fimfiction.net/developers/api/v2/docs/resources#group_thread
+
 use super::{ApiDebug, ApiMeta, RelationshipData};
 use crate::fimfiction_api::ApiIncluded;
 use serde::{Deserialize, Serialize};
 
+/// A full thread object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadApi<T = u32> {
 	pub data: Vec<ThreadData<T>>,
@@ -12,6 +17,7 @@ pub struct ThreadApi<T = u32> {
 	pub debug: ApiDebug,
 }
 
+/// All properties of a thread.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadData<T = u32> {
 	pub id: String,
@@ -21,6 +27,7 @@ pub struct ThreadData<T = u32> {
 	pub meta: ApiMeta,
 }
 
+/// Self-contained properties of a thread.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadAttributes<T = u32> {
 	pub title: String,
@@ -31,6 +38,7 @@ pub struct ThreadAttributes<T = u32> {
 	pub locked: bool,
 }
 
+/// Relational properties of a thread.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadRelationships {
 	pub creator: RelationshipData,
@@ -38,6 +46,7 @@ pub struct ThreadRelationships {
 	pub last_poster: RelationshipData,
 }
 
+/// Links to the first and last posts in a thread.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadLinks {
 	pub first: String,

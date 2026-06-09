@@ -1,7 +1,12 @@
+//! A [blog] post resource.
+//!
+//! [blog]: https://www.fimfiction.net/developers/api/v2/docs/resources#blog_post
+
 use super::{ApiDebug, ApiMeta, RelationshipData};
 use crate::fimfiction_api::ApiIncluded;
 use serde::{Deserialize, Serialize};
 
+/// A full blog object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlogApi<T = u32> {
 	pub data: BlogData<T>,
@@ -11,6 +16,7 @@ pub struct BlogApi<T = u32> {
 	pub debug: ApiDebug,
 }
 
+/// All properties of a blog.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlogData<T = u32> {
 	pub id: String,
@@ -20,6 +26,7 @@ pub struct BlogData<T = u32> {
 	pub meta: ApiMeta,
 }
 
+/// Self-contained properties of a blog.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlogAttributes<T = u32> {
 	pub title: String,
@@ -31,6 +38,7 @@ pub struct BlogAttributes<T = u32> {
 	pub tags: Vec<String>,
 }
 
+/// Relational properties of a blog
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlogRelationships {
 	pub tagged_story: RelationshipData,

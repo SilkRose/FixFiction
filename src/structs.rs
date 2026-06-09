@@ -1,3 +1,5 @@
+//! Common structs used in other modules.
+
 use chrono::{DateTime, Utc};
 use core::str;
 use pony::http::Request;
@@ -6,6 +8,7 @@ use sqlx::{Pool, Postgres, Type};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt;
 
+/// Fimfiction story content rating data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "content_rating", rename_all = "lowercase")]
 pub enum ContentRating {
@@ -15,6 +18,11 @@ pub enum ContentRating {
 }
 
 impl From<String> for ContentRating {
+	/// Converts a Fimfiction API response string for story rating into [ContentRating]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
 	fn from(value: String) -> Self {
 		match value.as_str() {
 			"everyone" => ContentRating::Everyone,
@@ -25,6 +33,7 @@ impl From<String> for ContentRating {
 	}
 }
 
+/// Fimfiction story completion status data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "completion_status", rename_all = "lowercase")]
 pub enum CompletionStatus {
@@ -35,6 +44,11 @@ pub enum CompletionStatus {
 }
 
 impl From<String> for CompletionStatus {
+	/// Converts a Fimfiction API response string for story status into [CompletionStatus]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
 	fn from(value: String) -> Self {
 		match value.as_str() {
 			"incomplete" => CompletionStatus::Incomplete,
@@ -46,6 +60,7 @@ impl From<String> for CompletionStatus {
 	}
 }
 
+/// Fimfiction tag type data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "tag_type", rename_all = "lowercase")]
 pub enum TagType {
@@ -59,6 +74,11 @@ pub enum TagType {
 }
 
 impl From<String> for TagType {
+	/// Converts a Fimfiction API response string for tag type into [TagType]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
 	fn from(value: String) -> Self {
 		match value.as_str() {
 			"character" => TagType::Character,
@@ -74,12 +94,14 @@ impl From<String> for TagType {
 }
 
 impl PartialOrd for TagType {
+	/// Sorting tags by their type
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		Some(Self::cmp(self, other))
 	}
 }
 
 impl Ord for TagType {
+	/// Sorting tags by their type
 	fn cmp(&self, other: &Self) -> Ordering {
 		macro_rules! to_int {
 			($tag:ident) => {
@@ -101,6 +123,7 @@ impl Ord for TagType {
 	}
 }
 
+/// Fimfiction story data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct Story {
 	pub id: i32,
@@ -128,6 +151,7 @@ pub struct Story {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// Fimfiction tag data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct Tag {
 	pub id: i32,
@@ -139,6 +163,7 @@ pub struct Tag {
 }
 
 impl PartialEq for Tag {
+	/// Checking if two tags are the same
 	fn eq(&self, other: &Self) -> bool {
 		matches!(Ord::cmp(self, other), Ordering::Equal)
 	}
@@ -147,12 +172,14 @@ impl PartialEq for Tag {
 impl Eq for Tag {}
 
 impl PartialOrd for Tag {
+	/// Sorting tags by their type then id
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		Some(Self::cmp(self, other))
 	}
 }
 
 impl Ord for Tag {
+	/// Sorting tags by their type then id
 	fn cmp(&self, other: &Self) -> Ordering {
 		let cmp = Ord::cmp(&self.tag_type, &other.tag_type);
 		if cmp != Ordering::Equal {
@@ -163,6 +190,7 @@ impl Ord for Tag {
 	}
 }
 
+/// Fimfiction tag link data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct TagLink {
 	pub story_id: i32,
@@ -170,6 +198,7 @@ pub struct TagLink {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// OEmbed data structure for OEmbed support
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OEmbed {
 	pub r#type: String,
@@ -185,6 +214,7 @@ pub struct OEmbed {
 	pub html: String,
 }
 
+/// Fimfiction user data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct User {
 	pub id: i32,
@@ -200,6 +230,7 @@ pub struct User {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// Fimfiction blog data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct Blog {
 	pub id: i32,
@@ -215,6 +246,7 @@ pub struct Blog {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// Fimfiction chapter data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct Chapter {
 	pub id: i32,
@@ -229,6 +261,7 @@ pub struct Chapter {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// Fimfiction group data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct Group {
 	pub id: i32,
@@ -246,6 +279,7 @@ pub struct Group {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// Fimfiction bookshelf data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct Bookshelf {
 	pub id: i32,
@@ -266,6 +300,7 @@ pub struct Bookshelf {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// Fimfiction thread data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub struct Thread {
 	pub id: i32,
@@ -282,6 +317,7 @@ pub struct Thread {
 	pub date_cached: DateTime<Utc>,
 }
 
+/// [Thread] data combined with the last poster and creator [User] data
 #[derive(Debug, Clone)]
 pub struct ThreadReturn {
 	pub thread: Thread,
@@ -289,6 +325,7 @@ pub struct ThreadReturn {
 	pub last_poster: User,
 }
 
+/// Embed parameter options
 #[derive(Debug, Clone, Default)]
 pub struct Parameters {
 	pub cover: Option<Cover>,
@@ -298,6 +335,7 @@ pub struct Parameters {
 	pub tags: bool,
 }
 
+/// Supported image options for embeds
 #[derive(Debug, Clone, PartialEq)]
 pub enum Cover {
 	Founder,
@@ -307,6 +345,7 @@ pub enum Cover {
 }
 
 impl fmt::Display for Cover {
+	/// Returns a string representation of a cover enum
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let text = match self {
 			Cover::Founder => "founder",
@@ -318,6 +357,7 @@ impl fmt::Display for Cover {
 	}
 }
 
+/// Supported color options for embeds
 #[derive(Debug, Clone)]
 pub enum Color {
 	Custom(String),
@@ -330,6 +370,7 @@ pub enum Color {
 }
 
 impl fmt::Display for Color {
+	/// Returns a string representation of a color enum
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let text = match self {
 			Color::Custom(color) => color.as_str(),
@@ -344,6 +385,7 @@ impl fmt::Display for Color {
 	}
 }
 
+/// App data and variables
 #[derive(Debug, Clone)]
 pub struct AppState {
 	pub api: Request,
@@ -353,6 +395,7 @@ pub struct AppState {
 	pub cache_recache_age: i64,
 }
 
+/// Embed data for creating the HTML string
 #[derive(Debug, Clone)]
 pub struct EmbedData {
 	pub title: String,
