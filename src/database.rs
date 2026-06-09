@@ -240,7 +240,7 @@ pub async fn insert_story(
 	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
 }
 
-/// Selects a [Chapter] from the database
+/// Selects a [Chapter] from the database, based on Story ID and Chapter number
 pub async fn get_story_chapter(
 	story_id: i32, chapter_num: i32, db: &Pool<Postgres>,
 ) -> Result<Option<Chapter>, Box<dyn Error>> {
@@ -258,7 +258,7 @@ pub async fn get_story_chapter(
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Selects a [Chapter] from the database
+/// Selects a [Chapter] from the database, based on Chapter ID
 pub async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>, Box<dyn Error>> {
 	sqlx::query_as!(
 		Chapter,
