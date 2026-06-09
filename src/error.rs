@@ -5,7 +5,7 @@ use crate::structs::EmbedData;
 use crate::utility::LOG;
 
 /// Formats errors to an HTML string for embedding.
-pub fn error_html_template(endpoint: &str, link: String, errors: String) -> String {
+pub(crate) fn error_html_template(endpoint: &str, link: String, errors: String) -> String {
 	let link = format!("https://www.fimfiction.net/{endpoint}/{link}");
 	let desc = format!(
 		"{errors}\n\nThe link above still redirects to Fimfiction. If this error is in error, please report it to Silk Rose on Fimfiction, or on the FixFiction GitHub issues page."

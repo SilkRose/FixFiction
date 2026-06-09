@@ -21,7 +21,7 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 /// - If the bookshelf is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_bookshelf(
+pub(crate) async fn request_bookshelf(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Bookshelf, Option<User>), Box<dyn std::error::Error>> {
 	let bookshelf = get_bookshelf(id, &app.db).await?;
@@ -61,7 +61,7 @@ pub async fn request_bookshelf(
 /// #### Panics
 ///
 /// Panics if stats are requested and the [Bookshelf]'s number of stories or unread chapters can't be formatted.
-pub fn bookshelf_html_template(
+pub(crate) fn bookshelf_html_template(
 	bookshelf: Bookshelf, user: Option<User>, parameters: Parameters, link: String,
 	errors: Vec<String>,
 ) -> String {

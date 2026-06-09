@@ -1,22 +1,37 @@
+//! FixFiction is a service that fixes embedded content from Fimfiction.net.
+mod blog;
+mod bookshelf;
+mod chapter;
+mod database;
+mod error;
+mod fimfiction_api;
+mod group;
+mod html_template;
+mod story;
+mod structs;
+mod thread;
+mod user;
+mod utility;
+
+use self::blog::{blog_html_template, request_blog};
+use self::bookshelf::{bookshelf_html_template, request_bookshelf};
+use self::chapter::{chapter_html_template, request_chapter, request_story_chapters};
+use self::database::count_rows;
+use self::error::error_html_template;
+use self::fimfiction_api::fimfic_api_headers;
+use self::group::{group_html_template, request_group};
+use self::story::{request_story, story_html_template};
+use self::structs::{AppState, OEmbed};
+use self::thread::{request_thread, thread_html_template};
+use self::user::{request_user, user_html_template};
+use self::utility::{
+	check_slash, check_thread_slash, parse_chapter_number, parse_embed_parameters, parse_id,
+	parse_thread_id,
+};
 use actix_cors::Cors;
 use actix_web::web::{Data, Path, Query};
 use actix_web::{App, HttpResponse, HttpServer, Responder, get};
 use chrono::{TimeDelta, Utc};
-use fixfiction::blog::{blog_html_template, request_blog};
-use fixfiction::bookshelf::{bookshelf_html_template, request_bookshelf};
-use fixfiction::chapter::{chapter_html_template, request_chapter, request_story_chapters};
-use fixfiction::database::count_rows;
-use fixfiction::error::error_html_template;
-use fixfiction::fimfiction_api::fimfic_api_headers;
-use fixfiction::group::{group_html_template, request_group};
-use fixfiction::story::{request_story, story_html_template};
-use fixfiction::structs::{AppState, OEmbed};
-use fixfiction::thread::{request_thread, thread_html_template};
-use fixfiction::user::{request_user, user_html_template};
-use fixfiction::utility::{
-	check_slash, check_thread_slash, parse_chapter_number, parse_embed_parameters, parse_id,
-	parse_thread_id,
-};
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;

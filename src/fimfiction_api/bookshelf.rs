@@ -8,53 +8,53 @@ use serde::{Deserialize, Serialize};
 
 /// A full bookshelf object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BookshelfApi<T = u32> {
-	pub data: BookshelfData<T>,
-	pub included: Vec<ApiIncluded<T>>,
-	pub uri: String,
-	pub method: String,
-	pub debug: ApiDebug,
+pub(crate) struct BookshelfApi<T = u32> {
+	pub(crate) data: BookshelfData<T>,
+	pub(crate) included: Vec<ApiIncluded<T>>,
+	pub(crate) uri: String,
+	pub(crate) method: String,
+	pub(crate) debug: ApiDebug,
 }
 
 /// All properties of a bookshelf.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BookshelfData<T = u32> {
-	pub id: String,
-	pub r#type: String,
-	pub attributes: BookshelfAttributes<T>,
-	pub relationships: Option<BookshelfRelationship>,
-	pub links: ApiLinks,
-	pub meta: ApiMeta,
+pub(crate) struct BookshelfData<T = u32> {
+	pub(crate) id: String,
+	pub(crate) r#type: String,
+	pub(crate) attributes: BookshelfAttributes<T>,
+	pub(crate) relationships: Option<BookshelfRelationship>,
+	pub(crate) links: ApiLinks,
+	pub(crate) meta: ApiMeta,
 }
 
 /// Self-contained properties of a bookshelf.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BookshelfAttributes<T = u32> {
-	pub name: String,
-	pub privacy: String,
-	pub description: String,
-	pub color: String,
-	pub icon: BookshelfIcon,
-	pub num_stories: T,
-	pub num_unread: Option<T>,
-	pub track_unread: bool,
-	pub quick_add: bool,
-	pub email_on_update: bool,
-	pub date_created: String,
-	pub date_modified: String,
-	pub order: T,
+pub(crate) struct BookshelfAttributes<T = u32> {
+	pub(crate) name: String,
+	pub(crate) privacy: String,
+	pub(crate) description: String,
+	pub(crate) color: String,
+	pub(crate) icon: BookshelfIcon,
+	pub(crate) num_stories: T,
+	pub(crate) num_unread: Option<T>,
+	pub(crate) track_unread: bool,
+	pub(crate) quick_add: bool,
+	pub(crate) email_on_update: bool,
+	pub(crate) date_created: String,
+	pub(crate) date_modified: String,
+	pub(crate) order: T,
 }
 
 /// The icon selected to represent a bookshelf.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BookshelfIcon {
-	pub name: String,
-	pub r#type: String,
-	pub data: String,
+pub(crate) struct BookshelfIcon {
+	pub(crate) name: String,
+	pub(crate) r#type: String,
+	pub(crate) data: String,
 }
 
 /// Relational properties of a bookshelf.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BookshelfRelationship {
+pub(crate) struct BookshelfRelationship {
 	user: RelationshipData,
 }

@@ -23,7 +23,7 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 /// - If the blog is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_blog(
+pub(crate) async fn request_blog(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
 	let blog = get_blog(id, &app.db).await?;
@@ -64,7 +64,7 @@ pub async fn request_blog(
 /// #### Panics
 ///
 /// Panics if stats are requested and the [Blog]'s number of views or comments can't be formatted.
-pub fn blog_html_template(
+pub(crate) fn blog_html_template(
 	blog: Blog, user: User, story: Option<Story>, parameters: Parameters, link: String,
 	errors: Vec<String>,
 ) -> String {

@@ -28,7 +28,7 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 /// - If the story is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_story(
+pub(crate) async fn request_story(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
 	let story = get_story(id, &app.db).await?;
@@ -72,7 +72,7 @@ pub async fn request_story(
 /// #### Panics
 ///
 /// Panics if stats are requested and the [Story]'s stats can't be formatted.
-pub fn story_html_template(
+pub(crate) fn story_html_template(
 	story: Story, user: User, mut tags: Vec<Tag>, parameters: Parameters, link: String,
 	errors: Vec<String>,
 ) -> String {

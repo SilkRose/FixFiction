@@ -20,7 +20,9 @@ use std::error::Error;
 /// - If the user is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_user(id: i32, app: &AppState, recache: bool) -> Result<User, Box<dyn Error>> {
+pub(crate) async fn request_user(
+	id: i32, app: &AppState, recache: bool,
+) -> Result<User, Box<dyn Error>> {
 	let user = get_user(id, &app.db).await?;
 	let user = check_recache!(user, recache, app);
 	match user {
@@ -38,7 +40,7 @@ pub async fn request_user(id: i32, app: &AppState, recache: bool) -> Result<User
 /// #### Panics
 ///
 /// Panics if stats are requested and the [User]'s stats can't be formatted.
-pub fn user_html_template(
+pub(crate) fn user_html_template(
 	user: User, parameters: Parameters, link: String, errors: Vec<String>,
 ) -> String {
 	let mut errors = errors;

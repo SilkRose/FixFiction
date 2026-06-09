@@ -22,7 +22,7 @@ use std::error::Error;
 /// - If the group is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_group(
+pub(crate) async fn request_group(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Group, User), Box<dyn Error>> {
 	let group = get_group(id, &app.db).await?;
@@ -49,7 +49,7 @@ pub async fn request_group(
 /// #### Panics
 ///
 /// Panics if stats are requested and the [Group]'s stats can't be formatted.
-pub fn group_html_template(
+pub(crate) fn group_html_template(
 	group: Group, founder: User, parameters: Parameters, link: String, errors: Vec<String>,
 ) -> String {
 	let mut errors = errors;

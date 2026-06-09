@@ -11,7 +11,7 @@ use std::fmt;
 /// Fimfiction story content rating data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "content_rating", rename_all = "lowercase")]
-pub enum ContentRating {
+pub(crate) enum ContentRating {
 	Everyone,
 	Teen,
 	Mature,
@@ -36,7 +36,7 @@ impl From<String> for ContentRating {
 /// Fimfiction story completion status data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "completion_status", rename_all = "lowercase")]
-pub enum CompletionStatus {
+pub(crate) enum CompletionStatus {
 	Incomplete,
 	Complete,
 	Hiatus,
@@ -63,7 +63,7 @@ impl From<String> for CompletionStatus {
 /// Fimfiction tag type data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "tag_type", rename_all = "lowercase")]
-pub enum TagType {
+pub(crate) enum TagType {
 	Character,
 	Genre,
 	Rating,
@@ -125,41 +125,41 @@ impl Ord for TagType {
 
 /// Fimfiction story data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct Story {
-	pub id: i32,
-	pub title: String,
-	pub short_description: String,
-	pub description: String,
-	pub published: bool,
-	pub link: String,
-	pub cover_url: Option<String>,
-	pub color_hex: String,
-	pub views: i32,
-	pub total_views: i32,
-	pub words: i32,
-	pub chapters: i32,
-	pub comments: i32,
-	pub rating: i32,
-	pub completion_status: CompletionStatus,
-	pub content_rating: ContentRating,
-	pub likes: i32,
-	pub dislikes: i32,
-	pub author_id: i32,
-	pub date_modified: DateTime<Utc>,
-	pub date_updated: DateTime<Utc>,
-	pub date_published: DateTime<Utc>,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct Story {
+	pub(crate) id: i32,
+	pub(crate) title: String,
+	pub(crate) short_description: String,
+	pub(crate) description: String,
+	pub(crate) published: bool,
+	pub(crate) link: String,
+	pub(crate) cover_url: Option<String>,
+	pub(crate) color_hex: String,
+	pub(crate) views: i32,
+	pub(crate) total_views: i32,
+	pub(crate) words: i32,
+	pub(crate) chapters: i32,
+	pub(crate) comments: i32,
+	pub(crate) rating: i32,
+	pub(crate) completion_status: CompletionStatus,
+	pub(crate) content_rating: ContentRating,
+	pub(crate) likes: i32,
+	pub(crate) dislikes: i32,
+	pub(crate) author_id: i32,
+	pub(crate) date_modified: DateTime<Utc>,
+	pub(crate) date_updated: DateTime<Utc>,
+	pub(crate) date_published: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// Fimfiction tag data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct Tag {
-	pub id: i32,
-	pub name: String,
-	pub tag_type: TagType,
-	pub old_id: Option<String>,
-	pub link: String,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct Tag {
+	pub(crate) id: i32,
+	pub(crate) name: String,
+	pub(crate) tag_type: TagType,
+	pub(crate) old_id: Option<String>,
+	pub(crate) link: String,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 impl PartialEq for Tag {
@@ -192,152 +192,152 @@ impl Ord for Tag {
 
 /// Fimfiction tag link data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct TagLink {
-	pub story_id: i32,
-	pub tag_id: i32,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct TagLink {
+	pub(crate) story_id: i32,
+	pub(crate) tag_id: i32,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// OEmbed data structure for OEmbed support
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OEmbed {
-	pub r#type: String,
-	pub version: u32,
-	pub provider_name: String,
-	pub provider_url: String,
-	pub title: String,
+pub(crate) struct OEmbed {
+	pub(crate) r#type: String,
+	pub(crate) version: u32,
+	pub(crate) provider_name: String,
+	pub(crate) provider_url: String,
+	pub(crate) title: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub author_name: Option<String>,
+	pub(crate) author_name: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub author_url: Option<String>,
-	pub cache_age: u32,
-	pub html: String,
+	pub(crate) author_url: Option<String>,
+	pub(crate) cache_age: u32,
+	pub(crate) html: String,
 }
 
 /// Fimfiction user data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct User {
-	pub id: i32,
-	pub name: String,
-	pub bio: String,
-	pub link: String,
-	pub followers: i32,
-	pub stories: i32,
-	pub blogs: i32,
-	pub profile_pic_url: Option<String>,
-	pub color_hex: String,
-	pub date_joined: DateTime<Utc>,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct User {
+	pub(crate) id: i32,
+	pub(crate) name: String,
+	pub(crate) bio: String,
+	pub(crate) link: String,
+	pub(crate) followers: i32,
+	pub(crate) stories: i32,
+	pub(crate) blogs: i32,
+	pub(crate) profile_pic_url: Option<String>,
+	pub(crate) color_hex: String,
+	pub(crate) date_joined: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// Fimfiction blog data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct Blog {
-	pub id: i32,
-	pub title: String,
-	pub content: String,
-	pub link: String,
-	pub comments: i32,
-	pub views: i32,
-	pub author_id: i32,
-	pub tags: String,
-	pub story_id: Option<i32>,
-	pub date_posted: DateTime<Utc>,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct Blog {
+	pub(crate) id: i32,
+	pub(crate) title: String,
+	pub(crate) content: String,
+	pub(crate) link: String,
+	pub(crate) comments: i32,
+	pub(crate) views: i32,
+	pub(crate) author_id: i32,
+	pub(crate) tags: String,
+	pub(crate) story_id: Option<i32>,
+	pub(crate) date_posted: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// Fimfiction chapter data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct Chapter {
-	pub id: i32,
-	pub story_id: i32,
-	pub chapter_num: i32,
-	pub title: String,
-	pub link: String,
-	pub views: i32,
-	pub words: i32,
-	pub date_published: DateTime<Utc>,
-	pub date_modified: DateTime<Utc>,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct Chapter {
+	pub(crate) id: i32,
+	pub(crate) story_id: i32,
+	pub(crate) chapter_num: i32,
+	pub(crate) title: String,
+	pub(crate) link: String,
+	pub(crate) views: i32,
+	pub(crate) words: i32,
+	pub(crate) date_published: DateTime<Utc>,
+	pub(crate) date_modified: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// Fimfiction group data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct Group {
-	pub id: i32,
-	pub name: String,
-	pub description: String,
-	pub link: String,
-	pub members: i32,
-	pub stories: i32,
-	pub founder_id: i32,
-	pub nsfw: bool,
-	pub open: bool,
-	pub hidden: bool,
-	pub icon_url: Option<String>,
-	pub date_created: DateTime<Utc>,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct Group {
+	pub(crate) id: i32,
+	pub(crate) name: String,
+	pub(crate) description: String,
+	pub(crate) link: String,
+	pub(crate) members: i32,
+	pub(crate) stories: i32,
+	pub(crate) founder_id: i32,
+	pub(crate) nsfw: bool,
+	pub(crate) open: bool,
+	pub(crate) hidden: bool,
+	pub(crate) icon_url: Option<String>,
+	pub(crate) date_created: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// Fimfiction bookshelf data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct Bookshelf {
-	pub id: i32,
-	pub name: String,
-	pub description: String,
-	pub link: String,
-	pub color: String,
-	pub icon_url: String,
-	pub stories: i32,
-	pub num_unread: Option<i32>,
-	pub track_unread: bool,
-	pub quick_add: bool,
-	pub email_update: bool,
-	pub user_id: Option<i32>,
-	pub order_pos: i32,
-	pub date_created: DateTime<Utc>,
-	pub date_modified: DateTime<Utc>,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct Bookshelf {
+	pub(crate) id: i32,
+	pub(crate) name: String,
+	pub(crate) description: String,
+	pub(crate) link: String,
+	pub(crate) color: String,
+	pub(crate) icon_url: String,
+	pub(crate) stories: i32,
+	pub(crate) num_unread: Option<i32>,
+	pub(crate) track_unread: bool,
+	pub(crate) quick_add: bool,
+	pub(crate) email_update: bool,
+	pub(crate) user_id: Option<i32>,
+	pub(crate) order_pos: i32,
+	pub(crate) date_created: DateTime<Utc>,
+	pub(crate) date_modified: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// Fimfiction thread data converted into a more usable structure
 #[derive(Debug, Clone)]
-pub struct Thread {
-	pub id: i32,
-	pub group_id: i32,
-	pub creator_id: i32,
-	pub last_poster_id: i32,
-	pub title: String,
-	pub link: String,
-	pub posts: i32,
-	pub sticky: bool,
-	pub locked: bool,
-	pub date_created: DateTime<Utc>,
-	pub date_last_post: DateTime<Utc>,
-	pub date_cached: DateTime<Utc>,
+pub(crate) struct Thread {
+	pub(crate) id: i32,
+	pub(crate) group_id: i32,
+	pub(crate) creator_id: i32,
+	pub(crate) last_poster_id: i32,
+	pub(crate) title: String,
+	pub(crate) link: String,
+	pub(crate) posts: i32,
+	pub(crate) sticky: bool,
+	pub(crate) locked: bool,
+	pub(crate) date_created: DateTime<Utc>,
+	pub(crate) date_last_post: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// [Thread] data combined with the last poster and creator [User] data
 #[derive(Debug, Clone)]
-pub struct ThreadReturn {
-	pub thread: Thread,
-	pub creator: User,
-	pub last_poster: User,
+pub(crate) struct ThreadReturn {
+	pub(crate) thread: Thread,
+	pub(crate) creator: User,
+	pub(crate) last_poster: User,
 }
 
 /// Embed parameter options
 #[derive(Debug, Clone, Default)]
-pub struct Parameters {
-	pub cover: Option<Cover>,
-	pub color: Option<Color>,
-	pub refresh: bool,
-	pub stats: bool,
-	pub tags: bool,
+pub(crate) struct Parameters {
+	pub(crate) cover: Option<Cover>,
+	pub(crate) color: Option<Color>,
+	pub(crate) refresh: bool,
+	pub(crate) stats: bool,
+	pub(crate) tags: bool,
 }
 
 /// Supported image options for embeds
 #[derive(Debug, Clone, PartialEq)]
-pub enum Cover {
+pub(crate) enum Cover {
 	Founder,
 	Story,
 	User,
@@ -359,7 +359,7 @@ impl fmt::Display for Cover {
 
 /// Supported color options for embeds
 #[derive(Debug, Clone)]
-pub enum Color {
+pub(crate) enum Color {
 	Custom(String),
 	Founder,
 	Random,
@@ -387,28 +387,28 @@ impl fmt::Display for Color {
 
 /// App data and variables
 #[derive(Debug, Clone)]
-pub struct AppState {
-	pub api: Request,
-	pub db: Pool<Postgres>,
-	pub gc_interval: u64,
-	pub cache_max_age: i64,
-	pub cache_recache_age: i64,
+pub(crate) struct AppState {
+	pub(crate) api: Request,
+	pub(crate) db: Pool<Postgres>,
+	pub(crate) gc_interval: u64,
+	pub(crate) cache_max_age: i64,
+	pub(crate) cache_recache_age: i64,
 }
 
 /// Embed data for creating the HTML string
 #[derive(Debug, Clone)]
-pub struct EmbedData {
-	pub title: String,
-	pub description: String,
-	pub link: String,
-	pub color: Option<String>,
-	pub cover: Option<String>,
-	pub site_name: String,
-	pub site_url: String,
-	pub errors: Vec<String>,
-	pub user_name: Option<String>,
-	pub user_link: Option<String>,
-	pub html_comment: Option<String>,
-	pub open_graph_type: String,
-	pub open_graph_property: Option<String>,
+pub(crate) struct EmbedData {
+	pub(crate) title: String,
+	pub(crate) description: String,
+	pub(crate) link: String,
+	pub(crate) color: Option<String>,
+	pub(crate) cover: Option<String>,
+	pub(crate) site_name: String,
+	pub(crate) site_url: String,
+	pub(crate) errors: Vec<String>,
+	pub(crate) user_name: Option<String>,
+	pub(crate) user_link: Option<String>,
+	pub(crate) html_comment: Option<String>,
+	pub(crate) open_graph_type: String,
+	pub(crate) open_graph_property: Option<String>,
 }

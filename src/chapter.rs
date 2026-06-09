@@ -29,7 +29,7 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 /// - If the chapter is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_chapter(
+pub(crate) async fn request_chapter(
 	id: i32, app: &AppState, recache: bool,
 ) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
 	let chapter = get_chapter(id, &app.db).await?;
@@ -72,7 +72,7 @@ pub async fn request_chapter(
 /// - If the chapter is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_story_chapters(
+pub(crate) async fn request_story_chapters(
 	story_id: i32, chapter_num: i32, app: &AppState, recache: bool,
 ) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
 	let chapter = get_story_chapter(story_id, chapter_num, &app.db).await?;
@@ -122,7 +122,7 @@ pub async fn request_story_chapters(
 /// #### Panics
 ///
 /// Panics if stats are requested and the [Chapter]'s parent story's stats can't be formatted.
-pub fn chapter_html_template(
+pub(crate) fn chapter_html_template(
 	chapter: Chapter, story: Story, user: User, mut tags: Vec<Tag>, parameters: Parameters,
 	link: String, errors: Vec<String>,
 ) -> String {

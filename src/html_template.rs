@@ -5,7 +5,7 @@ use maud::{DOCTYPE, PreEscaped, html};
 use url::form_urlencoded;
 
 /// Builds an HTML string to present as the embedded page.
-pub fn embed_html_template(embed: EmbedData) -> String {
+pub(crate) fn embed_html_template(embed: EmbedData) -> String {
 	for warning in &embed.errors {
 		let msg = format!("{warning} -- Link: {}", embed.link);
 		if let Err(e) = LOG.warn(&msg) {

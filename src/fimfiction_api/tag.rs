@@ -7,34 +7,34 @@ use serde::{Deserialize, Serialize};
 
 /// A full tag object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TagApi<T = u32> {
-	pub data: Vec<TagData<T>>,
-	pub included: Vec<()>,
-	pub uri: String,
-	pub method: String,
-	pub debug: ApiDebug,
+pub(crate) struct TagApi<T = u32> {
+	pub(crate) data: Vec<TagData<T>>,
+	pub(crate) included: Vec<()>,
+	pub(crate) uri: String,
+	pub(crate) method: String,
+	pub(crate) debug: ApiDebug,
 }
 
 /// All properties of a tag.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TagData<T = u32> {
-	pub id: String,
-	pub r#type: String,
-	pub attributes: TagAttributes<T>,
-	pub meta: TagMeta,
+pub(crate) struct TagData<T = u32> {
+	pub(crate) id: String,
+	pub(crate) r#type: String,
+	pub(crate) attributes: TagAttributes<T>,
+	pub(crate) meta: TagMeta,
 }
 
 /// Self-contained properties of a tag.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TagAttributes<T = u32> {
-	pub name: String,
-	pub r#type: String,
-	pub num_stories: T,
+pub(crate) struct TagAttributes<T = u32> {
+	pub(crate) name: String,
+	pub(crate) r#type: String,
+	pub(crate) num_stories: T,
 }
 
 /// Self-referential properties of a tag.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TagMeta {
-	pub old_id: String,
-	pub url: String,
+pub(crate) struct TagMeta {
+	pub(crate) old_id: String,
+	pub(crate) url: String,
 }

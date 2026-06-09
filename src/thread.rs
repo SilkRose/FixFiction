@@ -24,7 +24,7 @@ use pony::number_format::{FormatType, format_number_unit_metric};
 /// - If the thread is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub async fn request_thread(
+pub(crate) async fn request_thread(
 	group_id: i32, thread_id: i32, app: &AppState, recache: bool,
 ) -> Result<(Group, User, Option<ThreadReturn>), Box<dyn std::error::Error>> {
 	let thread = get_thread(thread_id, &app.db).await?;
@@ -96,7 +96,7 @@ async fn build_thread_return(
 /// #### Panics
 ///
 /// Panics if stats are requested and the [Thread]'s stats can't be formatted.
-pub fn thread_html_template(
+pub(crate) fn thread_html_template(
 	group: Group, founder: User, thread_data: ThreadReturn, parameters: Parameters, link: String,
 	errors: Vec<String>,
 ) -> String {

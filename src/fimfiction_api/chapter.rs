@@ -8,40 +8,40 @@ use serde::{Deserialize, Serialize};
 
 /// A full chapter object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ChapterApi<T = u32> {
-	pub data: ChapterData<T>,
-	pub included: Vec<ApiIncluded<T>>,
-	pub uri: String,
-	pub method: String,
-	pub debug: ApiDebug,
+pub(crate) struct ChapterApi<T = u32> {
+	pub(crate) data: ChapterData<T>,
+	pub(crate) included: Vec<ApiIncluded<T>>,
+	pub(crate) uri: String,
+	pub(crate) method: String,
+	pub(crate) debug: ApiDebug,
 }
 
 /// All properties of a chapter.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ChapterData<T = u32> {
-	pub id: String,
-	pub r#type: String,
-	pub attributes: ChapterAttributes<T>,
-	pub relationships: ChapterRelationship,
-	pub links: ApiLinks,
-	pub meta: ApiMeta,
+pub(crate) struct ChapterData<T = u32> {
+	pub(crate) id: String,
+	pub(crate) r#type: String,
+	pub(crate) attributes: ChapterAttributes<T>,
+	pub(crate) relationships: ChapterRelationship,
+	pub(crate) links: ApiLinks,
+	pub(crate) meta: ApiMeta,
 }
 
 /// Relational properties of a chapter.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ChapterRelationship {
+pub(crate) struct ChapterRelationship {
 	story: RelationshipData,
 }
 
 /// Self-contained properties of a chapter.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ChapterAttributes<T = u32> {
-	pub chapter_number: T,
-	pub title: String,
-	pub published: bool,
-	pub num_words: T,
-	pub num_views: T,
-	pub date_published: String,
-	pub date_modified: String,
-	pub authors_note_position: String,
+pub(crate) struct ChapterAttributes<T = u32> {
+	pub(crate) chapter_number: T,
+	pub(crate) title: String,
+	pub(crate) published: bool,
+	pub(crate) num_words: T,
+	pub(crate) num_views: T,
+	pub(crate) date_published: String,
+	pub(crate) date_modified: String,
+	pub(crate) authors_note_position: String,
 }

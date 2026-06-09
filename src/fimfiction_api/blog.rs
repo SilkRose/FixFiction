@@ -8,38 +8,38 @@ use serde::{Deserialize, Serialize};
 
 /// A full blog object as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BlogApi<T = u32> {
-	pub data: BlogData<T>,
-	pub included: Vec<ApiIncluded<T>>,
-	pub uri: String,
-	pub method: String,
-	pub debug: ApiDebug,
+pub(crate) struct BlogApi<T = u32> {
+	pub(crate) data: BlogData<T>,
+	pub(crate) included: Vec<ApiIncluded<T>>,
+	pub(crate) uri: String,
+	pub(crate) method: String,
+	pub(crate) debug: ApiDebug,
 }
 
 /// All properties of a blog.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BlogData<T = u32> {
-	pub id: String,
-	pub r#type: String,
-	pub attributes: BlogAttributes<T>,
-	pub relationships: BlogRelationships,
-	pub meta: ApiMeta,
+pub(crate) struct BlogData<T = u32> {
+	pub(crate) id: String,
+	pub(crate) r#type: String,
+	pub(crate) attributes: BlogAttributes<T>,
+	pub(crate) relationships: BlogRelationships,
+	pub(crate) meta: ApiMeta,
 }
 
 /// Self-contained properties of a blog.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BlogAttributes<T = u32> {
-	pub title: String,
-	pub date_posted: String,
-	pub content: String,
-	pub num_views: T,
-	pub num_comments: T,
-	pub site_post: bool,
-	pub tags: Vec<String>,
+pub(crate) struct BlogAttributes<T = u32> {
+	pub(crate) title: String,
+	pub(crate) date_posted: String,
+	pub(crate) content: String,
+	pub(crate) num_views: T,
+	pub(crate) num_comments: T,
+	pub(crate) site_post: bool,
+	pub(crate) tags: Vec<String>,
 }
 
 /// Relational properties of a blog
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BlogRelationships {
-	pub tagged_story: RelationshipData,
+pub(crate) struct BlogRelationships {
+	pub(crate) tagged_story: RelationshipData,
 }

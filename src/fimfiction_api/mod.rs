@@ -9,15 +9,15 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, USER_
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
-pub mod blog;
-pub mod bookshelf;
-pub mod chapter;
-pub mod error;
-pub mod group;
-pub mod story;
-pub mod tag;
-pub mod thread;
-pub mod user;
+pub(crate) mod blog;
+pub(crate) mod bookshelf;
+pub(crate) mod chapter;
+pub(crate) mod error;
+pub(crate) mod group;
+pub(crate) mod story;
+pub(crate) mod tag;
+pub(crate) mod thread;
+pub(crate) mod user;
 
 /// Optional resources to include in a request which the API may not return, or only return in truncated form, by default.
 ///
@@ -30,7 +30,7 @@ pub mod user;
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
-pub enum ApiIncluded<T = u32> {
+pub(crate) enum ApiIncluded<T = u32> {
 	Author(UserData<T>),
 	Chapter(ChapterData<T>),
 	Story(StoryData<T>),
@@ -40,52 +40,52 @@ pub enum ApiIncluded<T = u32> {
 
 /// A link to find the resource on the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ApiLinks {
+pub(crate) struct ApiLinks {
 	#[serde(rename = "self")]
-	pub link: String,
+	pub(crate) link: String,
 }
 
 /// A link to find the resource on the Fimfiction website.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ApiMeta {
-	pub url: String,
+pub(crate) struct ApiMeta {
+	pub(crate) url: String,
 }
 
 /// Debug information returned by the API. Currently only contains the duration of the request.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ApiDebug {
-	pub duration: String,
+pub(crate) struct ApiDebug {
+	pub(crate) duration: String,
 }
 
 /// A color attribute as returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AttributesColor {
-	pub hex: String,
-	pub rgb: (u8, u8, u8),
+pub(crate) struct AttributesColor {
+	pub(crate) hex: String,
+	pub(crate) rgb: (u8, u8, u8),
 }
 
 /// A vector of relationship objects returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RelationshipDataVec {
-	pub data: Vec<DataType>,
+pub(crate) struct RelationshipDataVec {
+	pub(crate) data: Vec<DataType>,
 }
 
 /// A relationship object returned by the API.
 /// For example, the author of a story.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RelationshipData {
-	pub data: DataType,
+pub(crate) struct RelationshipData {
+	pub(crate) data: DataType,
 }
 
 /// A generic "data" object returned by the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct DataType {
-	pub r#type: String,
-	pub id: String,
+pub(crate) struct DataType {
+	pub(crate) r#type: String,
+	pub(crate) id: String,
 }
 
 /// Converts a user-agent and a bearer token into a HeaderMap appropriate for use with the API.
-pub fn fimfic_api_headers(
+pub(crate) fn fimfic_api_headers(
 	user_agent: Option<&str>, token: &str,
 ) -> Result<HeaderMap, Box<dyn Error>> {
 	let mut headers = HeaderMap::new();
