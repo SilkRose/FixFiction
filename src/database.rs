@@ -14,17 +14,8 @@ use crate::structs::{
 };
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
-use sqlx::{AssertSqlSafe, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use std::error::Error;
-
-/// Counts the rows for a given table name
-pub(crate) async fn count_rows(table: &str, db: &Pool<Postgres>) -> Result<i64, Box<dyn Error>> {
-	let query = format!("SELECT count(*) FROM {table}");
-	let count: i64 = sqlx::query_scalar(AssertSqlSafe(query))
-		.fetch_one(db)
-		.await?;
-	Ok(count)
-}
 
 /// Selects a [Blog] from the database
 pub(crate) async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<dyn Error>> {

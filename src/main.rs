@@ -16,7 +16,6 @@ mod utility;
 use self::blog::{blog_html_template, request_blog};
 use self::bookshelf::{bookshelf_html_template, request_bookshelf};
 use self::chapter::{chapter_html_template, request_chapter, request_story_chapters};
-use self::database::count_rows;
 use self::error::error_html_template;
 use self::fimfiction_api::fimfic_api_headers;
 use self::group::{group_html_template, request_group};
@@ -32,11 +31,9 @@ use actix_cors::Cors;
 use actix_web::middleware::Compress;
 use actix_web::web::{Data, Path, Query};
 use actix_web::{App, HttpResponse, HttpServer, Responder, get};
-use chrono::{TimeDelta, Utc};
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
-use sqlx::{AssertSqlSafe, Executor};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -284,7 +281,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	sqlx::migrate!("./migrations").run(&db_pool).await?;
 
-	let db_clone = db_pool.clone();
 	let app_data = AppState {
 		api,
 		db: db_pool,
@@ -292,48 +288,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		cache_max_age: 86400,
 		cache_recache_age: 60,
 	};
-
-	// Set up a task loop to decache old data occasionally
-	tokio::task::spawn(async move {
-		loop {
-			let time = Utc::now() - TimeDelta::seconds(app_data.cache_max_age);
-			let tables = [
-				"Stories",
-				"Chapters",
-				"Tags",
-				"Tag_links",
-				"Authors",
-				"Blogs",
-				"Bookshelves",
-				"Groups",
-				"Threads",
-			];
-			for table in tables {
-				let query = format!("DELETE FROM {table} WHERE date_cached < $1");
-				if let Err(e) = db_clone
-					.execute(sqlx::query(AssertSqlSafe(query)).bind(time))
-					.await
-				{
-					eprintln!("Failed to delete from {table}: {e}");
-				}
-			}
-			let stories = count_rows("Stories", &db_clone).await.unwrap();
-			let chapters = count_rows("Chapters", &db_clone).await.unwrap();
-			let tags = count_rows("Tags", &db_clone).await.unwrap();
-			let tag_links = count_rows("Tag_links", &db_clone).await.unwrap();
-			let users = count_rows("Authors", &db_clone).await.unwrap();
-			let blogs = count_rows("Blogs", &db_clone).await.unwrap();
-			let bookshelves = count_rows("Bookshelves", &db_clone).await.unwrap();
-			let groups = count_rows("Groups", &db_clone).await.unwrap();
-			let threads = count_rows("Threads", &db_clone).await.unwrap();
-			let time = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
-			print!("{time}: stories: {stories}, chapters: {chapters},");
-			print!(" tags: {tags}, tag links: {tag_links}");
-			print!(" users: {users}, blogs: {blogs}, bookshelves: {bookshelves},");
-			println!(" groups: {groups}, threads: {threads}");
-			tokio::time::sleep(Duration::from_secs(app_data.gc_interval)).await;
-		}
-	});
 
 	HttpServer::new(move || {
 		App::new()
