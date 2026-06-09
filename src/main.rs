@@ -7,6 +7,7 @@ mod error;
 mod fimfiction_api;
 mod group;
 mod html_template;
+mod oembed;
 mod story;
 mod structs;
 mod thread;
@@ -19,8 +20,9 @@ use self::chapter::{chapter_html_template, request_chapter, request_story_chapte
 use self::error::error_html_template;
 use self::fimfiction_api::fimfic_api_headers;
 use self::group::{group_html_template, request_group};
+use self::oembed::get_oembed;
 use self::story::{request_story, story_html_template};
-use self::structs::{AppState, OEmbed};
+use self::structs::AppState;
 use self::thread::{request_thread, thread_html_template};
 use self::user::{request_user, user_html_template};
 use self::utility::{
@@ -244,14 +246,6 @@ async fn get_bookshelf(
 		.body(body))
 }
 
-#[get("/oembed")]
-async fn oembed(query: Query<OEmbed>) -> Result<impl Responder, Box<dyn Error>> {
-	let embed = query.into_inner();
-	Ok(HttpResponse::Ok()
-		.content_type("application/json+oembed")
-		.json(embed))
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 	dotenv()?;
@@ -306,7 +300,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.service(get_blog)
 			.service(get_group)
 			.service(get_bookshelf)
-			.service(oembed)
+			.service(get_oembed)
 	})
 	.bind(("0.0.0.0", 7669))? // pony
 	.run()
