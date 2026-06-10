@@ -5,12 +5,12 @@ use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::GroupApi;
 use crate::html_template::{EmbedData, embed_html_template};
-use crate::structs::{Color, Cover, Parameters};
+use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::thread::{request_thread, thread_html_template};
 use crate::user::{User, request_user};
 use crate::utility::{
-	check_slash, check_thread_slash, get_color, map_picture, parse_embed_parameters,
-	parse_fimfic_response, parse_id, parse_thread_id, unsupported_color_opt, unsupported_cover_opt,
+	check_slash, check_thread_slash, get_color, map_picture, parse_fimfic_response, parse_id,
+	parse_thread_id, unsupported_color_opt, unsupported_cover_opt,
 };
 use crate::{AppState, check_recache, get_variant};
 use actix_web::web::{Data, Path, Query};

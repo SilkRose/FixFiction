@@ -5,7 +5,6 @@ use core::str;
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::fmt;
 
 /// Fimfiction tag type data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
@@ -115,64 +114,4 @@ pub(crate) struct TagLink {
 	pub(crate) story_id: i32,
 	pub(crate) tag_id: i32,
 	pub(crate) date_cached: DateTime<Utc>,
-}
-
-/// Embed parameter options
-#[derive(Debug, Clone, Default)]
-pub(crate) struct Parameters {
-	pub(crate) cover: Option<Cover>,
-	pub(crate) color: Option<Color>,
-	pub(crate) refresh: bool,
-	pub(crate) stats: bool,
-	pub(crate) tags: bool,
-}
-
-/// Supported image options for embeds
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Cover {
-	Founder,
-	Story,
-	User,
-	None,
-}
-
-impl fmt::Display for Cover {
-	/// Returns a string representation of a cover enum
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let text = match self {
-			Cover::Founder => "founder",
-			Cover::Story => "story",
-			Cover::User => "user",
-			Cover::None => "none",
-		};
-		write!(f, "{text}")
-	}
-}
-
-/// Supported color options for embeds
-#[derive(Debug, Clone)]
-pub(crate) enum Color {
-	Custom(String),
-	Founder,
-	Random,
-	Modulo,
-	Story,
-	User,
-	None,
-}
-
-impl fmt::Display for Color {
-	/// Returns a string representation of a color enum
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let text = match self {
-			Color::Custom(color) => color.as_str(),
-			Color::Founder => "founder",
-			Color::Random => "random",
-			Color::Modulo => "modulo",
-			Color::Story => "story",
-			Color::User => "user",
-			Color::None => "none",
-		};
-		write!(f, "{text}")
-	}
 }

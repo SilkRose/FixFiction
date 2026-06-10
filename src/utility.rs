@@ -1,19 +1,16 @@
 //! Various utility functions for use in other modules.
 
 use crate::fimfiction_api::error::FimficError;
-use crate::structs::{Color, Cover, Parameters, Tag};
+use crate::structs::Tag;
 use chrono::{DateTime, FixedOffset};
 use pony::http::{Request, api_get_request};
 use pony::log::{FileLimit, LogLevel, Logger};
 use rand::RngExt;
 use regex::Regex;
 use serde::de::DeserializeOwned;
-use sqlx::{Pool, Postgres, query};
 use std::collections::HashMap;
 use std::error::Error;
-use std::iter;
 use std::sync::LazyLock;
-use url::form_urlencoded;
 
 /// Logger that prints to the console and a file
 ///
@@ -73,103 +70,6 @@ pub(crate) fn check_slash(path: &mut String, id: i32) {
 pub(crate) fn check_thread_slash(path: &mut String, id: i32) {
 	if path.ends_with(&format!("/thread/{id}")) {
 		*path = format!("{path}/");
-	}
-}
-
-/// Parses a [HashMap<String, String>] into [Parameters]
-pub(crate) async fn parse_embed_parameters(
-	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
-) -> (Parameters, Vec<String>) {
-	let mut params = Parameters::default();
-	let mut errors = Vec::new();
-	for (key, value) in queries {
-		match key.to_lowercase().as_str() {
-			"cover" | "image" => parse_cover(&mut params, &mut errors, value),
-			"color" | "colour" => parse_color(&mut params, &mut errors, db, value).await,
-			"refresh" | "renew" => parse_bool(value, &mut params.refresh, &mut errors, &key),
-			"stats" | "info" => parse_bool(value, &mut params.stats, &mut errors, &key),
-			"tags" | "tag" => parse_bool(value, &mut params.tags, &mut errors, &key),
-			_ => append_query(path, &key, &value),
-		}
-	}
-	(params, errors)
-}
-
-/// Converts a string into a [Cover]
-pub(crate) fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, value: String) {
-	let cover = match value.to_lowercase().as_str() {
-		"founder" => Ok(Cover::Founder),
-		"story" => Ok(Cover::Story),
-		"user" => Ok(Cover::User),
-		"none" => Ok(Cover::None),
-		_ => Err(format!("Unsupported cover option: {value}")),
-	};
-	match cover {
-		Ok(cover) => params.cover = Some(cover),
-		Err(err) => errors.push(err.to_string()),
-	}
-}
-
-/// Converts a string into a [Color]
-pub(crate) async fn parse_color(
-	params: &mut Parameters, errors: &mut Vec<String>, db: &Pool<Postgres>, value: String,
-) {
-	let color = match value.to_lowercase().as_str() {
-		"ran" | "random" => Color::Random,
-		"mod" | "modulo" => Color::Modulo,
-		"founder" => Color::Founder,
-		"story" => Color::Story,
-		"user" => Color::User,
-		"none" => Color::None,
-		_ => Color::Custom(value.to_lowercase()),
-	};
-	if let Color::Custom(color) = color {
-		let db_color = query!("SELECT color FROM Colors WHERE name = $1 LIMIT 1;", color)
-			.fetch_optional(db)
-			.await
-			.unwrap_or_default();
-		if let Some(color) = db_color {
-			params.color = Some(Color::Custom(color.color));
-		} else if matches!(color.len(), 1 | 2 | 6) {
-			params.color = color
-				.as_bytes()
-				.iter()
-				.all(|hex| hex.is_ascii_hexdigit())
-				.then_some(Color::Custom(color.repeat(6 / color.len())));
-		} else if color.len() == 3 {
-			params.color = color
-				.as_bytes()
-				.iter()
-				.all(|&hex| hex.is_ascii_hexdigit())
-				.then(|| Color::Custom(color.chars().flat_map(|c| iter::repeat_n(c, 2)).collect()));
-		} else {
-			errors.push(format!("Unsupported color option: {color}"));
-			params.color = None;
-		}
-	} else {
-		params.color = Some(color);
-	}
-}
-
-/// Parses a [bool] from a [String] with variable accepted inputs
-pub(crate) fn parse_bool(text: String, value: &mut bool, errors: &mut Vec<String>, key: &str) {
-	match text.to_lowercase().as_str() {
-		"false" | "0" | "no" | "n" | "f" => *value = false,
-		"true" | "1" | "yes" | "y" | "t" => *value = true,
-		_ => {
-			errors.push(format!("Unsupported {key} value: {text}"));
-		}
-	}
-}
-
-/// Appends unknown query parameters onto the target URL
-pub(crate) fn append_query(path: &mut String, key: &str, value: &str) {
-	let mut encode = form_urlencoded::Serializer::new(String::new());
-	encode.append_pair(key, value);
-	if path.contains('?') {
-		*path = format!("{path}&{}", encode.finish());
-	} else {
-		*path = format!("{path}?{}", encode.finish());
 	}
 }
 

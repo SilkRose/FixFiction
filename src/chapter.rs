@@ -13,12 +13,13 @@ use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::chapter::ChapterApi;
 use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::{EmbedData, embed_html_template};
+use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::story::{CompletionStatus, ContentRating, Story, request_story};
-use crate::structs::{Color, Cover, Parameters, Tag};
+use crate::structs::Tag;
 use crate::user::User;
 use crate::utility::{
-	get_color, map_cover, map_picture, map_tags, parse_embed_parameters, parse_fimfic_response,
-	parse_id, unsupported_color, unsupported_cover_opt,
+	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, parse_id,
+	unsupported_color, unsupported_cover_opt,
 };
 use crate::{AppState, check_recache, get_variant, get_variants};
 use actix_web::web::{Data, Path, Query};

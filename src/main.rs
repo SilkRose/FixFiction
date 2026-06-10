@@ -8,6 +8,7 @@ mod fimfiction_api;
 mod group;
 mod html_template;
 mod oembed;
+mod parameters;
 mod story;
 mod structs;
 mod thread;
