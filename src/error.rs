@@ -1,7 +1,6 @@
 //! Format errors in HTML.
 
-use crate::html_template::embed_html_template;
-use crate::structs::EmbedData;
+use crate::html_template::{EmbedData, embed_html_template};
 use crate::utility::LOG;
 
 /// Formats errors to an HTML string for embedding.

@@ -12,16 +12,17 @@ use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::chapter::ChapterApi;
 use crate::fimfiction_api::story::StoryApi;
-use crate::html_template::embed_html_template;
+use crate::html_template::{EmbedData, embed_html_template};
 use crate::story::{CompletionStatus, ContentRating, Story, request_story};
-use crate::structs::{AppState, Color, Cover, EmbedData, Parameters, Tag};
+use crate::structs::{AppState, Color, Cover, Parameters, Tag};
 use crate::user::User;
 use crate::utility::{
-	get_color, map_cover, map_picture, map_tags, parse_embed_parameters, parse_fimfic_response, parse_id, unsupported_color, unsupported_cover_opt
+	get_color, map_cover, map_picture, map_tags, parse_embed_parameters, parse_fimfic_response,
+	parse_id, unsupported_color, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
-use actix_web::{HttpResponse, Responder, get};
 use actix_web::web::{Data, Path, Query};
+use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 

@@ -213,21 +213,3 @@ pub(crate) struct AppState {
 	pub(crate) cache_max_age: i64,
 	pub(crate) cache_recache_age: i64,
 }
-
-/// Embed data for creating the HTML string
-#[derive(Debug, Clone)]
-pub(crate) struct EmbedData {
-	pub(crate) title: String,
-	pub(crate) description: String,
-	pub(crate) link: String,
-	pub(crate) color: Option<String>,
-	pub(crate) cover: Option<String>,
-	pub(crate) site_name: String,
-	pub(crate) site_url: String,
-	pub(crate) errors: Vec<String>,
-	pub(crate) user_name: Option<String>,
-	pub(crate) user_link: Option<String>,
-	pub(crate) html_comment: Option<String>,
-	pub(crate) open_graph_type: String,
-	pub(crate) open_graph_property: Option<String>,
-}

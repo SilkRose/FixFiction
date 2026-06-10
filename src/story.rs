@@ -8,8 +8,8 @@ use crate::database::{
 use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::story::StoryApi;
-use crate::html_template::embed_html_template;
-use crate::structs::{AppState, Color, Cover, EmbedData, Parameters, Tag};
+use crate::html_template::{EmbedData, embed_html_template};
+use crate::structs::{AppState, Color, Cover, Parameters, Tag};
 use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_cover, map_picture, map_tags, parse_chapter_number, parse_embed_parameters,

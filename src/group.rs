@@ -4,8 +4,8 @@ use crate::database::{get_group, insert_group, insert_user};
 use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::GroupApi;
-use crate::html_template::embed_html_template;
-use crate::structs::{AppState, Color, Cover, EmbedData, Parameters};
+use crate::html_template::{EmbedData, embed_html_template};
+use crate::structs::{AppState, Color, Cover, Parameters};
 use crate::thread::{request_thread, thread_html_template};
 use crate::user::{User, request_user};
 use crate::utility::{
