@@ -1,18 +1,90 @@
 //! Request a [Group] and to format it in HTML.
 
 use crate::database::{get_group, insert_group, insert_user};
+use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::GroupApi;
 use crate::html_template::embed_html_template;
-use crate::structs::{AppState, Color, Cover, EmbedData, Group, Parameters};
+use crate::structs::{AppState, Color, Cover, EmbedData, Parameters};
+use crate::thread::{request_thread, thread_html_template};
 use crate::user::{User, request_user};
 use crate::utility::{
-	get_color, map_picture, parse_fimfic_response, unsupported_color_opt, unsupported_cover_opt,
+	check_slash, check_thread_slash, get_color, map_picture, parse_embed_parameters,
+	parse_fimfic_response, parse_id, parse_thread_id, unsupported_color_opt, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant};
-use chrono::{TimeDelta, Utc};
+use actix_web::web::{Data, Path, Query};
+use actix_web::{HttpResponse, Responder, get};
+use chrono::{DateTime, TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
+use std::collections::HashMap;
 use std::error::Error;
+use std::sync::Arc;
+
+/// Fimfiction group data converted into a more usable structure
+#[derive(Debug, Clone)]
+pub(crate) struct Group {
+	pub(crate) id: i32,
+	pub(crate) name: String,
+	pub(crate) description: String,
+	pub(crate) link: String,
+	pub(crate) members: i32,
+	pub(crate) stories: i32,
+	pub(crate) founder_id: i32,
+	pub(crate) nsfw: bool,
+	pub(crate) open: bool,
+	pub(crate) hidden: bool,
+	pub(crate) icon_url: Option<String>,
+	pub(crate) date_created: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
+}
+
+/// The `group/` endpoint.
+///
+/// Requests a group by ID.
+#[get("/group/{id:.*}")]
+async fn get_group_endpoint(
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
+	let group_id = match parse_id(&path) {
+		Ok(id) => id,
+		Err(err) => {
+			return Ok(HttpResponse::Ok()
+				.content_type("text/html; charset=utf-8")
+				.body(error_html_template("group", path, err.to_string())));
+		}
+	};
+	let thread_id = parse_thread_id(&path);
+	if let Some(thread_id) = thread_id {
+		check_thread_slash(&mut path, thread_id);
+	} else {
+		check_slash(&mut path, group_id);
+	}
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let link = format!("https://www.fimfiction.net/group/{path}");
+
+	let body = match thread_id {
+		Some(thread_id) => match request_thread(group_id, thread_id, &app, params.refresh).await {
+			Ok((group, founder, thread_data)) => match thread_data {
+				Some(thread_data) => {
+					thread_html_template(group, founder, thread_data, params, link, errors)
+				}
+				None => group_html_template(group, founder, params, link, errors),
+			},
+			Err(err) => error_html_template("group", path, err.to_string()),
+		},
+		None => match request_group(group_id, &app, params.refresh).await {
+			Ok((group, founder)) => group_html_template(group, founder, params, link, errors),
+			Err(err) => error_html_template("group", path, err.to_string()),
+		},
+	};
+
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
+}
 
 /// Requests a [Group] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
 ///

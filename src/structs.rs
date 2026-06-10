@@ -119,24 +119,6 @@ pub(crate) struct TagLink {
 	pub(crate) date_cached: DateTime<Utc>,
 }
 
-/// Fimfiction group data converted into a more usable structure
-#[derive(Debug, Clone)]
-pub(crate) struct Group {
-	pub(crate) id: i32,
-	pub(crate) name: String,
-	pub(crate) description: String,
-	pub(crate) link: String,
-	pub(crate) members: i32,
-	pub(crate) stories: i32,
-	pub(crate) founder_id: i32,
-	pub(crate) nsfw: bool,
-	pub(crate) open: bool,
-	pub(crate) hidden: bool,
-	pub(crate) icon_url: Option<String>,
-	pub(crate) date_created: DateTime<Utc>,
-	pub(crate) date_cached: DateTime<Utc>,
-}
-
 /// Fimfiction thread data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub(crate) struct Thread {
