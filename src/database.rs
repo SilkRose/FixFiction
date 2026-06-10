@@ -3,6 +3,7 @@
 use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
+use crate::error::Result;
 use crate::fimfiction_api::blog::BlogData;
 use crate::fimfiction_api::bookshelf::BookshelfData;
 use crate::fimfiction_api::chapter::ChapterData;
@@ -19,10 +20,9 @@ use crate::user::User;
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
 use sqlx::{Pool, Postgres};
-use std::error::Error;
 
 /// Selects a [Blog] from the database
-pub(crate) async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>, Box<dyn Error>> {
+pub(crate) async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog>> {
 	sqlx::query_as!(
 		Blog,
 		"SELECT
@@ -40,7 +40,7 @@ pub(crate) async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog
 pub(crate) async fn insert_blog(
 	id: Option<i32>, data: &BlogData<i32>, author_id: i32, story_id: Option<i32>,
 	db: &Pool<Postgres>,
-) -> Result<Blog, Box<dyn Error>> {
+) -> Result<Blog> {
 	sqlx::query_as!(
 		Blog,
 		"INSERT INTO Blogs 
@@ -81,7 +81,7 @@ pub(crate) async fn insert_blog(
 }
 
 /// Selects a [User] from the database
-pub(crate) async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User>, Box<dyn Error>> {
+pub(crate) async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User>> {
 	sqlx::query_as!(
 		User,
 		"SELECT
@@ -99,7 +99,7 @@ pub(crate) async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User
 /// Inserts a user into the database, converting it from [UserData] to a [User]
 pub(crate) async fn insert_user(
 	id: Option<i32>, data: &UserData<i32>, db: &Pool<Postgres>,
-) -> Result<User, Box<dyn Error>> {
+) -> Result<User> {
 	sqlx::query_as!(
 		User,
 		"INSERT INTO Authors
@@ -146,9 +146,7 @@ pub(crate) async fn insert_user(
 }
 
 /// Selects a [Story] from the database
-pub(crate) async fn get_story(
-	id: i32, db: &Pool<Postgres>,
-) -> Result<Option<Story>, Box<dyn Error>> {
+pub(crate) async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Story>> {
 	sqlx::query_as!(
 		Story,
 		r#"SELECT
@@ -169,7 +167,7 @@ pub(crate) async fn get_story(
 /// Inserts a story into the database, converting it from [StoryData] to a [Story]
 pub(crate) async fn insert_story(
 	id: Option<i32>, data: StoryData<i32>, user_id: i32, db: &Pool<Postgres>,
-) -> Result<Story, Box<dyn Error>> {
+) -> Result<Story> {
 	sqlx::query_as!(
 		Story,
 		r#"INSERT INTO Stories (
@@ -242,7 +240,7 @@ pub(crate) async fn insert_story(
 /// Selects a [Chapter] from the database, based on Story ID and Chapter number
 pub(crate) async fn get_story_chapter(
 	story_id: i32, chapter_num: i32, db: &Pool<Postgres>,
-) -> Result<Option<Chapter>, Box<dyn Error>> {
+) -> Result<Option<Chapter>> {
 	sqlx::query_as!(
 		Chapter,
 		r#"SELECT
@@ -258,9 +256,7 @@ pub(crate) async fn get_story_chapter(
 }
 
 /// Selects a [Chapter] from the database, based on Chapter ID
-pub(crate) async fn get_chapter(
-	id: i32, db: &Pool<Postgres>,
-) -> Result<Option<Chapter>, Box<dyn Error>> {
+pub(crate) async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<Chapter>> {
 	sqlx::query_as!(
 		Chapter,
 		r#"SELECT
@@ -277,7 +273,7 @@ pub(crate) async fn get_chapter(
 /// Inserts a chapter into the database, converting it from [ChapterData] to a [Chapter]
 pub(crate) async fn insert_chapter(
 	id: Option<i32>, data: ChapterData<i32>, story_id: i32, db: &Pool<Postgres>,
-) -> Result<Chapter, Box<dyn Error>> {
+) -> Result<Chapter> {
 	sqlx::query_as!(
 		Chapter,
 		r#"INSERT INTO Chapters 
@@ -314,9 +310,7 @@ pub(crate) async fn insert_chapter(
 }
 
 /// Selects a [Group] from the database
-pub(crate) async fn get_group(
-	id: i32, db: &Pool<Postgres>,
-) -> Result<Option<Group>, Box<dyn Error>> {
+pub(crate) async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Group>> {
 	sqlx::query_as!(
 		Group,
 		"SELECT
@@ -334,7 +328,7 @@ pub(crate) async fn get_group(
 /// Inserts a group into the database, converting it from [GroupData] to a [Group]
 pub(crate) async fn insert_group(
 	id: Option<i32>, data: &GroupData<i32>, db: &Pool<Postgres>,
-) -> Result<Group, Box<dyn Error>> {
+) -> Result<Group> {
 	sqlx::query_as!(
 		Group,
 		"INSERT INTO Groups
@@ -384,9 +378,7 @@ pub(crate) async fn insert_group(
 }
 
 /// Selects a [Bookshelf] from the database
-pub(crate) async fn get_bookshelf(
-	id: i32, db: &Pool<Postgres>,
-) -> Result<Option<Bookshelf>, Box<dyn Error>> {
+pub(crate) async fn get_bookshelf(id: i32, db: &Pool<Postgres>) -> Result<Option<Bookshelf>> {
 	sqlx::query_as!(
 		Bookshelf,
 		"SELECT
@@ -404,7 +396,7 @@ pub(crate) async fn get_bookshelf(
 /// Inserts a bookshelf into the database, converting it from [BookshelfData] to a [Bookshelf]
 pub(crate) async fn insert_bookshelf(
 	id: Option<i32>, data: &BookshelfData<i32>, user_id: Option<i32>, db: &Pool<Postgres>,
-) -> Result<Bookshelf, Box<dyn Error>> {
+) -> Result<Bookshelf> {
 	sqlx::query_as!(
 		Bookshelf,
 		"INSERT INTO Bookshelves
@@ -460,9 +452,7 @@ pub(crate) async fn insert_bookshelf(
 }
 
 /// Selects a [Thread] from the database
-pub(crate) async fn get_thread(
-	id: i32, db: &Pool<Postgres>,
-) -> Result<Option<Thread>, Box<dyn Error>> {
+pub(crate) async fn get_thread(id: i32, db: &Pool<Postgres>) -> Result<Option<Thread>> {
 	sqlx::query_as!(
 		Thread,
 		r#"SELECT
@@ -479,7 +469,7 @@ pub(crate) async fn get_thread(
 /// Inserts a thread into the database, converting it from [ThreadData] to a [Thread]
 pub(crate) async fn insert_thread(
 	id: Option<i32>, data: ThreadData<i32>, group_id: i32, db: &Pool<Postgres>,
-) -> Result<Thread, Box<dyn Error>> {
+) -> Result<Thread> {
 	sqlx::query_as!(
 		Thread,
 		r#"INSERT INTO Threads 
@@ -520,7 +510,7 @@ pub(crate) async fn insert_thread(
 }
 
 /// Selects a [Tag] from the database
-pub(crate) async fn get_tag(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>, Box<dyn Error>> {
+pub(crate) async fn get_tag(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>> {
 	sqlx::query_as!(
 		Tag,
 		r#"SELECT
@@ -536,7 +526,7 @@ pub(crate) async fn get_tag(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>,
 /// Inserts a tag into the database, converting it from [TagData] to a [Tag]
 pub(crate) async fn insert_tag(
 	id: Option<i32>, tag: TagData<i32>, db: &Pool<Postgres>,
-) -> Result<Tag, Box<dyn Error>> {
+) -> Result<Tag> {
 	sqlx::query_as!(
 		Tag,
 		r#"INSERT INTO Tags
@@ -563,9 +553,7 @@ pub(crate) async fn insert_tag(
 }
 
 /// Selects [TagLink]s from the database for a given story ID
-pub(crate) async fn get_tag_links(
-	story_id: i32, db: &Pool<Postgres>,
-) -> Result<Vec<TagLink>, Box<dyn Error>> {
+pub(crate) async fn get_tag_links(story_id: i32, db: &Pool<Postgres>) -> Result<Vec<TagLink>> {
 	sqlx::query_as!(
 		TagLink,
 		r#"SELECT
@@ -581,7 +569,7 @@ pub(crate) async fn get_tag_links(
 /// Inserts a link between a [Story] and a [Tag] into the database
 pub(crate) async fn insert_tag_link(
 	story_id: i32, tag_id: i32, db: &Pool<Postgres>,
-) -> Result<TagLink, Box<dyn Error>> {
+) -> Result<TagLink> {
 	sqlx::query_as!(
 		TagLink,
 		r#"INSERT INTO Tag_links
@@ -601,9 +589,7 @@ pub(crate) async fn insert_tag_link(
 }
 
 /// Deletes all tag links for a given [Story] ID
-pub(crate) async fn remove_tag_links(
-	story_id: i32, db: &Pool<Postgres>,
-) -> Result<u64, Box<dyn Error>> {
+pub(crate) async fn remove_tag_links(story_id: i32, db: &Pool<Postgres>) -> Result<u64> {
 	let rows = sqlx::query!("DELETE FROM Tag_links WHERE story_id = $1", story_id)
 		.execute(db)
 		.await

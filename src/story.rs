@@ -5,7 +5,7 @@ use crate::database::{
 	get_story, get_tag, get_tag_links, insert_story, insert_tag, insert_tag_link, insert_user,
 	remove_tag_links,
 };
-use crate::error::error_html_template;
+use crate::error::{Result, error_html_template};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::{EmbedData, embed_html_template};
@@ -26,7 +26,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::Type;
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
-use std::error::Error;
 
 /// Fimfiction story data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -116,7 +115,7 @@ impl From<String> for CompletionStatus {
 async fn get_story_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder, Box<dyn Error>> {
+) -> Result<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
 	let story_id = match parse_id(&path) {
@@ -159,7 +158,7 @@ async fn get_story_endpoint(
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_story(
 	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<(Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
+) -> Result<(Story, User, Vec<Tag>)> {
 	let story = get_story(id, db).await?;
 	let story = check_recache!(story, recache, app);
 	match story {

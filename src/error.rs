@@ -2,6 +2,11 @@
 
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::utility::LOG;
+use std::error::Error as StdError;
+use std::result::Result as StdResult;
+
+pub(crate) type Error = Box<dyn StdError>;
+pub(crate) type Result<T, E = Error> = StdResult<T, E>;
 
 /// Formats errors to an HTML string for embedding.
 pub(crate) fn error_html_template(endpoint: &str, link: String, errors: String) -> String {

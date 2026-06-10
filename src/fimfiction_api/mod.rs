@@ -2,12 +2,12 @@
 //!
 //! [Fimfiction API]: https://www.fimfiction.net/developers/api/v2/docs
 
+use crate::error::Result;
 use crate::fimfiction_api::{
 	chapter::ChapterData, group::GroupData, story::StoryData, tag::TagData, user::UserData,
 };
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, USER_AGENT};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 
 pub(crate) mod blog;
 pub(crate) mod bookshelf;
@@ -85,9 +85,7 @@ pub(crate) struct DataType {
 }
 
 /// Converts a user-agent and a bearer token into a HeaderMap appropriate for use with the API.
-pub(crate) fn fimfic_api_headers(
-	user_agent: Option<&str>, token: &str,
-) -> Result<HeaderMap, Box<dyn Error>> {
+pub(crate) fn fimfic_api_headers(user_agent: Option<&str>, token: &str) -> Result<HeaderMap> {
 	let mut headers = HeaderMap::new();
 	if let Some(user_agent) = user_agent {
 		headers.insert(USER_AGENT, HeaderValue::from_str(user_agent)?);

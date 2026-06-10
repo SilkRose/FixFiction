@@ -1,7 +1,7 @@
 //! Request a [Bookshelf] and to format it in HTML.
 
 use crate::database::{get_bookshelf, insert_bookshelf, insert_user};
-use crate::error::error_html_template;
+use crate::error::{Result, error_html_template};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::bookshelf::BookshelfApi;
 use crate::html_template::{EmbedData, embed_html_template};
@@ -19,7 +19,6 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
-use std::error::Error;
 
 /// Fimfiction bookshelf data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -49,7 +48,7 @@ pub(crate) struct Bookshelf {
 async fn get_bookshelf_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder, Box<dyn Error>> {
+) -> Result<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
 	let bookshelf_id = match parse_id(&path) {
@@ -82,7 +81,7 @@ async fn get_bookshelf_endpoint(
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_bookshelf(
 	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<(Bookshelf, Option<User>), Box<dyn std::error::Error>> {
+) -> Result<(Bookshelf, Option<User>)> {
 	let bookshelf = get_bookshelf(id, db).await?;
 	let bookshelf = check_recache!(bookshelf, recache, app);
 	match bookshelf {

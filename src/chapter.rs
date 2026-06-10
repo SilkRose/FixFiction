@@ -4,7 +4,7 @@ use crate::database::{
 	get_chapter, get_story_chapter, insert_chapter, insert_story, insert_tag, insert_tag_link,
 	insert_user, remove_tag_links,
 };
-use crate::error::error_html_template;
+use crate::error::{Result, error_html_template};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::chapter::ChapterApi;
 use crate::fimfiction_api::story::StoryApi;
@@ -25,7 +25,6 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
-use std::error::Error;
 
 /// Fimfiction chapter data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -50,7 +49,7 @@ pub(crate) struct Chapter {
 async fn get_chapter_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder, Box<dyn Error>> {
+) -> Result<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
 	let chapter_id = match parse_id(&path) {
@@ -84,7 +83,7 @@ async fn get_chapter_endpoint(
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_chapter(
 	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
+) -> Result<(Chapter, Story, User, Vec<Tag>)> {
 	let chapter = get_chapter(id, db).await?;
 	let chapter = check_recache!(chapter, recache, app);
 	match chapter {
@@ -127,7 +126,7 @@ pub(crate) async fn request_chapter(
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_story_chapters(
 	story_id: i32, chapter_num: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<(Chapter, Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
+) -> Result<(Chapter, Story, User, Vec<Tag>)> {
 	let chapter = get_story_chapter(story_id, chapter_num, db).await?;
 	let chapter = check_recache!(chapter, recache, app);
 	match chapter {

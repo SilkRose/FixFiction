@@ -1,6 +1,6 @@
+use crate::error::Result;
 use actix_web::{HttpResponse, Responder, get, web::Query};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 
 /// OEmbed data structure for OEmbed support
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -19,7 +19,7 @@ pub(crate) struct OEmbed {
 }
 
 #[get("/oembed")]
-pub(crate) async fn get_oembed(query: Query<OEmbed>) -> Result<impl Responder, Box<dyn Error>> {
+pub(crate) async fn get_oembed(query: Query<OEmbed>) -> Result<impl Responder> {
 	let embed = query.into_inner();
 	Ok(HttpResponse::Ok()
 		.content_type("application/json+oembed")

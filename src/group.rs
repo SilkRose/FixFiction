@@ -1,7 +1,7 @@
 //! Request a [Group] and to format it in HTML.
 
 use crate::database::{get_group, insert_group, insert_user};
-use crate::error::error_html_template;
+use crate::error::{Result, error_html_template};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::GroupApi;
 use crate::html_template::{EmbedData, embed_html_template};
@@ -20,7 +20,6 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
-use std::error::Error;
 
 /// Fimfiction group data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -47,7 +46,7 @@ pub(crate) struct Group {
 async fn get_group_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder, Box<dyn Error>> {
+) -> Result<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
 	let group_id = match parse_id(&path) {
@@ -100,7 +99,7 @@ async fn get_group_endpoint(
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_group(
 	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<(Group, User), Box<dyn Error>> {
+) -> Result<(Group, User)> {
 	let group = get_group(id, db).await?;
 	let group = check_recache!(group, recache, app);
 	match group {

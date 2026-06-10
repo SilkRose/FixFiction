@@ -1,5 +1,6 @@
 //! Various utility functions for use in other modules.
 
+use crate::error::Result;
 use crate::fimfiction_api::error::FimficError;
 use crate::tag::Tag;
 use chrono::{DateTime, FixedOffset};
@@ -9,7 +10,6 @@ use rand::RngExt;
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
-use std::error::Error;
 use std::sync::LazyLock;
 
 /// Logger that prints to the console and a file
@@ -28,7 +28,7 @@ pub(crate) static LOG: LazyLock<Logger> = LazyLock::new(|| {
 /// #### Panics
 ///
 /// Panics if the first segment doesn't exist.
-pub(crate) fn parse_id(path: &str) -> Result<i32, Box<dyn Error>> {
+pub(crate) fn parse_id(path: &str) -> Result<i32> {
 	let binding = path.to_string();
 	let id = binding.split('/').collect::<Vec<_>>();
 	let id = id.first().expect("First element will always be present.");
@@ -76,7 +76,7 @@ pub(crate) fn check_thread_slash(path: &mut String, id: i32) {
 /// Sends a request and parses the response from the Fimfiction API
 pub(crate) async fn parse_fimfic_response<T: DeserializeOwned>(
 	api: &Request, url: &str,
-) -> Result<T, Box<dyn Error>> {
+) -> Result<T> {
 	let response = api_get_request(api, url)
 		.await
 		.map_err(|_| "FixFiction Error: API request error")?;
@@ -149,9 +149,7 @@ pub(crate) fn map_picture(link: Option<String>) -> Option<String> {
 }
 
 /// Converts a RFC3339 date string into a [DateTime]
-pub(crate) fn parse_date(
-	date: String, name: &str,
-) -> Result<DateTime<FixedOffset>, Box<dyn Error>> {
+pub(crate) fn parse_date(date: String, name: &str) -> Result<DateTime<FixedOffset>> {
 	Ok(DateTime::parse_from_rfc3339(&date)
 		.map_err(|_| format!("FixFiction Error: failed to parse {name} date"))?)
 }

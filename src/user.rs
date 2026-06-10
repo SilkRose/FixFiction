@@ -2,7 +2,7 @@
 
 use crate::check_recache;
 use crate::database::{get_user, insert_user};
-use crate::error::error_html_template;
+use crate::error::{Result, error_html_template};
 use crate::fimfiction_api::user::UserApi;
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
@@ -17,7 +17,6 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
-use std::error::Error;
 
 /// Fimfiction user data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -42,7 +41,7 @@ pub(crate) struct User {
 async fn get_user_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder, Box<dyn Error>> {
+) -> Result<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
 	let user_id = match parse_id(&path) {
@@ -75,7 +74,7 @@ async fn get_user_endpoint(
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_user(
 	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<User, Box<dyn Error>> {
+) -> Result<User> {
 	let user = get_user(id, db).await?;
 	let user = check_recache!(user, recache, app);
 	match user {

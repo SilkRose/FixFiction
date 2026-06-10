@@ -1,6 +1,7 @@
 //! Request a group [Thread] and to format it in HTML.
 
 use crate::database::{get_thread, insert_group, insert_thread, insert_user};
+use crate::error::Result;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::thread::ThreadApi;
 use crate::group::{Group, request_group};
@@ -51,7 +52,7 @@ pub(crate) struct ThreadReturn {
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_thread(
 	group_id: i32, thread_id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<(Group, User, Option<ThreadReturn>), Box<dyn std::error::Error>> {
+) -> Result<(Group, User, Option<ThreadReturn>)> {
 	let thread = get_thread(thread_id, db).await?;
 	let thread = check_recache!(thread, recache, app);
 	match thread {
@@ -106,7 +107,7 @@ pub(crate) async fn request_thread(
 ///   - Can't deserialize response from Fimfiction
 async fn build_thread_return(
 	thread: Thread, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<ThreadReturn, Box<dyn std::error::Error>> {
+) -> Result<ThreadReturn> {
 	let creator = request_user(thread.creator_id, api, db, recache).await?;
 	let last_poster = request_user(thread.last_poster_id, api, db, recache).await?;
 	Ok(ThreadReturn {

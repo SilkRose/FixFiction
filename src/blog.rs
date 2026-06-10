@@ -1,7 +1,7 @@
 //! Request a [Blog] and to format it in HTML.
 
 use crate::database::{get_blog, insert_blog, insert_user};
-use crate::error::error_html_template;
+use crate::error::{Result, error_html_template};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::BlogApi;
 use crate::html_template::{EmbedData, embed_html_template};
@@ -20,7 +20,6 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
-use std::error::Error;
 
 /// Fimfiction blog data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -45,7 +44,7 @@ pub(crate) struct Blog {
 async fn get_blog_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder, Box<dyn Error>> {
+) -> Result<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
 	let blog_id = match parse_id(&path) {
@@ -77,7 +76,7 @@ async fn get_blog_endpoint(
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_blog(
 	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
+) -> Result<(Blog, User, Option<Story>)> {
 	let blog = get_blog(id, db).await?;
 	let blog = check_recache!(blog, recache, app);
 	match blog {

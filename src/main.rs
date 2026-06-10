@@ -20,6 +20,7 @@ use self::oembed::get_oembed;
 use crate::blog::get_blog_endpoint;
 use crate::bookshelf::get_bookshelf_endpoint;
 use crate::chapter::get_chapter_endpoint;
+use crate::error::Result;
 use crate::group::get_group_endpoint;
 use crate::story::get_story_endpoint;
 use crate::user::get_user_endpoint;
@@ -31,11 +32,10 @@ use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
 use std::env;
-use std::error::Error;
 use std::time::Duration;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
 	dotenv()?;
 
 	// API Bearer token is required to scrape the data.
