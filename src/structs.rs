@@ -2,9 +2,8 @@
 
 use chrono::{DateTime, Utc};
 use core::str;
-use pony::http::Request;
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Postgres, Type};
+use sqlx::Type;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt;
 
