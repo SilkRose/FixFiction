@@ -177,13 +177,3 @@ impl fmt::Display for Color {
 		write!(f, "{text}")
 	}
 }
-
-/// App data and variables
-#[derive(Debug, Clone)]
-pub(crate) struct AppState {
-	pub(crate) api: Request,
-	pub(crate) db: Pool<Postgres>,
-	pub(crate) gc_interval: u64,
-	pub(crate) cache_max_age: i64,
-	pub(crate) cache_recache_age: i64,
-}

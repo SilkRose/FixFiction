@@ -16,7 +16,6 @@ mod utility;
 
 use self::fimfiction_api::fimfic_api_headers;
 use self::oembed::get_oembed;
-use self::structs::AppState;
 use crate::blog::get_blog_endpoint;
 use crate::bookshelf::get_bookshelf_endpoint;
 use crate::chapter::get_chapter_endpoint;
@@ -30,10 +29,21 @@ use actix_web::{App, HttpServer};
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
+use sqlx::{Pool, Postgres};
 use std::env;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
+
+/// App data and variables
+#[derive(Debug, Clone)]
+pub(crate) struct AppState {
+	pub(crate) api: Request,
+	pub(crate) db: Pool<Postgres>,
+	pub(crate) gc_interval: u64,
+	pub(crate) cache_max_age: i64,
+	pub(crate) cache_recache_age: i64,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

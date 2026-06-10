@@ -5,12 +5,12 @@ use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::thread::ThreadApi;
 use crate::group::{Group, request_group};
 use crate::html_template::{EmbedData, embed_html_template};
-use crate::structs::{AppState, Color, Cover, Parameters};
+use crate::structs::{Color, Cover, Parameters};
 use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_picture, parse_fimfic_response, unsupported_color_opt, unsupported_cover_opt,
 };
-use crate::{check_recache, get_variant, get_variants};
+use crate::{AppState, check_recache, get_variant, get_variants};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
 

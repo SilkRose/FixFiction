@@ -1,11 +1,11 @@
 //! Request a [User] and to format it in HTML.
 
-use crate::check_recache;
+use crate::{AppState, check_recache};
 use crate::database::{get_user, insert_user};
 use crate::error::error_html_template;
 use crate::fimfiction_api::user::UserApi;
 use crate::html_template::{EmbedData, embed_html_template};
-use crate::structs::{AppState, Color, Cover, Parameters};
+use crate::structs::{Color, Cover, Parameters};
 use crate::utility::{
 	check_slash, get_color, map_picture, parse_embed_parameters, parse_fimfic_response, parse_id,
 	unsupported_color, unsupported_cover_opt,

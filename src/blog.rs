@@ -10,13 +10,13 @@ use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::BlogApi;
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::story::{Story, request_story};
-use crate::structs::{AppState, Color, Cover, Parameters};
+use crate::structs::{Color, Cover, Parameters};
 use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_cover, map_picture, parse_embed_parameters, parse_fimfic_response, parse_id,
 	unsupported_color, unsupported_cover_opt,
 };
-use crate::{check_recache, get_variant};
+use crate::{AppState, check_recache, get_variant};
 use actix_web::web::{Data, Path, Query};
 use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
