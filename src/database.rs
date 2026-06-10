@@ -1,6 +1,7 @@
 //! Reading and writing changes to the database.
 
 use crate::bookshelf::Bookshelf;
+use crate::chapter::Chapter;
 use crate::fimfiction_api::blog::BlogData;
 use crate::fimfiction_api::bookshelf::BookshelfData;
 use crate::fimfiction_api::chapter::ChapterData;
@@ -10,7 +11,7 @@ use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::thread::ThreadData;
 use crate::fimfiction_api::user::UserData;
 use crate::story::{CompletionStatus, ContentRating, Story};
-use crate::structs::{Blog, Chapter, Group, Tag, TagLink, TagType, Thread};
+use crate::structs::{Blog, Group, Tag, TagLink, TagType, Thread};
 use crate::user::User;
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;

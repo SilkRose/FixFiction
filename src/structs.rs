@@ -135,21 +135,6 @@ pub(crate) struct Blog {
 	pub(crate) date_cached: DateTime<Utc>,
 }
 
-/// Fimfiction chapter data converted into a more usable structure
-#[derive(Debug, Clone)]
-pub(crate) struct Chapter {
-	pub(crate) id: i32,
-	pub(crate) story_id: i32,
-	pub(crate) chapter_num: i32,
-	pub(crate) title: String,
-	pub(crate) link: String,
-	pub(crate) views: i32,
-	pub(crate) words: i32,
-	pub(crate) date_published: DateTime<Utc>,
-	pub(crate) date_modified: DateTime<Utc>,
-	pub(crate) date_cached: DateTime<Utc>,
-}
-
 /// Fimfiction group data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub(crate) struct Group {
