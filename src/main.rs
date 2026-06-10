@@ -14,22 +14,20 @@ mod thread;
 mod user;
 mod utility;
 
-use crate::user::get_user_endpoint;
-
 use self::blog::{blog_html_template, request_blog};
 use self::bookshelf::{bookshelf_html_template, request_bookshelf};
-use self::chapter::{chapter_html_template, request_chapter, request_story_chapters};
+use self::chapter::{chapter_html_template, request_chapter};
 use self::error::error_html_template;
 use self::fimfiction_api::fimfic_api_headers;
 use self::group::{group_html_template, request_group};
 use self::oembed::get_oembed;
-use self::story::{request_story, story_html_template};
 use self::structs::AppState;
 use self::thread::{request_thread, thread_html_template};
 use self::utility::{
-	check_slash, check_thread_slash, parse_chapter_number, parse_embed_parameters, parse_id,
-	parse_thread_id,
+	check_slash, check_thread_slash, parse_embed_parameters, parse_id, parse_thread_id,
 };
+use crate::story::get_story_endpoint;
+use crate::user::get_user_endpoint;
 use actix_cors::Cors;
 use actix_web::middleware::Compress;
 use actix_web::web::{Data, Path, Query};
@@ -42,46 +40,6 @@ use std::env;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
-
-/// The `story/` endpoint.
-///
-/// Requests a story by ID.
-/// May also include an ordinal chapter number.
-#[get("/story/{id:.*}")]
-async fn get_story(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
-) -> Result<impl Responder, Box<dyn Error>> {
-	let mut path = path.into_inner();
-	let queries = queries.into_inner();
-	let story_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("story", path, err.to_string())));
-		}
-	};
-	let chapter_id = parse_chapter_number(&path);
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
-	let link = format!("https://www.fimfiction.net/story/{path}");
-	let body = match chapter_id {
-		Some(chapter_num) => {
-			match request_story_chapters(story_id, chapter_num, &app, params.refresh).await {
-				Ok((chapter, story, user, tags)) => {
-					chapter_html_template(chapter, story, user, tags, params, link, errors)
-				}
-				Err(err) => error_html_template("story", path, err.to_string()),
-			}
-		}
-		None => match request_story(story_id, &app, params.refresh).await {
-			Ok((story, user, tags)) => story_html_template(story, user, tags, params, link, errors),
-			Err(err) => error_html_template("story", path, err.to_string()),
-		},
-	};
-	Ok(HttpResponse::Ok()
-		.content_type("text/html; charset=utf-8")
-		.body(body))
-}
 
 /// The `chapter/` endpoint.
 ///
@@ -266,7 +224,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 					.max_age(3600),
 			)
 			.wrap(Compress::default())
-			.service(get_story)
+			.service(get_story_endpoint)
 			.service(get_chapter)
 			.service(get_user_endpoint)
 			.service(get_blog)

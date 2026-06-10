@@ -1,23 +1,150 @@
 //! Request a [Story] and to format it in HTML.
 
+use crate::chapter::{chapter_html_template, request_story_chapters};
 use crate::database::{
 	get_story, get_tag, get_tag_links, insert_story, insert_tag, insert_tag_link, insert_user,
 	remove_tag_links,
 };
+use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::embed_html_template;
-use crate::structs::{
-	AppState, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story, Tag,
-};
+use crate::structs::{AppState, Color, Cover, EmbedData, Parameters, Tag};
 use crate::user::{User, request_user};
 use crate::utility::{
-	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, unsupported_color,
-	unsupported_cover_opt,
+	get_color, map_cover, map_picture, map_tags, parse_chapter_number, parse_embed_parameters,
+	parse_fimfic_response, parse_id, unsupported_color, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
-use chrono::{TimeDelta, Utc};
+use actix_web::web::{Data, Path, Query};
+use actix_web::{HttpResponse, Responder, get};
+use chrono::{DateTime, TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::Type;
+use std::collections::HashMap;
+use std::error::Error;
+use std::sync::Arc;
+
+/// Fimfiction story data converted into a more usable structure
+#[derive(Debug, Clone)]
+pub(crate) struct Story {
+	pub(crate) id: i32,
+	pub(crate) title: String,
+	pub(crate) short_description: String,
+	pub(crate) description: String,
+	pub(crate) published: bool,
+	pub(crate) link: String,
+	pub(crate) cover_url: Option<String>,
+	pub(crate) color_hex: String,
+	pub(crate) views: i32,
+	pub(crate) total_views: i32,
+	pub(crate) words: i32,
+	pub(crate) chapters: i32,
+	pub(crate) comments: i32,
+	pub(crate) rating: i32,
+	pub(crate) completion_status: CompletionStatus,
+	pub(crate) content_rating: ContentRating,
+	pub(crate) likes: i32,
+	pub(crate) dislikes: i32,
+	pub(crate) author_id: i32,
+	pub(crate) date_modified: DateTime<Utc>,
+	pub(crate) date_updated: DateTime<Utc>,
+	pub(crate) date_published: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
+}
+
+/// Fimfiction story content rating data converted into a more usable structure
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
+#[sqlx(type_name = "content_rating", rename_all = "lowercase")]
+pub(crate) enum ContentRating {
+	Everyone,
+	Teen,
+	Mature,
+}
+
+impl From<String> for ContentRating {
+	/// Converts a Fimfiction API response string for story rating into [ContentRating]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
+	fn from(value: String) -> Self {
+		match value.as_str() {
+			"everyone" => ContentRating::Everyone,
+			"teen" => ContentRating::Teen,
+			"mature" => ContentRating::Mature,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
+}
+
+/// Fimfiction story completion status data converted into a more usable structure
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
+#[sqlx(type_name = "completion_status", rename_all = "lowercase")]
+pub(crate) enum CompletionStatus {
+	Incomplete,
+	Complete,
+	Hiatus,
+	Cancelled,
+}
+
+impl From<String> for CompletionStatus {
+	/// Converts a Fimfiction API response string for story status into [CompletionStatus]
+	///
+	/// #### Panics
+	///
+	/// Panics if Fimfiction returns a value not present.
+	fn from(value: String) -> Self {
+		match value.as_str() {
+			"incomplete" => CompletionStatus::Incomplete,
+			"complete" => CompletionStatus::Complete,
+			"hiatus" => CompletionStatus::Hiatus,
+			"cancelled" => CompletionStatus::Cancelled,
+			_ => unreachable!(), // This should never happen, but still want to add something here later.
+		}
+	}
+}
+
+/// The `story/` endpoint.
+///
+/// Requests a story by ID.
+/// May also include an ordinal chapter number.
+#[get("/story/{id:.*}")]
+async fn get_story_endpoint(
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
+	let story_id = match parse_id(&path) {
+		Ok(id) => id,
+		Err(err) => {
+			return Ok(HttpResponse::Ok()
+				.content_type("text/html; charset=utf-8")
+				.body(error_html_template("story", path, err.to_string())));
+		}
+	};
+	let chapter_id = parse_chapter_number(&path);
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let link = format!("https://www.fimfiction.net/story/{path}");
+	let body = match chapter_id {
+		Some(chapter_num) => {
+			match request_story_chapters(story_id, chapter_num, &app, params.refresh).await {
+				Ok((chapter, story, user, tags)) => {
+					chapter_html_template(chapter, story, user, tags, params, link, errors)
+				}
+				Err(err) => error_html_template("story", path, err.to_string()),
+			}
+		}
+		None => match request_story(story_id, &app, params.refresh).await {
+			Ok((story, user, tags)) => story_html_template(story, user, tags, params, link, errors),
+			Err(err) => error_html_template("story", path, err.to_string()),
+		},
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
+}
 
 /// Requests a [Story] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
 ///

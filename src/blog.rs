@@ -4,8 +4,8 @@ use crate::database::{get_blog, insert_blog, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::BlogApi;
 use crate::html_template::embed_html_template;
-use crate::story::request_story;
-use crate::structs::{AppState, Blog, Color, Cover, EmbedData, Parameters, Story};
+use crate::story::{Story, request_story};
+use crate::structs::{AppState, Blog, Color, Cover, EmbedData, Parameters};
 use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_cover, map_picture, parse_fimfic_response, unsupported_color,

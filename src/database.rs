@@ -8,10 +8,8 @@ use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::thread::ThreadData;
 use crate::fimfiction_api::user::UserData;
-use crate::structs::{
-	Blog, Bookshelf, Chapter, CompletionStatus, ContentRating, Group, Story, Tag, TagLink, TagType,
-	Thread,
-};
+use crate::story::{CompletionStatus, ContentRating, Story};
+use crate::structs::{Blog, Bookshelf, Chapter, Group, Tag, TagLink, TagType, Thread};
 use crate::user::User;
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;

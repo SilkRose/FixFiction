@@ -9,58 +9,6 @@ use sqlx::{Pool, Postgres, Type};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt;
 
-/// Fimfiction story content rating data converted into a more usable structure
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
-#[sqlx(type_name = "content_rating", rename_all = "lowercase")]
-pub(crate) enum ContentRating {
-	Everyone,
-	Teen,
-	Mature,
-}
-
-impl From<String> for ContentRating {
-	/// Converts a Fimfiction API response string for story rating into [ContentRating]
-	///
-	/// #### Panics
-	///
-	/// Panics if Fimfiction returns a value not present.
-	fn from(value: String) -> Self {
-		match value.as_str() {
-			"everyone" => ContentRating::Everyone,
-			"teen" => ContentRating::Teen,
-			"mature" => ContentRating::Mature,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
-		}
-	}
-}
-
-/// Fimfiction story completion status data converted into a more usable structure
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
-#[sqlx(type_name = "completion_status", rename_all = "lowercase")]
-pub(crate) enum CompletionStatus {
-	Incomplete,
-	Complete,
-	Hiatus,
-	Cancelled,
-}
-
-impl From<String> for CompletionStatus {
-	/// Converts a Fimfiction API response string for story status into [CompletionStatus]
-	///
-	/// #### Panics
-	///
-	/// Panics if Fimfiction returns a value not present.
-	fn from(value: String) -> Self {
-		match value.as_str() {
-			"incomplete" => CompletionStatus::Incomplete,
-			"complete" => CompletionStatus::Complete,
-			"hiatus" => CompletionStatus::Hiatus,
-			"cancelled" => CompletionStatus::Cancelled,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
-		}
-	}
-}
-
 /// Fimfiction tag type data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "tag_type", rename_all = "lowercase")]
@@ -122,34 +70,6 @@ impl Ord for TagType {
 		let other = to_int!(other);
 		Ord::cmp(&this, &other)
 	}
-}
-
-/// Fimfiction story data converted into a more usable structure
-#[derive(Debug, Clone)]
-pub(crate) struct Story {
-	pub(crate) id: i32,
-	pub(crate) title: String,
-	pub(crate) short_description: String,
-	pub(crate) description: String,
-	pub(crate) published: bool,
-	pub(crate) link: String,
-	pub(crate) cover_url: Option<String>,
-	pub(crate) color_hex: String,
-	pub(crate) views: i32,
-	pub(crate) total_views: i32,
-	pub(crate) words: i32,
-	pub(crate) chapters: i32,
-	pub(crate) comments: i32,
-	pub(crate) rating: i32,
-	pub(crate) completion_status: CompletionStatus,
-	pub(crate) content_rating: ContentRating,
-	pub(crate) likes: i32,
-	pub(crate) dislikes: i32,
-	pub(crate) author_id: i32,
-	pub(crate) date_modified: DateTime<Utc>,
-	pub(crate) date_updated: DateTime<Utc>,
-	pub(crate) date_published: DateTime<Utc>,
-	pub(crate) date_cached: DateTime<Utc>,
 }
 
 /// Fimfiction tag data converted into a more usable structure
