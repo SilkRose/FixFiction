@@ -1,6 +1,5 @@
 //! Common structs used in other modules.
 
-use crate::user::User;
 use chrono::{DateTime, Utc};
 use core::str;
 use pony::http::Request;
@@ -117,31 +116,6 @@ pub(crate) struct TagLink {
 	pub(crate) story_id: i32,
 	pub(crate) tag_id: i32,
 	pub(crate) date_cached: DateTime<Utc>,
-}
-
-/// Fimfiction thread data converted into a more usable structure
-#[derive(Debug, Clone)]
-pub(crate) struct Thread {
-	pub(crate) id: i32,
-	pub(crate) group_id: i32,
-	pub(crate) creator_id: i32,
-	pub(crate) last_poster_id: i32,
-	pub(crate) title: String,
-	pub(crate) link: String,
-	pub(crate) posts: i32,
-	pub(crate) sticky: bool,
-	pub(crate) locked: bool,
-	pub(crate) date_created: DateTime<Utc>,
-	pub(crate) date_last_post: DateTime<Utc>,
-	pub(crate) date_cached: DateTime<Utc>,
-}
-
-/// [Thread] data combined with the last poster and creator [User] data
-#[derive(Debug, Clone)]
-pub(crate) struct ThreadReturn {
-	pub(crate) thread: Thread,
-	pub(crate) creator: User,
-	pub(crate) last_poster: User,
 }
 
 /// Embed parameter options

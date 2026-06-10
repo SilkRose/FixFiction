@@ -5,14 +5,39 @@ use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::thread::ThreadApi;
 use crate::group::{Group, request_group};
 use crate::html_template::{EmbedData, embed_html_template};
-use crate::structs::{AppState, Color, Cover, Parameters, Thread, ThreadReturn};
+use crate::structs::{AppState, Color, Cover, Parameters};
 use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_picture, parse_fimfic_response, unsupported_color_opt, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
-use chrono::{TimeDelta, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
+
+/// Fimfiction thread data converted into a more usable structure
+#[derive(Debug, Clone)]
+pub(crate) struct Thread {
+	pub(crate) id: i32,
+	pub(crate) group_id: i32,
+	pub(crate) creator_id: i32,
+	pub(crate) last_poster_id: i32,
+	pub(crate) title: String,
+	pub(crate) link: String,
+	pub(crate) posts: i32,
+	pub(crate) sticky: bool,
+	pub(crate) locked: bool,
+	pub(crate) date_created: DateTime<Utc>,
+	pub(crate) date_last_post: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
+}
+
+/// [Thread] data combined with the last poster and creator [User] data
+#[derive(Debug, Clone)]
+pub(crate) struct ThreadReturn {
+	pub(crate) thread: Thread,
+	pub(crate) creator: User,
+	pub(crate) last_poster: User,
+}
 
 /// Requests a [Thread] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
 ///
