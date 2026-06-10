@@ -4,8 +4,8 @@ use crate::database::{get_bookshelf, insert_bookshelf, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::bookshelf::BookshelfApi;
 use crate::html_template::embed_html_template;
-use crate::structs::{AppState, Bookshelf, Color, Cover, EmbedData, Parameters, User};
-use crate::user::request_user;
+use crate::structs::{AppState, Bookshelf, Color, Cover, EmbedData, Parameters};
+use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_picture, parse_fimfic_response, unsupported_color, unsupported_cover,
 };

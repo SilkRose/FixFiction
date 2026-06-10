@@ -11,8 +11,9 @@ use crate::html_template::embed_html_template;
 use crate::story::request_story;
 use crate::structs::{
 	AppState, Chapter, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story,
-	Tag, User,
+	Tag,
 };
+use crate::user::User;
 use crate::utility::{
 	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, unsupported_color,
 	unsupported_cover_opt,

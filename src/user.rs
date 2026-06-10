@@ -2,15 +2,66 @@
 
 use crate::check_recache;
 use crate::database::{get_user, insert_user};
+use crate::error::error_html_template;
 use crate::fimfiction_api::user::UserApi;
 use crate::html_template::embed_html_template;
-use crate::structs::{AppState, Color, Cover, EmbedData, Parameters, User};
+use crate::structs::{AppState, Color, Cover, EmbedData, Parameters};
 use crate::utility::{
-	get_color, map_picture, parse_fimfic_response, unsupported_color, unsupported_cover_opt,
+	check_slash, get_color, map_picture, parse_embed_parameters, parse_fimfic_response, parse_id,
+	unsupported_color, unsupported_cover_opt,
 };
-use chrono::{TimeDelta, Utc};
+use actix_web::web::{Data, Path, Query};
+use actix_web::{HttpResponse, Responder, get};
+use chrono::{DateTime, TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
+use std::collections::HashMap;
 use std::error::Error;
+use std::sync::Arc;
+
+/// Fimfiction user data converted into a more usable structure
+#[derive(Debug, Clone)]
+pub(crate) struct User {
+	pub(crate) id: i32,
+	pub(crate) name: String,
+	pub(crate) bio: String,
+	pub(crate) link: String,
+	pub(crate) followers: i32,
+	pub(crate) stories: i32,
+	pub(crate) blogs: i32,
+	pub(crate) profile_pic_url: Option<String>,
+	pub(crate) color_hex: String,
+	pub(crate) date_joined: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
+}
+
+/// The `user/` endpoint.
+///
+/// Requests a user by ID.
+#[get("/user/{id:.*}")]
+async fn get_user_endpoint(
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
+	let user_id = match parse_id(&path) {
+		Ok(id) => id,
+		Err(err) => {
+			return Ok(HttpResponse::Ok()
+				.content_type("text/html; charset=utf-8")
+				.body(error_html_template("user", path, err.to_string())));
+		}
+	};
+	check_slash(&mut path, user_id);
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let link = format!("https://www.fimfiction.net/user/{path}");
+	let body = match request_user(user_id, &app, params.refresh).await {
+		Ok(user) => user_html_template(user, params, link, errors),
+		Err(err) => error_html_template("user", path, err.to_string()),
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
+}
 
 /// Requests a [User] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
 ///

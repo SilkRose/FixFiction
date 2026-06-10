@@ -10,8 +10,9 @@ use crate::fimfiction_api::thread::ThreadData;
 use crate::fimfiction_api::user::UserData;
 use crate::structs::{
 	Blog, Bookshelf, Chapter, CompletionStatus, ContentRating, Group, Story, Tag, TagLink, TagType,
-	Thread, User,
+	Thread,
 };
+use crate::user::User;
 use crate::utility::{clean_content, parse_date, trim_content};
 use chrono::DateTime;
 use sqlx::{Pool, Postgres};

@@ -9,9 +9,8 @@ use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::embed_html_template;
 use crate::structs::{
 	AppState, Color, CompletionStatus, ContentRating, Cover, EmbedData, Parameters, Story, Tag,
-	User,
 };
-use crate::user::request_user;
+use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_cover, map_picture, map_tags, parse_fimfic_response, unsupported_color,
 	unsupported_cover_opt,

@@ -14,6 +14,8 @@ mod thread;
 mod user;
 mod utility;
 
+use crate::user::get_user_endpoint;
+
 use self::blog::{blog_html_template, request_blog};
 use self::bookshelf::{bookshelf_html_template, request_bookshelf};
 use self::chapter::{chapter_html_template, request_chapter, request_story_chapters};
@@ -24,7 +26,6 @@ use self::oembed::get_oembed;
 use self::story::{request_story, story_html_template};
 use self::structs::AppState;
 use self::thread::{request_thread, thread_html_template};
-use self::user::{request_user, user_html_template};
 use self::utility::{
 	check_slash, check_thread_slash, parse_chapter_number, parse_embed_parameters, parse_id,
 	parse_thread_id,
@@ -107,35 +108,6 @@ async fn get_chapter(
 			chapter_html_template(chapter, story, user, tags, params, link, errors)
 		}
 		Err(err) => error_html_template("chapter", path, err.to_string()),
-	};
-	Ok(HttpResponse::Ok()
-		.content_type("text/html; charset=utf-8")
-		.body(body))
-}
-
-/// The `user/` endpoint.
-///
-/// Requests a user by ID.
-#[get("/user/{id:.*}")]
-async fn get_user(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
-) -> Result<impl Responder, Box<dyn Error>> {
-	let mut path = path.into_inner();
-	let queries = queries.into_inner();
-	let user_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("user", path, err.to_string())));
-		}
-	};
-	check_slash(&mut path, user_id);
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
-	let link = format!("https://www.fimfiction.net/user/{path}");
-	let body = match request_user(user_id, &app, params.refresh).await {
-		Ok(user) => user_html_template(user, params, link, errors),
-		Err(err) => error_html_template("user", path, err.to_string()),
 	};
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
@@ -296,7 +268,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.wrap(Compress::default())
 			.service(get_story)
 			.service(get_chapter)
-			.service(get_user)
+			.service(get_user_endpoint)
 			.service(get_blog)
 			.service(get_group)
 			.service(get_bookshelf)

@@ -4,8 +4,8 @@ use crate::database::{get_group, insert_group, insert_user};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::GroupApi;
 use crate::html_template::embed_html_template;
-use crate::structs::{AppState, Color, Cover, EmbedData, Group, Parameters, User};
-use crate::user::request_user;
+use crate::structs::{AppState, Color, Cover, EmbedData, Group, Parameters};
+use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_picture, parse_fimfic_response, unsupported_color_opt, unsupported_cover_opt,
 };

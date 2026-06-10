@@ -1,5 +1,6 @@
 //! Common structs used in other modules.
 
+use crate::user::User;
 use chrono::{DateTime, Utc};
 use core::str;
 use pony::http::Request;
@@ -195,22 +196,6 @@ impl Ord for Tag {
 pub(crate) struct TagLink {
 	pub(crate) story_id: i32,
 	pub(crate) tag_id: i32,
-	pub(crate) date_cached: DateTime<Utc>,
-}
-
-/// Fimfiction user data converted into a more usable structure
-#[derive(Debug, Clone)]
-pub(crate) struct User {
-	pub(crate) id: i32,
-	pub(crate) name: String,
-	pub(crate) bio: String,
-	pub(crate) link: String,
-	pub(crate) followers: i32,
-	pub(crate) stories: i32,
-	pub(crate) blogs: i32,
-	pub(crate) profile_pic_url: Option<String>,
-	pub(crate) color_hex: String,
-	pub(crate) date_joined: DateTime<Utc>,
 	pub(crate) date_cached: DateTime<Utc>,
 }
 
