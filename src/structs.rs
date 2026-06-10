@@ -168,27 +168,6 @@ pub(crate) struct Group {
 	pub(crate) date_cached: DateTime<Utc>,
 }
 
-/// Fimfiction bookshelf data converted into a more usable structure
-#[derive(Debug, Clone)]
-pub(crate) struct Bookshelf {
-	pub(crate) id: i32,
-	pub(crate) name: String,
-	pub(crate) description: String,
-	pub(crate) link: String,
-	pub(crate) color: String,
-	pub(crate) icon_url: String,
-	pub(crate) stories: i32,
-	pub(crate) num_unread: Option<i32>,
-	pub(crate) track_unread: bool,
-	pub(crate) quick_add: bool,
-	pub(crate) email_update: bool,
-	pub(crate) user_id: Option<i32>,
-	pub(crate) order_pos: i32,
-	pub(crate) date_created: DateTime<Utc>,
-	pub(crate) date_modified: DateTime<Utc>,
-	pub(crate) date_cached: DateTime<Utc>,
-}
-
 /// Fimfiction thread data converted into a more usable structure
 #[derive(Debug, Clone)]
 pub(crate) struct Thread {
