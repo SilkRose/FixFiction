@@ -1,5 +1,6 @@
 //! Request a [User] and to format it in HTML.
 
+use crate::check_recache;
 use crate::database::{get_user, insert_user};
 use crate::error::error_html_template;
 use crate::fimfiction_api::user::UserApi;
@@ -9,14 +10,14 @@ use crate::utility::{
 	check_slash, get_color, map_picture, parse_fimfic_response, parse_id, unsupported_color,
 	unsupported_cover_opt,
 };
-use crate::{AppState, check_recache};
-use actix_web::web::{Data, Path, Query};
+use actix_web::web::{Path, Query, ThinData};
 use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
+use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
 
 /// Fimfiction user data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -39,7 +40,8 @@ pub(crate) struct User {
 /// Requests a user by ID.
 #[get("/user/{id:.*}")]
 async fn get_user_endpoint(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	queries: Query<HashMap<String, String>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
@@ -52,9 +54,9 @@ async fn get_user_endpoint(
 		}
 	};
 	check_slash(&mut path, user_id);
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/user/{path}");
-	let body = match request_user(user_id, &app, params.refresh).await {
+	let body = match request_user(user_id, &api, &db, params.refresh).await {
 		Ok(user) => user_html_template(user, params, link, errors),
 		Err(err) => error_html_template("user", path, err.to_string()),
 	};
@@ -72,16 +74,16 @@ async fn get_user_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_user(
-	id: i32, app: &AppState, recache: bool,
+	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
 ) -> Result<User, Box<dyn Error>> {
-	let user = get_user(id, &app.db).await?;
+	let user = get_user(id, db).await?;
 	let user = check_recache!(user, recache, app);
 	match user {
 		Some(user) => Ok(user),
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
-			let api = parse_fimfic_response::<UserApi<i32>>(&app.api, &fimfic).await?;
-			insert_user(Some(id), &api.data, &app.db).await
+			let api = parse_fimfic_response::<UserApi<i32>>(api, &fimfic).await?;
+			insert_user(Some(id), &api.data, db).await
 		}
 	}
 }

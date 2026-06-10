@@ -12,14 +12,15 @@ use crate::utility::{
 	check_slash, check_thread_slash, get_color, map_picture, parse_fimfic_response, parse_id,
 	parse_thread_id, unsupported_color_opt, unsupported_cover_opt,
 };
-use crate::{AppState, check_recache, get_variant};
-use actix_web::web::{Data, Path, Query};
+use crate::{check_recache, get_variant};
+use actix_web::web::{Path, Query, ThinData};
 use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
+use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
 
 /// Fimfiction group data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -44,7 +45,8 @@ pub(crate) struct Group {
 /// Requests a group by ID.
 #[get("/group/{id:.*}")]
 async fn get_group_endpoint(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	queries: Query<HashMap<String, String>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
@@ -62,20 +64,22 @@ async fn get_group_endpoint(
 	} else {
 		check_slash(&mut path, group_id);
 	}
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/group/{path}");
 
 	let body = match thread_id {
-		Some(thread_id) => match request_thread(group_id, thread_id, &app, params.refresh).await {
-			Ok((group, founder, thread_data)) => match thread_data {
-				Some(thread_data) => {
-					thread_html_template(group, founder, thread_data, params, link, errors)
-				}
-				None => group_html_template(group, founder, params, link, errors),
-			},
-			Err(err) => error_html_template("group", path, err.to_string()),
-		},
-		None => match request_group(group_id, &app, params.refresh).await {
+		Some(thread_id) => {
+			match request_thread(group_id, thread_id, &api, &db, params.refresh).await {
+				Ok((group, founder, thread_data)) => match thread_data {
+					Some(thread_data) => {
+						thread_html_template(group, founder, thread_data, params, link, errors)
+					}
+					None => group_html_template(group, founder, params, link, errors),
+				},
+				Err(err) => error_html_template("group", path, err.to_string()),
+			}
+		}
+		None => match request_group(group_id, &api, &db, params.refresh).await {
 			Ok((group, founder)) => group_html_template(group, founder, params, link, errors),
 			Err(err) => error_html_template("group", path, err.to_string()),
 		},
@@ -95,22 +99,22 @@ async fn get_group_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_group(
-	id: i32, app: &AppState, recache: bool,
+	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
 ) -> Result<(Group, User), Box<dyn Error>> {
-	let group = get_group(id, &app.db).await?;
+	let group = get_group(id, db).await?;
 	let group = check_recache!(group, recache, app);
 	match group {
 		Some(group) => {
-			let founder = request_user(group.founder_id, app, recache).await?;
+			let founder = request_user(group.founder_id, api, db, recache).await?;
 			Ok((group, founder))
 		}
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/groups/{id}?include=founder");
-			let api = parse_fimfic_response::<GroupApi<i32>>(&app.api, &fimfic).await?;
+			let api = parse_fimfic_response::<GroupApi<i32>>(api, &fimfic).await?;
 			let founder = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no founder included")?;
-			let founder = insert_user(None, founder, &app.db).await?;
-			let group = insert_group(Some(id), &api.data, &app.db).await?;
+			let founder = insert_user(None, founder, db).await?;
+			let group = insert_group(Some(id), &api.data, db).await?;
 			Ok((group, founder))
 		}
 	}

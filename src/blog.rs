@@ -1,9 +1,5 @@
 //! Request a [Blog] and to format it in HTML.
 
-use std::collections::HashMap;
-use std::error::Error;
-use std::sync::Arc;
-
 use crate::database::{get_blog, insert_blog, insert_user};
 use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
@@ -16,11 +12,15 @@ use crate::utility::{
 	get_color, map_cover, map_picture, parse_fimfic_response, parse_id, unsupported_color,
 	unsupported_cover_opt,
 };
-use crate::{AppState, check_recache, get_variant};
-use actix_web::web::{Data, Path, Query};
+use crate::{check_recache, get_variant};
+use actix_web::web::{Path, Query, ThinData};
 use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
+use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
+use sqlx::{Pool, Postgres};
+use std::collections::HashMap;
+use std::error::Error;
 
 /// Fimfiction blog data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -43,7 +43,8 @@ pub(crate) struct Blog {
 /// Requests a blog by ID.
 #[get("/blog/{id:.*}")]
 async fn get_blog_endpoint(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	queries: Query<HashMap<String, String>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
@@ -55,9 +56,9 @@ async fn get_blog_endpoint(
 				.body(error_html_template("blog", path, err.to_string())));
 		}
 	};
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/blog/{path}");
-	let body = match request_blog(blog_id, &app, params.refresh).await {
+	let body = match request_blog(blog_id, &api, &db, params.refresh).await {
 		Ok((blog, user, story)) => blog_html_template(blog, user, story, params, link, errors),
 		Err(err) => error_html_template("blog", path, err.to_string()),
 	};
@@ -75,17 +76,17 @@ async fn get_blog_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_blog(
-	id: i32, app: &AppState, recache: bool,
+	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
 ) -> Result<(Blog, User, Option<Story>), Box<dyn std::error::Error>> {
-	let blog = get_blog(id, &app.db).await?;
+	let blog = get_blog(id, db).await?;
 	let blog = check_recache!(blog, recache, app);
 	match blog {
 		Some(blog) => {
 			let (story, user) = if let Some(story_id) = blog.story_id {
-				let (story, user, _tags) = request_story(story_id, app, recache).await?;
+				let (story, user, _tags) = request_story(story_id, api, db, recache).await?;
 				(Some(story), user)
 			} else {
-				(None, request_user(blog.author_id, app, recache).await?)
+				(None, request_user(blog.author_id, api, db, recache).await?)
 			};
 			Ok((blog, user, story))
 		}
@@ -93,18 +94,18 @@ pub(crate) async fn request_blog(
 			let fimfic = format!(
 				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,site_post,tags,tagged_story"
 			);
-			let api = parse_fimfic_response::<BlogApi<i32>>(&app.api, &fimfic).await?;
-			let author = get_variant!(api.included, ApiIncluded::Author)
+			let res = parse_fimfic_response::<BlogApi<i32>>(api, &fimfic).await?;
+			let author = get_variant!(res.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
-			let story_id = (api.data.relationships.tagged_story.data.id != "0")
-				.then_some(api.data.relationships.tagged_story.data.id.parse::<i32>()?);
+			let story_id = (res.data.relationships.tagged_story.data.id != "0")
+				.then_some(res.data.relationships.tagged_story.data.id.parse::<i32>()?);
 			let (story, user) = if let Some(story_id) = story_id {
-				let (story, user, _tags) = request_story(story_id, app, recache).await?;
+				let (story, user, _tags) = request_story(story_id, api, db, recache).await?;
 				(Some(story), user)
 			} else {
-				(None, insert_user(None, author, &app.db).await?)
+				(None, insert_user(None, author, db).await?)
 			};
-			let blog = insert_blog(Some(id), &api.data, user.id, story_id, &app.db).await?;
+			let blog = insert_blog(Some(id), &res.data, user.id, story_id, db).await?;
 			Ok((blog, user, story))
 		}
 	}

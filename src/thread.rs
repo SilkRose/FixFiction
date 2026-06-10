@@ -10,9 +10,11 @@ use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_picture, parse_fimfic_response, unsupported_color_opt, unsupported_cover_opt,
 };
-use crate::{AppState, check_recache, get_variant, get_variants};
+use crate::{check_recache, get_variant, get_variants};
 use chrono::{DateTime, TimeDelta, Utc};
+use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
+use sqlx::{Pool, Postgres};
 
 /// Fimfiction thread data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -48,35 +50,35 @@ pub(crate) struct ThreadReturn {
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_thread(
-	group_id: i32, thread_id: i32, app: &AppState, recache: bool,
+	group_id: i32, thread_id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
 ) -> Result<(Group, User, Option<ThreadReturn>), Box<dyn std::error::Error>> {
-	let thread = get_thread(thread_id, &app.db).await?;
+	let thread = get_thread(thread_id, db).await?;
 	let thread = check_recache!(thread, recache, app);
 	match thread {
 		Some(thread) => {
-			let (group, founder) = request_group(group_id, app, recache).await?;
+			let (group, founder) = request_group(group_id, api, db, recache).await?;
 			if thread.group_id != group.id {
 				return Err("FixFiction error: group ID does not match with thread".into());
 			}
-			let data = build_thread_return(thread, app, recache).await?;
+			let data = build_thread_return(thread, api, db, recache).await?;
 			Ok((group, founder, Some(data)))
 		}
 		None => {
 			let fimfic = format!(
 				"https://www.fimfiction.net/api/v2/groups/{group_id}/threads?include=group,group.founder,creator,last_poster&page[size]=100"
 			);
-			let api = parse_fimfic_response::<ThreadApi<i32>>(&app.api, &fimfic).await?;
-			let group = get_variant!(api.included, ApiIncluded::Group)
+			let res = parse_fimfic_response::<ThreadApi<i32>>(api, &fimfic).await?;
+			let group = get_variant!(res.included, ApiIncluded::Group)
 				.ok_or("Fimfiction API error: no group included")?;
 			let mut users = Vec::new();
-			for user in get_variants!(api.included, ApiIncluded::Author) {
-				let user = insert_user(None, user, &app.db).await?;
+			for user in get_variants!(res.included, ApiIncluded::Author) {
+				let user = insert_user(None, user, db).await?;
 				users.push(user);
 			}
-			let group = insert_group(Some(group_id), group, &app.db).await?;
+			let group = insert_group(Some(group_id), group, db).await?;
 			let mut threads = Vec::new();
-			for thread in api.data {
-				let thread = insert_thread(None, thread, group_id, &app.db).await?;
+			for thread in res.data {
+				let thread = insert_thread(None, thread, group_id, db).await?;
 				threads.push(thread);
 			}
 			let founder = users
@@ -85,7 +87,7 @@ pub(crate) async fn request_thread(
 				.ok_or("Fimfiction API error: no group founder included")?;
 			let thread = threads.into_iter().find(|thread| thread.id == thread_id);
 			if let Some(thread) = thread {
-				let data = build_thread_return(thread, app, recache).await?;
+				let data = build_thread_return(thread, api, db, recache).await?;
 				Ok((group, founder, Some(data)))
 			} else {
 				Ok((group, founder, None))
@@ -103,10 +105,10 @@ pub(crate) async fn request_thread(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 async fn build_thread_return(
-	thread: Thread, app: &AppState, recache: bool,
+	thread: Thread, api: &Request, db: &Pool<Postgres>, recache: bool,
 ) -> Result<ThreadReturn, Box<dyn std::error::Error>> {
-	let creator = request_user(thread.creator_id, app, recache).await?;
-	let last_poster = request_user(thread.last_poster_id, app, recache).await?;
+	let creator = request_user(thread.creator_id, api, db, recache).await?;
+	let last_poster = request_user(thread.last_poster_id, api, db, recache).await?;
 	Ok(ThreadReturn {
 		thread,
 		creator,

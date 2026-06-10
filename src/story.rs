@@ -16,16 +16,17 @@ use crate::utility::{
 	get_color, map_cover, map_picture, map_tags, parse_chapter_number, parse_fimfic_response,
 	parse_id, unsupported_color, unsupported_cover_opt,
 };
-use crate::{AppState, check_recache, get_variant, get_variants};
-use actix_web::web::{Data, Path, Query};
+use crate::{check_recache, get_variant, get_variants};
+use actix_web::web::{Path, Query, ThinData};
 use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
+use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::Type;
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
 
 /// Fimfiction story data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -113,7 +114,8 @@ impl From<String> for CompletionStatus {
 /// May also include an ordinal chapter number.
 #[get("/story/{id:.*}")]
 async fn get_story_endpoint(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	queries: Query<HashMap<String, String>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
@@ -126,18 +128,18 @@ async fn get_story_endpoint(
 		}
 	};
 	let chapter_id = parse_chapter_number(&path);
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/story/{path}");
 	let body = match chapter_id {
 		Some(chapter_num) => {
-			match request_story_chapters(story_id, chapter_num, &app, params.refresh).await {
+			match request_story_chapters(story_id, chapter_num, &api, &db, params.refresh).await {
 				Ok((chapter, story, user, tags)) => {
 					chapter_html_template(chapter, story, user, tags, params, link, errors)
 				}
 				Err(err) => error_html_template("story", path, err.to_string()),
 			}
 		}
-		None => match request_story(story_id, &app, params.refresh).await {
+		None => match request_story(story_id, &api, &db, params.refresh).await {
 			Ok((story, user, tags)) => story_html_template(story, user, tags, params, link, errors),
 			Err(err) => error_html_template("story", path, err.to_string()),
 		},
@@ -156,17 +158,17 @@ async fn get_story_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_story(
-	id: i32, app: &AppState, recache: bool,
+	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
 ) -> Result<(Story, User, Vec<Tag>), Box<dyn std::error::Error>> {
-	let story = get_story(id, &app.db).await?;
+	let story = get_story(id, db).await?;
 	let story = check_recache!(story, recache, app);
 	match story {
 		Some(story) => {
-			let user = request_user(story.author_id, app, recache).await?;
-			let tag_links = get_tag_links(story.id, &app.db).await?;
+			let user = request_user(story.author_id, api, db, recache).await?;
+			let tag_links = get_tag_links(story.id, db).await?;
 			let mut tags = Vec::with_capacity(tag_links.len());
 			for link in tag_links {
-				let tag = get_tag(link.tag_id, &app.db)
+				let tag = get_tag(link.tag_id, db)
 					.await?
 					.expect("Database constraint means this will never fail.");
 				tags.push(tag);
@@ -176,17 +178,17 @@ pub(crate) async fn request_story(
 		None => {
 			let fimfic =
 				format!("https://www.fimfiction.net/api/v2/stories/{id}?include=author,tags");
-			let api = parse_fimfic_response::<StoryApi<i32>>(&app.api, &fimfic).await?;
+			let api = parse_fimfic_response::<StoryApi<i32>>(api, &fimfic).await?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
-			let user = insert_user(None, author, &app.db).await?;
-			let story = insert_story(Some(id), api.data, user.id, &app.db).await?;
-			remove_tag_links(id, &app.db).await?;
+			let user = insert_user(None, author, db).await?;
+			let story = insert_story(Some(id), api.data, user.id, db).await?;
+			remove_tag_links(id, db).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
 			for tag in api_tags {
-				let tag = insert_tag(None, tag.clone(), &app.db).await?;
-				insert_tag_link(id, tag.id, &app.db).await?;
+				let tag = insert_tag(None, tag.clone(), db).await?;
+				insert_tag_link(id, tag.id, db).await?;
 				tags.push(tag);
 			}
 			Ok((story, user, tags))

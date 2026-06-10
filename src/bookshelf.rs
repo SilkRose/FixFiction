@@ -11,14 +11,15 @@ use crate::utility::{
 	check_slash, get_color, map_picture, parse_fimfic_response, parse_id, unsupported_color,
 	unsupported_cover,
 };
-use crate::{AppState, check_recache, get_variant};
-use actix_web::web::{Data, Path, Query};
+use crate::{check_recache, get_variant};
+use actix_web::web::{Path, Query, ThinData};
 use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
+use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
 
 /// Fimfiction bookshelf data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -46,7 +47,8 @@ pub(crate) struct Bookshelf {
 /// Requests a bookshelf by ID.
 #[get("/bookshelf/{id:.*}")]
 async fn get_bookshelf_endpoint(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	queries: Query<HashMap<String, String>>,
 ) -> Result<impl Responder, Box<dyn Error>> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
@@ -59,9 +61,9 @@ async fn get_bookshelf_endpoint(
 		}
 	};
 	check_slash(&mut path, bookshelf_id);
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/bookshelf/{path}");
-	let body = match request_bookshelf(bookshelf_id, &app, params.refresh).await {
+	let body = match request_bookshelf(bookshelf_id, &api, &db, params.refresh).await {
 		Ok((group, founder)) => bookshelf_html_template(group, founder, params, link, errors),
 		Err(err) => error_html_template("bookshelf", path, err.to_string()),
 	};
@@ -79,14 +81,14 @@ async fn get_bookshelf_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_bookshelf(
-	id: i32, app: &AppState, recache: bool,
+	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
 ) -> Result<(Bookshelf, Option<User>), Box<dyn std::error::Error>> {
-	let bookshelf = get_bookshelf(id, &app.db).await?;
+	let bookshelf = get_bookshelf(id, db).await?;
 	let bookshelf = check_recache!(bookshelf, recache, app);
 	match bookshelf {
 		Some(bookshelf) => {
 			let (bookshelf, user) = if let Some(user_id) = bookshelf.user_id {
-				let user = request_user(user_id, app, recache).await?;
+				let user = request_user(user_id, api, db, recache).await?;
 				(bookshelf, Some(user))
 			} else {
 				(bookshelf, None)
@@ -95,18 +97,17 @@ pub(crate) async fn request_bookshelf(
 		}
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/bookshelves/{id}?include=user");
-			let api = parse_fimfic_response::<BookshelfApi<i32>>(&app.api, &fimfic).await?;
+			let api = parse_fimfic_response::<BookshelfApi<i32>>(api, &fimfic).await?;
 			if api.data.attributes.privacy == "private" {
 				return Err("Fimfiction API Error: 4040 – Resource not found".into());
 			}
 			let user = get_variant!(api.included, ApiIncluded::Author);
 			if let Some(user) = user {
-				let user = insert_user(None, user, &app.db).await?;
-				let bookshelf =
-					insert_bookshelf(Some(id), &api.data, Some(user.id), &app.db).await?;
+				let user = insert_user(None, user, db).await?;
+				let bookshelf = insert_bookshelf(Some(id), &api.data, Some(user.id), db).await?;
 				Ok((bookshelf, Some(user)))
 			} else {
-				let bookshelf = insert_bookshelf(Some(id), &api.data, None, &app.db).await?;
+				let bookshelf = insert_bookshelf(Some(id), &api.data, None, db).await?;
 				Ok((bookshelf, None))
 			}
 		}

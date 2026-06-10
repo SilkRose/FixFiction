@@ -249,7 +249,7 @@ macro_rules! check_recache {
 		match $recache {
 			true => $item.filter(|item| {
 				Utc::now()
-					.checked_sub_signed(TimeDelta::seconds($app.cache_recache_age))
+					.checked_sub_signed(TimeDelta::seconds(60))
 					.is_some_and(|max_age| item.date_cached >= max_age)
 			}),
 			false => $item,

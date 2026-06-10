@@ -25,26 +25,14 @@ use crate::story::get_story_endpoint;
 use crate::user::get_user_endpoint;
 use actix_cors::Cors;
 use actix_web::middleware::Compress;
-use actix_web::web::Data;
+use actix_web::web::ThinData;
 use actix_web::{App, HttpServer};
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
-use sqlx::{Pool, Postgres};
 use std::env;
 use std::error::Error;
-use std::sync::Arc;
 use std::time::Duration;
-
-/// App data and variables
-#[derive(Debug, Clone)]
-pub(crate) struct AppState {
-	pub(crate) api: Request,
-	pub(crate) db: Pool<Postgres>,
-	pub(crate) gc_interval: u64,
-	pub(crate) cache_max_age: i64,
-	pub(crate) cache_recache_age: i64,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -75,17 +63,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 	sqlx::migrate!("./migrations").run(&db_pool).await?;
 
-	let app_data = AppState {
-		api,
-		db: db_pool,
-		gc_interval: 3600,
-		cache_max_age: 86400,
-		cache_recache_age: 60,
-	};
-
 	HttpServer::new(move || {
 		App::new()
-			.app_data(Data::new(Arc::new(app_data.clone())))
+			.app_data(ThinData(api.clone()))
+			.app_data(ThinData(db_pool.clone()))
 			.wrap(
 				Cors::default()
 					.allow_any_origin()
