@@ -14,7 +14,6 @@ mod thread;
 mod user;
 mod utility;
 
-use self::blog::{blog_html_template, request_blog};
 use self::error::error_html_template;
 use self::fimfiction_api::fimfic_api_headers;
 use self::group::{group_html_template, request_group};
@@ -24,6 +23,7 @@ use self::thread::{request_thread, thread_html_template};
 use self::utility::{
 	check_slash, check_thread_slash, parse_embed_parameters, parse_id, parse_thread_id,
 };
+use crate::blog::get_blog_endpoint;
 use crate::bookshelf::get_bookshelf_endpoint;
 use crate::chapter::get_chapter_endpoint;
 use crate::story::get_story_endpoint;
@@ -40,34 +40,6 @@ use std::env;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
-
-/// The `blog/` endpoint.
-///
-/// Requests a blog by ID.
-#[get("/blog/{id:.*}")]
-async fn get_blog(
-	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
-) -> Result<impl Responder, Box<dyn Error>> {
-	let mut path = path.into_inner();
-	let queries = queries.into_inner();
-	let blog_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("blog", path, err.to_string())));
-		}
-	};
-	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
-	let link = format!("https://www.fimfiction.net/blog/{path}");
-	let body = match request_blog(blog_id, &app, params.refresh).await {
-		Ok((blog, user, story)) => blog_html_template(blog, user, story, params, link, errors),
-		Err(err) => error_html_template("blog", path, err.to_string()),
-	};
-	Ok(HttpResponse::Ok()
-		.content_type("text/html; charset=utf-8")
-		.body(body))
-}
 
 /// The `group/` endpoint.
 ///
@@ -167,7 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 			.service(get_story_endpoint)
 			.service(get_chapter_endpoint)
 			.service(get_user_endpoint)
-			.service(get_blog)
+			.service(get_blog_endpoint)
 			.service(get_group)
 			.service(get_bookshelf_endpoint)
 			.service(get_oembed)

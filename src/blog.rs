@@ -1,19 +1,70 @@
 //! Request a [Blog] and to format it in HTML.
 
+use std::collections::HashMap;
+use std::error::Error;
+use std::sync::Arc;
+
 use crate::database::{get_blog, insert_blog, insert_user};
+use crate::error::error_html_template;
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::BlogApi;
 use crate::html_template::embed_html_template;
 use crate::story::{Story, request_story};
-use crate::structs::{AppState, Blog, Color, Cover, EmbedData, Parameters};
+use crate::structs::{AppState, Color, Cover, EmbedData, Parameters};
 use crate::user::{User, request_user};
 use crate::utility::{
-	get_color, map_cover, map_picture, parse_fimfic_response, unsupported_color,
-	unsupported_cover_opt,
+	get_color, map_cover, map_picture, parse_embed_parameters, parse_fimfic_response, parse_id,
+	unsupported_color, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant};
-use chrono::{TimeDelta, Utc};
+use actix_web::web::{Data, Path, Query};
+use actix_web::{HttpResponse, Responder, get};
+use chrono::{DateTime, TimeDelta, Utc};
 use pony::number_format::{FormatType, format_number_unit_metric};
+
+/// Fimfiction blog data converted into a more usable structure
+#[derive(Debug, Clone)]
+pub(crate) struct Blog {
+	pub(crate) id: i32,
+	pub(crate) title: String,
+	pub(crate) content: String,
+	pub(crate) link: String,
+	pub(crate) comments: i32,
+	pub(crate) views: i32,
+	pub(crate) author_id: i32,
+	pub(crate) tags: String,
+	pub(crate) story_id: Option<i32>,
+	pub(crate) date_posted: DateTime<Utc>,
+	pub(crate) date_cached: DateTime<Utc>,
+}
+
+/// The `blog/` endpoint.
+///
+/// Requests a blog by ID.
+#[get("/blog/{id:.*}")]
+async fn get_blog_endpoint(
+	path: Path<String>, queries: Query<HashMap<String, String>>, app: Data<Arc<AppState>>,
+) -> Result<impl Responder, Box<dyn Error>> {
+	let mut path = path.into_inner();
+	let queries = queries.into_inner();
+	let blog_id = match parse_id(&path) {
+		Ok(id) => id,
+		Err(err) => {
+			return Ok(HttpResponse::Ok()
+				.content_type("text/html; charset=utf-8")
+				.body(error_html_template("blog", path, err.to_string())));
+		}
+	};
+	let (params, errors) = parse_embed_parameters(&mut path, queries, &app.db).await;
+	let link = format!("https://www.fimfiction.net/blog/{path}");
+	let body = match request_blog(blog_id, &app, params.refresh).await {
+		Ok((blog, user, story)) => blog_html_template(blog, user, story, params, link, errors),
+		Err(err) => error_html_template("blog", path, err.to_string()),
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(body))
+}
 
 /// Requests a [Blog] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
 ///
