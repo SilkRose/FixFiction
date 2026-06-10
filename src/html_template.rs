@@ -13,7 +13,7 @@ pub(crate) fn embed_html_template(embed: EmbedData) -> String {
 		}
 	}
 	html! {
-		(DOCTYPE) html lang = "en" {
+		(DOCTYPE) html lang = "en" style = "color-scheme: light dark;" {
 			head {
 				(PreEscaped ("<!-- FixFiction: https://github.com/SilkRose/FixFiction -->"));
 				(PreEscaped ("<!-- Pinkie Pie is best pony! -->"));
