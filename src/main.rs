@@ -10,7 +10,7 @@ mod html_template;
 mod oembed;
 mod parameters;
 mod story;
-mod structs;
+mod tag;
 mod thread;
 mod user;
 mod utility;

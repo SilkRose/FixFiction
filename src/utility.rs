@@ -1,7 +1,7 @@
 //! Various utility functions for use in other modules.
 
 use crate::fimfiction_api::error::FimficError;
-use crate::structs::Tag;
+use crate::tag::Tag;
 use chrono::{DateTime, FixedOffset};
 use pony::http::{Request, api_get_request};
 use pony::log::{FileLimit, LogLevel, Logger};

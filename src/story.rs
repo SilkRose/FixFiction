@@ -10,7 +10,7 @@ use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
-use crate::structs::Tag;
+use crate::tag::Tag;
 use crate::user::{User, request_user};
 use crate::utility::{
 	get_color, map_cover, map_picture, map_tags, parse_chapter_number, parse_fimfic_response,

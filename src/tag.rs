@@ -1,4 +1,4 @@
-//! Common structs used in other modules.
+//! [Tag] and [TagLink] data structure and related code
 
 use chrono::{DateTime, Utc};
 use core::str;
