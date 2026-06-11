@@ -41,5 +41,6 @@ pub(crate) struct BlogAttributes<T = u32> {
 /// Relational properties of a blog
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct BlogRelationships {
+	pub(crate) author: RelationshipData,
 	pub(crate) tagged_story: RelationshipData,
 }

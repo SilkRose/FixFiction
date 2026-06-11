@@ -1,16 +1,16 @@
 //! Request a [Blog] and to format it in HTML.
 
 use crate::database::{get_blog, insert_blog, insert_user};
-use crate::error::{Result, error_html_template};
+use crate::error::{Error, Result, error_html_template};
 use crate::fimfiction_api::ApiIncluded;
-use crate::fimfiction_api::blog::BlogApi;
+use crate::fimfiction_api::blog::{BlogApi, BlogData};
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::story::{Story, request_story};
 use crate::user::{User, request_user};
 use crate::utility::{
-	get_color, map_cover, map_picture, parse_fimfic_response, parse_id, unsupported_color,
-	unsupported_cover_opt,
+	clean_content, get_color, map_cover, map_picture, parse_fimfic_response, parse_id,
+	trim_content, unsupported_color, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant};
 use actix_web::web::{Path, Query, ThinData};
@@ -18,6 +18,7 @@ use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
+use pony::word_stats::word_count;
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 
@@ -35,6 +36,29 @@ pub(crate) struct Blog {
 	pub(crate) story_id: Option<i32>,
 	pub(crate) date_posted: DateTime<Utc>,
 	pub(crate) date_cached: DateTime<Utc>,
+}
+
+impl TryFrom<BlogData<i32>> for Blog {
+	type Error = Error;
+	fn try_from(value: BlogData<i32>) -> Result<Self> {
+		let blog = Self {
+			id: value.id.parse()?,
+			title: value.attributes.title,
+			content: value.attributes.content,
+			link: value.meta.url,
+			comments: value.attributes.num_comments,
+			views: value.attributes.num_views,
+			author_id: value.relationships.author.data.id.parse()?,
+			tags: value.attributes.tags.join(", "),
+			story_id: (value.relationships.tagged_story.data.id != "0")
+				.then_some(value.relationships.tagged_story.data.id.parse::<i32>()?),
+			date_posted: DateTime::parse_from_rfc3339(&value.attributes.date_posted)
+				.map_err(|_| "FixFiction Error: failed to parse date posted")?
+				.into(),
+			date_cached: Utc::now(),
+		};
+		Ok(blog)
+	}
 }
 
 /// The `blog/` endpoint.
@@ -91,7 +115,7 @@ pub(crate) async fn request_blog(
 		}
 		None => {
 			let fimfic = format!(
-				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,site_post,tags,tagged_story"
+				"https://www.fimfiction.net/api/v2/blog-posts/{id}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,site_post,tags,author,tagged_story"
 			);
 			let res = parse_fimfic_response::<BlogApi<i32>>(api, &fimfic).await?;
 			let author = get_variant!(res.included, ApiIncluded::Author)
@@ -104,7 +128,8 @@ pub(crate) async fn request_blog(
 			} else {
 				(None, insert_user(None, author, db).await?)
 			};
-			let blog = insert_blog(Some(id), &res.data, user.id, story_id, db).await?;
+			let blog = Blog::try_from(res.data)?;
+			insert_blog(&blog, db).await?;
 			Ok((blog, user, story))
 		}
 	}
@@ -172,18 +197,25 @@ pub(crate) fn blog_html_template(
 	let site_name = if parameters.stats {
 		let time = blog.date_posted.format("%a %b %e %Y").to_string();
 		format!(
-			"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬",
+			"Fimfiction - Posted: {time} 📅\nViews: {} 📈 Comments: {} 💬 Words: {} 📝",
 			format_number_unit_metric(blog.views as f64, FormatType::MetricPrefix, 1, true)
 				.unwrap(),
 			format_number_unit_metric(blog.comments as f64, FormatType::MetricPrefix, 1, true)
 				.unwrap(),
+			format_number_unit_metric(
+				word_count(&blog.content).unwrap() as f64,
+				FormatType::MetricPrefix,
+				1,
+				true
+			)
+			.unwrap(),
 		)
 	} else {
 		"Fimfiction".to_string()
 	};
 	let data = EmbedData {
-		title: blog.title,
-		description: blog.content,
+		title: clean_content(blog.title),
+		description: trim_content(blog.content, true),
 		link,
 		color,
 		cover,

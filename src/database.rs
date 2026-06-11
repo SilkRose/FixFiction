@@ -4,7 +4,6 @@ use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
 use crate::error::Result;
-use crate::fimfiction_api::blog::BlogData;
 use crate::fimfiction_api::bookshelf::BookshelfData;
 use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::group::GroupData;
@@ -37,17 +36,13 @@ pub(crate) async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog
 }
 
 /// Inserts a blog into the database, converting it from [BlogData] to a [Blog]
-pub(crate) async fn insert_blog(
-	id: Option<i32>, data: &BlogData<i32>, author_id: i32, story_id: Option<i32>,
-	db: &Pool<Postgres>,
-) -> Result<Blog> {
-	sqlx::query_as!(
-		Blog,
+pub(crate) async fn insert_blog(blog: &Blog, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		"INSERT INTO Blogs 
 			(id, title, content, link, comments, views,
-			author_id, tags, story_id, date_posted)
+			author_id, tags, story_id, date_posted, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT(id) DO UPDATE SET
 			title = EXCLUDED.title,
 			content = EXCLUDED.content,
@@ -58,26 +53,22 @@ pub(crate) async fn insert_blog(
 			tags = EXCLUDED.tags,
 			story_id = EXCLUDED.story_id,
 			date_posted = EXCLUDED.date_posted,
-			date_cached = now()
-		RETURNING
-			id, title, content, link, comments, views,
-			author_id, tags, story_id, date_posted,
-			date_cached;",
-		id.unwrap_or(data.id.parse::<i32>()?),
-		clean_content(data.attributes.title.clone()),
-		trim_content(data.attributes.content.clone(), true),
-		data.meta.url,
-		data.attributes.num_comments,
-		data.attributes.num_views,
-		author_id,
-		data.attributes.tags.join(", "),
-		story_id,
-		DateTime::parse_from_rfc3339(&data.attributes.date_posted)
-			.map_err(|_| "FixFiction Error: failed to parse date posted")?
+			date_cached = EXCLUDED.date_cached;",
+		blog.id,
+		blog.title,
+		blog.content,
+		blog.link,
+		blog.comments,
+		blog.views,
+		blog.author_id,
+		blog.tags,
+		blog.story_id,
+		blog.date_posted,
+		blog.date_cached,
 	)
-	.fetch_one(db)
-	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.execute(db)
+	.await?;
+	Ok(())
 }
 
 /// Selects a [User] from the database
