@@ -1,7 +1,7 @@
 //! Request a [Blog] and to format it in HTML.
 
 use crate::database::{get_blog, insert_blog, insert_user};
-use crate::error::{Error, Result, error_html_template};
+use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::{BlogApi, BlogData};
 use crate::html_template::{EmbedData, embed_html_template};
@@ -68,23 +68,16 @@ impl TryFrom<BlogData<i32>> for Blog {
 async fn get_blog_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder> {
+) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
-	let blog_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("blog", path, err.to_string())));
-		}
-	};
+	let blog_id = parse_id(&path).map_embed_err("blog", &path)?;
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/blog/{path}");
-	let body = match request_blog(blog_id, &api, &db, params.refresh).await {
-		Ok((blog, user, story)) => blog_html_template(blog, user, story, params, link, errors),
-		Err(err) => error_html_template("blog", path, err.to_string()),
-	};
+	let (blog, user, story) = request_blog(blog_id, &api, &db, params.refresh)
+		.await
+		.map_embed_err("blog", &path)?;
+	let body = blog_html_template(blog, user, story, params, link, errors);
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(body))

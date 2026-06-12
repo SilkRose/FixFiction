@@ -2,6 +2,7 @@
 
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::utility::LOG;
+use actix_web::error::InternalError;
 use actix_web::http::StatusCode;
 use actix_web::http::header::ContentType;
 use actix_web::{HttpResponse, ResponseError};
@@ -11,18 +12,21 @@ use std::result::Result as StdResult;
 
 pub(crate) type Error = Box<dyn StdError>;
 pub(crate) type Result<T, E = Error> = StdResult<T, E>;
+pub(crate) type EmbedResult<T> = Result<T, actix_web::Error>;
 
 pub(crate) trait EmbedError<T> {
-	fn map_embed_err(self, endpoint: &str, link: &str) -> Result<T>;
+	fn map_embed_err(self, endpoint: &str, link: &str) -> EmbedResult<T>;
 }
 
 impl<T> EmbedError<T> for Result<T> {
-	fn map_embed_err(self, endpoint: &str, link: &str) -> Result<T> {
-		if let Err(ref error) = self {
+	fn map_embed_err(self, endpoint: &str, link: &str) -> EmbedResult<T> {
+		if let Err(error) = self {
 			let body = error_html_template(endpoint, link.to_string(), error.to_string());
-			return Err(Box::new(EmbedErrorType::new(body)));
+			let err =
+				InternalError::from_response(error, EmbedErrorType::new(body).error_response());
+			return Err(err.into());
 		}
-		self
+		Ok(self?)
 	}
 }
 
@@ -51,8 +55,8 @@ impl ResponseError for EmbedErrorType {
 	}
 
 	fn error_response(&self) -> HttpResponse {
-		HttpResponse::Ok()
-			.content_type("text/html; charset=utf-8")
+		HttpResponse::build(self.status_code())
+			.content_type(ContentType::html())
 			.body(self.to_string())
 	}
 }
