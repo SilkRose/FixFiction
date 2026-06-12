@@ -2,7 +2,7 @@
 
 use crate::check_recache;
 use crate::database::{get_user, insert_user};
-use crate::error::{Result, error_html_template};
+use crate::error::{EmbedError, EmbedResult, Result};
 use crate::fimfiction_api::user::UserApi;
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
@@ -41,24 +41,17 @@ pub(crate) struct User {
 async fn get_user_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder> {
+) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
-	let user_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("user", path, err.to_string())));
-		}
-	};
+	let user_id = parse_id(&path).map_embed_err("user", &path)?;
 	check_slash(&mut path, user_id);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/user/{path}");
-	let body = match request_user(user_id, &api, &db, params.refresh).await {
-		Ok(user) => user_html_template(user, params, link, errors),
-		Err(err) => error_html_template("user", path, err.to_string()),
-	};
+	let user = request_user(user_id, &api, &db, params.refresh)
+		.await
+		.map_embed_err("user", &path)?;
+	let body = user_html_template(user, params, link, errors);
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(body))

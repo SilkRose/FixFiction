@@ -20,13 +20,15 @@ pub(crate) trait EmbedError<T> {
 
 impl<T> EmbedError<T> for Result<T> {
 	fn map_embed_err(self, endpoint: &str, link: &str) -> EmbedResult<T> {
-		if let Err(error) = self {
-			let body = error_html_template(endpoint, link.to_string(), error.to_string());
-			let err =
-				InternalError::from_response(error, EmbedErrorType::new(body).error_response());
-			return Err(err.into());
+		match self {
+			Ok(value) => Ok(value),
+			Err(error) => {
+				let body = error_html_template(endpoint, link, error.to_string());
+				let res = EmbedErrorType::new(body).error_response();
+				let err = InternalError::from_response(error, res);
+				Err(err.into())
+			}
 		}
-		Ok(self?)
 	}
 }
 
@@ -62,7 +64,7 @@ impl ResponseError for EmbedErrorType {
 }
 
 /// Formats errors to an HTML string for embedding.
-pub(crate) fn error_html_template(endpoint: &str, link: String, errors: String) -> String {
+pub(crate) fn error_html_template(endpoint: &str, link: &str, errors: String) -> String {
 	let link = format!("https://www.fimfiction.net/{endpoint}/{link}");
 	let desc = format!(
 		"{errors}\n\nThe link above still redirects to Fimfiction. If this error is in error, please report it to Silk Rose on Fimfiction, or on the FixFiction GitHub issues page."

@@ -1,7 +1,7 @@
 //! Request a [Bookshelf] and to format it in HTML.
 
 use crate::database::{get_bookshelf, insert_bookshelf, insert_user};
-use crate::error::{Result, error_html_template};
+use crate::error::{EmbedError, EmbedResult, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::bookshelf::BookshelfApi;
 use crate::html_template::{EmbedData, embed_html_template};
@@ -48,24 +48,17 @@ pub(crate) struct Bookshelf {
 async fn get_bookshelf_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder> {
+) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
-	let bookshelf_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("bookshelf", path, err.to_string())));
-		}
-	};
+	let bookshelf_id = parse_id(&path).map_embed_err("bookshelf", &path)?;
 	check_slash(&mut path, bookshelf_id);
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/bookshelf/{path}");
-	let body = match request_bookshelf(bookshelf_id, &api, &db, params.refresh).await {
-		Ok((group, founder)) => bookshelf_html_template(group, founder, params, link, errors),
-		Err(err) => error_html_template("bookshelf", path, err.to_string()),
-	};
+	let (group, founder) = request_bookshelf(bookshelf_id, &api, &db, params.refresh)
+		.await
+		.map_embed_err("bookshelf", &path)?;
+	let body = bookshelf_html_template(group, founder, params, link, errors);
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(body))

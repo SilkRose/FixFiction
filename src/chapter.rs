@@ -4,7 +4,7 @@ use crate::database::{
 	get_chapter, get_story_chapter, insert_chapter, insert_story, insert_tag, insert_tag_link,
 	insert_user, remove_tag_links,
 };
-use crate::error::{Result, error_html_template};
+use crate::error::{EmbedError, EmbedResult, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::chapter::ChapterApi;
 use crate::fimfiction_api::story::StoryApi;
@@ -49,25 +49,16 @@ pub(crate) struct Chapter {
 async fn get_chapter_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder> {
+) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
-	let chapter_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("chapter", path, err.to_string())));
-		}
-	};
+	let chapter_id = parse_id(&path).map_embed_err("chapter", &path)?;
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/chapter/{path}");
-	let body = match request_chapter(chapter_id, &api, &db, params.refresh).await {
-		Ok((chapter, story, user, tags)) => {
-			chapter_html_template(chapter, story, user, tags, params, link, errors)
-		}
-		Err(err) => error_html_template("chapter", path, err.to_string()),
-	};
+	let (chapter, story, user, tags) = request_chapter(chapter_id, &api, &db, params.refresh)
+		.await
+		.map_embed_err("chapter", &path)?;
+	let body = chapter_html_template(chapter, story, user, tags, params, link, errors);
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(body))

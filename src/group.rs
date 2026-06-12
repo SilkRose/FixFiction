@@ -1,7 +1,7 @@
 //! Request a [Group] and to format it in HTML.
 
 use crate::database::{get_group, insert_group, insert_user};
-use crate::error::{Result, error_html_template};
+use crate::error::{EmbedError, EmbedResult, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::GroupApi;
 use crate::html_template::{EmbedData, embed_html_template};
@@ -46,17 +46,10 @@ pub(crate) struct Group {
 async fn get_group_endpoint(
 	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
-) -> Result<impl Responder> {
+) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
 	let queries = queries.into_inner();
-	let group_id = match parse_id(&path) {
-		Ok(id) => id,
-		Err(err) => {
-			return Ok(HttpResponse::Ok()
-				.content_type("text/html; charset=utf-8")
-				.body(error_html_template("group", path, err.to_string())));
-		}
-	};
+	let group_id = parse_id(&path).map_embed_err("group", &path)?;
 	let thread_id = parse_thread_id(&path);
 	if let Some(thread_id) = thread_id {
 		check_thread_slash(&mut path, thread_id);
@@ -65,25 +58,22 @@ async fn get_group_endpoint(
 	}
 	let (params, errors) = parse_embed_parameters(&mut path, queries, &db).await;
 	let link = format!("https://www.fimfiction.net/group/{path}");
-
-	let body = match thread_id {
-		Some(thread_id) => {
-			match request_thread(group_id, thread_id, &api, &db, params.refresh).await {
-				Ok((group, founder, thread_data)) => match thread_data {
-					Some(thread_data) => {
-						thread_html_template(group, founder, thread_data, params, link, errors)
-					}
-					None => group_html_template(group, founder, params, link, errors),
-				},
-				Err(err) => error_html_template("group", path, err.to_string()),
-			}
+	let body = if let Some(thread_id) = thread_id {
+		let (group, founder, thread_data) =
+			request_thread(group_id, thread_id, &api, &db, params.refresh)
+				.await
+				.map_embed_err("group", &path)?;
+		if let Some(thread_data) = thread_data {
+			thread_html_template(group, founder, thread_data, params, link, errors)
+		} else {
+			group_html_template(group, founder, params, link, errors)
 		}
-		None => match request_group(group_id, &api, &db, params.refresh).await {
-			Ok((group, founder)) => group_html_template(group, founder, params, link, errors),
-			Err(err) => error_html_template("group", path, err.to_string()),
-		},
+	} else {
+		let (group, founder) = request_group(group_id, &api, &db, params.refresh)
+			.await
+			.map_embed_err("group", &path)?;
+		group_html_template(group, founder, params, link, errors)
 	};
-
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(body))
