@@ -39,23 +39,23 @@ pub(crate) fn embed_html_template(embed: EmbedData) -> String {
 					(PreEscaped (format!("<!-- {comment} -->")));
 				}
 				@if let Some(color) = embed.color {
-					meta name = "theme-color" content = { "#" (color) } "/";
+					meta name = "theme-color" content = { "#" (color) };
 				}
-				link rel = "canonical" href = (embed.link) "/";
+				link rel = "canonical" href = (embed.link);
 				script {
 					(PreEscaped (format!(r#"window.location.href = "{}" + window.location.hash;"#, embed.link)))
 				};
-				meta http-equiv = "refresh" content={ "0;url=" (embed.link) } "/";
-				meta property = "og:title" content = (embed.title) "/";
-				meta property = "og:description" content = (embed.description) "/";
+				meta http-equiv = "refresh" content={ "0;url=" (embed.link) };
+				meta property = "og:title" content = (embed.title);
+				meta property = "og:description" content = (embed.description);
 				@if let Some(cover) = embed.cover {
-					meta property = "og:image" content = (cover) "/";
+					meta property = "og:image" content = (cover);
 				}
-				meta property = "og:url" content = (embed.link) "/";
-				meta property = "og:type" content = (embed.open_graph_type) "/";
+				meta property = "og:url" content = (embed.link);
+				meta property = "og:type" content = (embed.open_graph_type);
 				@if let Some(property) = embed.open_graph_property {
 					@if let Some(ref username) = embed.user_name {
-						meta property = (property) content = (username) "/";
+						meta property = (property) content = (username);
 					}
 				};
 				@let site_name = if !embed.errors.is_empty() {
@@ -63,9 +63,9 @@ pub(crate) fn embed_html_template(embed: EmbedData) -> String {
 				} else {
 					embed.site_name
 				};
-				meta property = "og:site_name" content = (site_name) "/";
-				meta property = "twitter:site" content = "fimfiction" "/";
-				meta property = "twitter:card" content = "summary" "/";
+				meta property = "og:site_name" content = (site_name);
+				meta property = "twitter:site" content = "fimfiction";
+				meta property = "twitter:card" content = "summary";
 				@let encode = encode_url(
 					&site_name,
 					&embed.site_url,
@@ -76,8 +76,8 @@ pub(crate) fn embed_html_template(embed: EmbedData) -> String {
 					rel = "alternate"
 					type = "application/json+oembed"
 					href = { "https://www.fixfiction.net/oembed?" (encode) }
-					title = (embed.title) "/";
-				};
+					title = (embed.title);
+			};
 			body {};
 		};
 	}
