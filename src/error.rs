@@ -10,15 +10,21 @@ use std::error::Error as StdError;
 use std::fmt::Display;
 use std::result::Result as StdResult;
 
+/// Custom error type for use in FixFiction
 pub(crate) type Error = Box<dyn StdError>;
+/// Custom result type for use in FixFiction
 pub(crate) type Result<T, E = Error> = StdResult<T, E>;
+/// Custom result type for embed endpoints
 pub(crate) type EmbedResult<T> = Result<T, actix_web::Error>;
 
+/// Embed error trait fo converting errors into valid HTML embed strings
 pub(crate) trait EmbedError<T> {
+	/// Maps an embed error into a valid HTML string
 	fn map_embed_err(self, endpoint: &str, link: &str) -> EmbedResult<T>;
 }
 
 impl<T> EmbedError<T> for Result<T> {
+	/// Maps an embed error into a valid HTML string
 	fn map_embed_err(self, endpoint: &str, link: &str) -> EmbedResult<T> {
 		match self {
 			Ok(value) => Ok(value),
@@ -32,13 +38,15 @@ impl<T> EmbedError<T> for Result<T> {
 	}
 }
 
+/// Private type for holding embed error HTML
 #[derive(Debug)]
-pub(crate) struct EmbedErrorType {
+struct EmbedErrorType {
 	inner: String,
 }
 
 impl EmbedErrorType {
-	pub fn new(body: String) -> Self {
+	/// Creates a new error embed with the HTML body provided
+	fn new(body: String) -> Self {
 		EmbedErrorType { inner: body }
 	}
 }
@@ -46,16 +54,19 @@ impl EmbedErrorType {
 impl std::error::Error for EmbedErrorType {}
 
 impl Display for EmbedErrorType {
+	/// Writes the inner error to the standard formatter
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_str(&self.inner)
 	}
 }
 
 impl ResponseError for EmbedErrorType {
+	/// Returns a 200. Embed errors always succeed to make sure the embed shows a message.
 	fn status_code(&self) -> StatusCode {
 		StatusCode::OK
 	}
 
+	/// Returns a complete error response with a 200 status
 	fn error_response(&self) -> HttpResponse {
 		HttpResponse::build(self.status_code())
 			.content_type(ContentType::html())
