@@ -8,7 +8,8 @@ use pony::http::{Request, api_get_request};
 use pony::log::{FileLimit, LogLevel, Logger};
 use rand::RngExt;
 use regex::Regex;
-use serde::de::DeserializeOwned;
+use serde::de::{DeserializeOwned, Error};
+use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
@@ -302,4 +303,13 @@ pub(crate) fn unsupported_color(
 ) -> Option<String> {
 	errors.push(format!("Unsupported color option: {option}"));
 	Some(res)
+}
+
+pub fn i32_string<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let id = String::deserialize(deserializer)?;
+	id.parse::<i32>()
+		.map_err(|_| D::Error::custom(format!("Failed to parse string to integer: {id}")))
 }
