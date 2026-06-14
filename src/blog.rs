@@ -119,7 +119,9 @@ pub(crate) async fn request_blog(
 				let (story, user, _tags) = request_story(story_id, api, db, recache).await?;
 				(Some(story), user)
 			} else {
-				(None, insert_user(None, author, db).await?)
+				let user = User::try_from(author.clone())?;
+				insert_user(&user, db).await?;
+				(None, user)
 			};
 			let blog = Blog::try_from(res.data)?;
 			insert_blog(&blog, db).await?;

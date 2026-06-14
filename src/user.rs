@@ -2,8 +2,8 @@
 
 use crate::check_recache;
 use crate::database::{get_user, insert_user};
-use crate::error::{EmbedError, EmbedResult, Result};
-use crate::fimfiction_api::user::UserApi;
+use crate::error::{EmbedError, EmbedResult, Error, Result};
+use crate::fimfiction_api::user::{UserApi, UserData};
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::utility::{
@@ -32,6 +32,37 @@ pub(crate) struct User {
 	pub(crate) color_hex: String,
 	pub(crate) date_joined: DateTime<Utc>,
 	pub(crate) date_cached: DateTime<Utc>,
+}
+
+impl TryFrom<UserData<i32>> for User {
+	type Error = Error;
+	fn try_from(value: UserData<i32>) -> Result<Self> {
+		let pfp_url = (!value.attributes.avatar.r64.ends_with("none_64.png")).then_some(
+			value
+				.attributes
+				.avatar
+				.r256
+				.trim_end_matches("-256")
+				.to_string(),
+		);
+		let hex = value.attributes.color.hex.trim_start_matches("#");
+		let user = Self {
+			id: value.id.parse::<i32>()?,
+			name: value.attributes.name,
+			bio: value.attributes.bio,
+			link: value.meta.url,
+			followers: value.attributes.num_followers,
+			stories: value.attributes.num_stories,
+			blogs: value.attributes.num_blog_posts,
+			profile_pic_url: pfp_url,
+			color_hex: hex.to_string(),
+			date_joined: DateTime::parse_from_rfc3339(&value.attributes.date_joined)
+				.map_err(|_| "FixFiction Error: failed to parse date joined")?
+				.into(),
+			date_cached: Utc::now(),
+		};
+		Ok(user)
+	}
 }
 
 /// The `user/` endpoint.
@@ -75,7 +106,9 @@ pub(crate) async fn request_user(
 		None => {
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
 			let api = parse_fimfic_response::<UserApi<i32>>(api, &fimfic).await?;
-			insert_user(Some(id), &api.data, db).await
+			let user = User::try_from(api.data)?;
+			insert_user(&user, db).await?;
+			Ok(user)
 		}
 	}
 }

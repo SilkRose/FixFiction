@@ -73,7 +73,8 @@ pub(crate) async fn request_thread(
 				.ok_or("Fimfiction API error: no group included")?;
 			let mut users = Vec::new();
 			for user in get_variants!(res.included, ApiIncluded::Author) {
-				let user = insert_user(None, user, db).await?;
+				let user = User::try_from(user.clone())?;
+				insert_user(&user, db).await?;
 				users.push(user);
 			}
 			let group = insert_group(Some(group_id), group, db).await?;

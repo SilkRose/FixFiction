@@ -92,8 +92,9 @@ pub(crate) async fn request_chapter(
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
-			let author = insert_user(None, author, db).await?;
-			let story = insert_story(None, story.clone(), author.id, db).await?;
+			let user = User::try_from(author.clone())?;
+			insert_user(&user, db).await?;
+			let story = insert_story(None, story.clone(), user.id, db).await?;
 			remove_tag_links(story.id, db).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
 			for tag in api_tags {
@@ -102,7 +103,7 @@ pub(crate) async fn request_chapter(
 				tags.push(tag);
 			}
 			let chapter = insert_chapter(Some(id), api.data, story.id, db).await?;
-			Ok((chapter, story, author, tags))
+			Ok((chapter, story, user, tags))
 		}
 	}
 }
@@ -132,8 +133,9 @@ pub(crate) async fn request_story_chapters(
 			let api = parse_fimfic_response::<StoryApi<i32>>(api, &fimfic).await?;
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
-			let author = insert_user(None, author, db).await?;
-			let story = insert_story(None, api.data, author.id, db).await?;
+			let user = User::try_from(author.clone())?;
+			insert_user(&user, db).await?;
+			let story = insert_story(None, api.data, user.id, db).await?;
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
 			remove_tag_links(story_id, db).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
@@ -155,7 +157,7 @@ pub(crate) async fn request_story_chapters(
 				.into_iter()
 				.find(|chapter| chapter.chapter_num == chapter_num)
 				.ok_or("FixFiction error: chapter not found")?;
-			Ok((chapter, story, author, tags))
+			Ok((chapter, story, user, tags))
 		}
 	}
 }

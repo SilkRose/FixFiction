@@ -102,9 +102,10 @@ pub(crate) async fn request_group(
 			let api = parse_fimfic_response::<GroupApi<i32>>(api, &fimfic).await?;
 			let founder = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no founder included")?;
-			let founder = insert_user(None, founder, db).await?;
+			let user = User::try_from(founder.clone())?;
+			insert_user(&user, db).await?;
 			let group = insert_group(Some(id), &api.data, db).await?;
-			Ok((group, founder))
+			Ok((group, user))
 		}
 	}
 }

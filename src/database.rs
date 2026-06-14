@@ -10,7 +10,6 @@ use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::thread::ThreadData;
-use crate::fimfiction_api::user::UserData;
 use crate::group::Group;
 use crate::story::{CompletionStatus, ContentRating, Story};
 use crate::tag::{Tag, TagLink, TagType};
@@ -88,16 +87,13 @@ pub(crate) async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User
 }
 
 /// Inserts a user into the database, converting it from [UserData] to a [User]
-pub(crate) async fn insert_user(
-	id: Option<i32>, data: &UserData<i32>, db: &Pool<Postgres>,
-) -> Result<User> {
-	sqlx::query_as!(
-		User,
+pub(crate) async fn insert_user(user: &User, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		"INSERT INTO Authors
-			(id, name, bio, link, followers, stories,
-			blogs, profile_pic_url, color_hex, date_joined)
+			(id, name, bio, link, followers, stories, blogs,
+			profile_pic_url, color_hex, date_joined, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT(id) DO UPDATE SET
 			name = EXCLUDED.name,
 			bio = EXCLUDED.bio,
@@ -108,32 +104,22 @@ pub(crate) async fn insert_user(
 			profile_pic_url = EXCLUDED.profile_pic_url,
 			color_hex = EXCLUDED.color_hex,
 			date_joined = EXCLUDED.date_joined,
-			date_cached = now()
-		RETURNING
-			id, name, bio, link, followers,
-			stories, blogs, profile_pic_url,
-			color_hex, date_joined, date_cached;",
-		id.unwrap_or(data.id.parse::<i32>()?),
-		clean_content(data.attributes.name.clone()),
-		clean_content(data.attributes.bio.clone()),
-		data.meta.url,
-		data.attributes.num_followers,
-		data.attributes.num_stories,
-		data.attributes.num_blog_posts,
-		(!data.attributes.avatar.r64.ends_with("none_64.png")).then_some(
-			data.attributes
-				.avatar
-				.r256
-				.trim_end_matches("-256")
-				.to_string(),
-		),
-		data.attributes.color.hex.trim_start_matches("#"),
-		DateTime::parse_from_rfc3339(&data.attributes.date_joined)
-			.map_err(|_| "FixFiction Error: failed to parse date joined")?
+			date_cached = EXCLUDED.date_cached;",
+		user.id,
+		user.name,
+		user.bio,
+		user.link,
+		user.followers,
+		user.stories,
+		user.blogs,
+		user.profile_pic_url,
+		user.color_hex,
+		user.date_joined,
+		user.date_cached,
 	)
-	.fetch_one(db)
-	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.execute(db)
+	.await?;
+	Ok(())
 }
 
 /// Selects a [Story] from the database

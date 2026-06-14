@@ -95,7 +95,8 @@ pub(crate) async fn request_bookshelf(
 			}
 			let user = get_variant!(api.included, ApiIncluded::Author);
 			if let Some(user) = user {
-				let user = insert_user(None, user, db).await?;
+				let user = User::try_from(user.clone())?;
+				insert_user(&user, db).await?;
 				let bookshelf = insert_bookshelf(Some(id), &api.data, Some(user.id), db).await?;
 				Ok((bookshelf, Some(user)))
 			} else {

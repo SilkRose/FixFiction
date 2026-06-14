@@ -172,7 +172,8 @@ pub(crate) async fn request_story(
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
-			let user = insert_user(None, author, db).await?;
+			let user = User::try_from(author.clone())?;
+			insert_user(&user, db).await?;
 			let story = insert_story(Some(id), api.data, user.id, db).await?;
 			remove_tag_links(id, db).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
