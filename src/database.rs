@@ -34,7 +34,7 @@ pub(crate) async fn get_blog(id: i32, db: &Pool<Postgres>) -> Result<Option<Blog
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a blog into the database, converting it from [BlogData] to a [Blog]
+/// Inserts a [Blog] into the database
 pub(crate) async fn insert_blog(blog: &Blog, db: &Pool<Postgres>) -> Result<()> {
 	sqlx::query!(
 		"INSERT INTO Blogs 
@@ -86,7 +86,7 @@ pub(crate) async fn get_user(id: i32, db: &Pool<Postgres>) -> Result<Option<User
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a user into the database, converting it from [UserData] to a [User]
+/// Inserts a [User] into the database
 pub(crate) async fn insert_user(user: &User, db: &Pool<Postgres>) -> Result<()> {
 	sqlx::query!(
 		"INSERT INTO Authors
