@@ -1,9 +1,9 @@
 //! Request a [Bookshelf] and to format it in HTML.
 
 use crate::database::{get_bookshelf, insert_bookshelf, insert_user};
-use crate::error::{EmbedError, EmbedResult, Result};
+use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
-use crate::fimfiction_api::bookshelf::BookshelfApi;
+use crate::fimfiction_api::bookshelf::{BookshelfApi, BookshelfData};
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::user::{User, request_user};
@@ -39,6 +39,43 @@ pub(crate) struct Bookshelf {
 	pub(crate) date_created: DateTime<Utc>,
 	pub(crate) date_modified: DateTime<Utc>,
 	pub(crate) date_cached: DateTime<Utc>,
+}
+
+impl TryFrom<BookshelfData<i32>> for Bookshelf {
+	type Error = Error;
+	fn try_from(value: BookshelfData<i32>) -> Result<Self> {
+		let icon_link = format!(
+			"https://raw.githubusercontent.com/SilkRose/Fimfiction-bookshelf-icons/refs/heads/mane/icons/{}/{}/{}.png",
+			value.attributes.color.trim_start_matches("#"),
+			value.attributes.icon.r#type,
+			value.attributes.icon.data.trim_start_matches("&#x")
+		);
+		let bookshelf = Self {
+			id: value.id.parse()?,
+			name: value.attributes.name,
+			description: value.attributes.description,
+			link: value.meta.url,
+			color: value.attributes.color.trim_start_matches("#").to_string(),
+			icon_url: icon_link,
+			stories: value.attributes.num_stories,
+			num_unread: value.attributes.num_unread,
+			track_unread: value.attributes.track_unread,
+			quick_add: value.attributes.quick_add,
+			email_update: value.attributes.email_on_update,
+			user_id: value
+				.relationships
+				.map(|rel| rel.user.data.id.parse().unwrap()),
+			order_pos: value.attributes.order,
+			date_created: DateTime::parse_from_rfc3339(&value.attributes.date_created)
+				.map_err(|_| "FixFiction Error: failed to parse date created")?
+				.into(),
+			date_modified: DateTime::parse_from_rfc3339(&value.attributes.date_modified)
+				.map_err(|_| "FixFiction Error: failed to parse date modified")?
+				.into(),
+			date_cached: Utc::now(),
+		};
+		Ok(bookshelf)
+	}
 }
 
 /// The `bookshelf/` endpoint.
@@ -94,13 +131,13 @@ pub(crate) async fn request_bookshelf(
 				return Err("Fimfiction API Error: 4040 – Resource not found".into());
 			}
 			let user = get_variant!(api.included, ApiIncluded::Author);
+			let bookshelf = Bookshelf::try_from(api.data)?;
+			insert_bookshelf(&bookshelf, db).await?;
 			if let Some(user) = user {
 				let user = User::try_from(user.clone())?;
 				insert_user(&user, db).await?;
-				let bookshelf = insert_bookshelf(Some(id), &api.data, Some(user.id), db).await?;
 				Ok((bookshelf, Some(user)))
 			} else {
-				let bookshelf = insert_bookshelf(Some(id), &api.data, None, db).await?;
 				Ok((bookshelf, None))
 			}
 		}

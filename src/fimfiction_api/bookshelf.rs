@@ -56,5 +56,5 @@ pub(crate) struct BookshelfIcon {
 /// Relational properties of a bookshelf.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct BookshelfRelationship {
-	user: RelationshipData,
+	pub(crate) user: RelationshipData,
 }

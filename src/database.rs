@@ -4,7 +4,6 @@ use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
 use crate::error::Result;
-use crate::fimfiction_api::bookshelf::BookshelfData;
 use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
@@ -370,18 +369,15 @@ pub(crate) async fn get_bookshelf(id: i32, db: &Pool<Postgres>) -> Result<Option
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a bookshelf into the database, converting it from [BookshelfData] to a [Bookshelf]
-pub(crate) async fn insert_bookshelf(
-	id: Option<i32>, data: &BookshelfData<i32>, user_id: Option<i32>, db: &Pool<Postgres>,
-) -> Result<Bookshelf> {
-	sqlx::query_as!(
-		Bookshelf,
+/// Inserts a [Bookshelf] into the database
+pub(crate) async fn insert_bookshelf(data: &Bookshelf, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		"INSERT INTO Bookshelves
 			(id, name, description, link, color, icon_url, stories,
-			num_unread, track_unread, quick_add, email_update,
-			user_id, order_pos, date_created, date_modified)
+			num_unread, track_unread, quick_add, email_update, user_id,
+			order_pos, date_created, date_modified, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT(id) DO UPDATE SET
 			name = EXCLUDED.name,
 			description = EXCLUDED.description,
@@ -397,35 +393,27 @@ pub(crate) async fn insert_bookshelf(
 			order_pos = EXCLUDED.order_pos,
 			date_created = EXCLUDED.date_created,
 			date_modified = EXCLUDED.date_modified,
-			date_cached = now()
-		RETURNING
-			id, name, description, link, color, icon_url, stories,
-			num_unread, track_unread, quick_add, email_update,
-			user_id, order_pos, date_created, date_modified, date_cached;",
-		id.unwrap_or(data.id.parse::<i32>()?),
-		data.attributes.name,
-		data.attributes.description,
-		data.meta.url,
-		data.attributes.color.trim_start_matches("#"),
-		format!("https://raw.githubusercontent.com/SilkRose/Fimfiction-bookshelf-icons/refs/heads/mane/icons/{}/{}/{}.png",
-			data.attributes.color.trim_start_matches("#"),
-			data.attributes.icon.r#type,
-			data.attributes.icon.data.trim_start_matches("&#x")),
-		data.attributes.num_stories,
-		data.attributes.num_unread,
-		data.attributes.track_unread,
-		data.attributes.quick_add,
-		data.attributes.email_on_update,
-		user_id,
-		data.attributes.order,
-		DateTime::parse_from_rfc3339(&data.attributes.date_created)
-			.map_err(|_| "FixFiction Error: failed to parse date created")?,
-		DateTime::parse_from_rfc3339(&data.attributes.date_modified)
-			.map_err(|_| "FixFiction Error: failed to parse date modified")?
+			date_cached = EXCLUDED.date_cached;",
+		data.id,
+		data.name,
+		data.description,
+		data.link,
+		data.color,
+		data.icon_url,
+		data.stories,
+		data.num_unread,
+		data.track_unread,
+		data.quick_add,
+		data.email_update,
+		data.user_id,
+		data.order_pos,
+		data.date_created,
+		data.date_modified,
+		data.date_cached,
 	)
-	.fetch_one(db)
-	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.execute(db)
+	.await?;
+	Ok(())
 }
 
 /// Selects a [Thread] from the database
