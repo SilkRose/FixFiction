@@ -4,7 +4,6 @@ use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
 use crate::error::Result;
-use crate::fimfiction_api::chapter::ChapterData;
 use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::tag::TagData;
@@ -246,17 +245,14 @@ pub(crate) async fn get_chapter(id: i32, db: &Pool<Postgres>) -> Result<Option<C
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a chapter into the database, converting it from [ChapterData] to a [Chapter]
-pub(crate) async fn insert_chapter(
-	id: Option<i32>, data: ChapterData<i32>, story_id: i32, db: &Pool<Postgres>,
-) -> Result<Chapter> {
-	sqlx::query_as!(
-		Chapter,
+/// Inserts a [Chapter] into the database
+pub(crate) async fn insert_chapter(data: &Chapter, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		r#"INSERT INTO Chapters 
 			(id, story_id, chapter_num, title, link, views,
-			words, date_published, date_modified)
+			words, date_published, date_modified, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT(id) DO UPDATE SET
 			story_id = EXCLUDED.story_id,
 			chapter_num = EXCLUDED.chapter_num,
@@ -266,23 +262,21 @@ pub(crate) async fn insert_chapter(
 			words = EXCLUDED.words,
 			date_published = EXCLUDED.date_published,
 			date_modified = EXCLUDED.date_modified,
-			date_cached = now()
-		RETURNING
-			id, story_id, chapter_num, title, link, views,
-			words, date_published, date_modified, date_cached;"#,
-		id.unwrap_or(data.id.parse::<i32>()?),
-		story_id,
-		data.attributes.chapter_number,
-		data.attributes.title,
-		data.meta.url,
-		data.attributes.num_views,
-		data.attributes.num_words,
-		parse_date(data.attributes.date_published, "published")?,
-		parse_date(data.attributes.date_modified, "modified")?,
+			date_cached = EXCLUDED.date_cached;"#,
+		data.id,
+		data.story_id,
+		data.chapter_num,
+		data.title,
+		data.link,
+		data.views,
+		data.words,
+		data.date_published,
+		data.date_modified,
+		data.date_cached,
 	)
-	.fetch_one(db)
-	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.execute(db)
+	.await?;
+	Ok(())
 }
 
 /// Selects a [Group] from the database

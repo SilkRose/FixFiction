@@ -4,9 +4,9 @@ use crate::database::{
 	get_chapter, get_story_chapter, insert_chapter, insert_story, insert_tag, insert_tag_link,
 	insert_user, remove_tag_links,
 };
-use crate::error::{EmbedError, EmbedResult, Result};
+use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
-use crate::fimfiction_api::chapter::ChapterApi;
+use crate::fimfiction_api::chapter::{ChapterApi, ChapterData};
 use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
@@ -39,6 +39,29 @@ pub(crate) struct Chapter {
 	pub(crate) date_published: DateTime<Utc>,
 	pub(crate) date_modified: DateTime<Utc>,
 	pub(crate) date_cached: DateTime<Utc>,
+}
+
+impl TryFrom<ChapterData<i32>> for Chapter {
+	type Error = Error;
+	fn try_from(value: ChapterData<i32>) -> Result<Self> {
+		let chapter = Self {
+			id: value.id.parse()?,
+			story_id: value.relationships.story.data.id.parse()?,
+			chapter_num: value.attributes.chapter_number,
+			title: value.attributes.title,
+			link: value.meta.url,
+			views: value.attributes.num_views,
+			words: value.attributes.num_words,
+			date_published: DateTime::parse_from_rfc3339(&value.attributes.date_published)
+				.map_err(|_| "FixFiction Error: failed to parse date published")?
+				.into(),
+			date_modified: DateTime::parse_from_rfc3339(&value.attributes.date_modified)
+				.map_err(|_| "FixFiction Error: failed to parse date modified")?
+				.into(),
+			date_cached: Utc::now(),
+		};
+		Ok(chapter)
+	}
 }
 
 /// The `chapter/` endpoint.
@@ -102,7 +125,8 @@ pub(crate) async fn request_chapter(
 				insert_tag_link(story.id, tag.id, db).await?;
 				tags.push(tag);
 			}
-			let chapter = insert_chapter(Some(id), api.data, story.id, db).await?;
+			let chapter = Chapter::try_from(api.data)?;
+			insert_chapter(&chapter, db).await?;
 			Ok((chapter, story, user, tags))
 		}
 	}
@@ -145,12 +169,11 @@ pub(crate) async fn request_story_chapters(
 				tags.push(tag);
 			}
 			let mut chapters = Vec::new();
-			for chapter in &api.included {
+			for chapter in api.included {
 				if let ApiIncluded::Chapter(data) = chapter {
-					let inserted = insert_chapter(None, data.clone(), story_id, db)
-						.await
-						.unwrap();
-					chapters.push(inserted);
+					let chapter = Chapter::try_from(data)?;
+					insert_chapter(&chapter, db).await?;
+					chapters.push(chapter);
 				}
 			}
 			let chapter = chapters

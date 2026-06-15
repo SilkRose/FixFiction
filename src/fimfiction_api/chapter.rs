@@ -30,7 +30,7 @@ pub(crate) struct ChapterData<T = u32> {
 /// Relational properties of a chapter.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ChapterRelationship {
-	story: RelationshipData,
+	pub(crate) story: RelationshipData,
 }
 
 /// Self-contained properties of a chapter.
