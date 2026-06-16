@@ -296,7 +296,7 @@ pub(crate) async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Gro
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a group into the database, converting it from [GroupData] to a [Group]
+/// Inserts a [Group] into the database
 pub(crate) async fn insert_group(data: &Group, db: &Pool<Postgres>) -> Result<()> {
 	sqlx::query!(
 		"INSERT INTO Groups
