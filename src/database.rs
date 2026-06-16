@@ -64,7 +64,8 @@ pub(crate) async fn insert_blog(blog: &Blog, db: &Pool<Postgres>) -> Result<()> 
 		blog.date_cached,
 	)
 	.execute(db)
-	.await?;
+	.await
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}"))?;
 	Ok(())
 }
 
@@ -116,7 +117,8 @@ pub(crate) async fn insert_user(user: &User, db: &Pool<Postgres>) -> Result<()> 
 		user.date_cached,
 	)
 	.execute(db)
-	.await?;
+	.await
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}"))?;
 	Ok(())
 }
 
@@ -275,7 +277,8 @@ pub(crate) async fn insert_chapter(data: &Chapter, db: &Pool<Postgres>) -> Resul
 		data.date_cached,
 	)
 	.execute(db)
-	.await?;
+	.await
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}"))?;
 	Ok(())
 }
 
