@@ -77,7 +77,8 @@ pub(crate) async fn request_thread(
 				insert_user(&user, db).await?;
 				users.push(user);
 			}
-			let group = insert_group(Some(group_id), group, db).await?;
+			let group = Group::try_from(group.clone())?;
+			insert_group(&group, db).await?;
 			let mut threads = Vec::new();
 			for thread in res.data {
 				let thread = insert_thread(None, thread, group_id, db).await?;

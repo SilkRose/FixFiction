@@ -4,7 +4,6 @@ use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
 use crate::error::Result;
-use crate::fimfiction_api::group::GroupData;
 use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::thread::ThreadData;
@@ -13,8 +12,7 @@ use crate::story::{CompletionStatus, ContentRating, Story};
 use crate::tag::{Tag, TagLink, TagType};
 use crate::thread::Thread;
 use crate::user::User;
-use crate::utility::{clean_content, parse_date, trim_content};
-use chrono::DateTime;
+use crate::utility::{clean_content, parse_date};
 use sqlx::{Pool, Postgres};
 
 /// Selects a [Blog] from the database
@@ -299,17 +297,14 @@ pub(crate) async fn get_group(id: i32, db: &Pool<Postgres>) -> Result<Option<Gro
 }
 
 /// Inserts a group into the database, converting it from [GroupData] to a [Group]
-pub(crate) async fn insert_group(
-	id: Option<i32>, data: &GroupData<i32>, db: &Pool<Postgres>,
-) -> Result<Group> {
-	sqlx::query_as!(
-		Group,
+pub(crate) async fn insert_group(data: &Group, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		"INSERT INTO Groups
 			(id, name, description, link, members,
 			stories, founder_id, icon_url, nsfw,
-			open, hidden, date_created)
+			open, hidden, date_created, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		ON CONFLICT(id) DO UPDATE SET
 			name = EXCLUDED.name,
 			description = EXCLUDED.description,
@@ -322,32 +317,25 @@ pub(crate) async fn insert_group(
 			open = EXCLUDED.open,
 			hidden = EXCLUDED.hidden,
 			date_created = EXCLUDED.date_created,
-			date_cached = now()
-		RETURNING
-			id, name, description, link, members,
-			stories, founder_id, icon_url, nsfw,
-			open, hidden, date_created, date_cached;",
-		id.unwrap_or(data.id.parse::<i32>()?),
-		clean_content(data.attributes.name.clone()),
-		trim_content(data.attributes.description.clone(), true),
-		data.meta.url,
-		data.attributes.num_members,
-		data.attributes.num_stories,
-		data.relationships.founder.data.id.parse::<i32>()?,
-		data.attributes
-			.icon
-			.r512
-			.as_ref()
-			.map(|icon| icon.trim_end_matches("-512").to_string()),
-		data.attributes.nsfw,
-		data.attributes.open,
-		data.attributes.hidden,
-		DateTime::parse_from_rfc3339(&data.attributes.date_created)
-			.map_err(|_| "FixFiction Error: failed to parse date created")?
+			date_cached = EXCLUDED.date_cached;",
+		data.id,
+		data.name,
+		data.description,
+		data.link,
+		data.members,
+		data.stories,
+		data.founder_id,
+		data.icon_url,
+		data.nsfw,
+		data.open,
+		data.hidden,
+		data.date_created,
+		data.date_cached,
 	)
-	.fetch_one(db)
+	.execute(db)
 	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}"))?;
+	Ok(())
 }
 
 /// Selects a [Bookshelf] from the database

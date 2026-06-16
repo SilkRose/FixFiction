@@ -1,9 +1,9 @@
 //! Request a [Group] and to format it in HTML.
 
 use crate::database::{get_group, insert_group, insert_user};
-use crate::error::{EmbedError, EmbedResult, Result};
+use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
-use crate::fimfiction_api::group::GroupApi;
+use crate::fimfiction_api::group::{GroupApi, GroupData};
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::thread::{request_thread, thread_html_template};
@@ -37,6 +37,36 @@ pub(crate) struct Group {
 	pub(crate) icon_url: Option<String>,
 	pub(crate) date_created: DateTime<Utc>,
 	pub(crate) date_cached: DateTime<Utc>,
+}
+
+impl TryFrom<GroupData<i32>> for Group {
+	type Error = Error;
+	fn try_from(value: GroupData<i32>) -> Result<Self> {
+		let icon = value
+			.attributes
+			.icon
+			.r512
+			.as_ref()
+			.map(|icon| icon.trim_end_matches("-512").to_string());
+		let group = Group {
+			id: value.id.parse()?,
+			name: value.attributes.name,
+			description: value.attributes.description,
+			link: value.meta.url,
+			members: value.attributes.num_members,
+			stories: value.attributes.num_stories,
+			founder_id: value.relationships.founder.data.id.parse()?,
+			nsfw: value.attributes.nsfw,
+			open: value.attributes.open,
+			hidden: value.attributes.hidden,
+			icon_url: icon,
+			date_created: DateTime::parse_from_rfc3339(&value.attributes.date_created)
+				.map_err(|_| "FixFiction Error: failed to parse date created")?
+				.into(),
+			date_cached: Utc::now(),
+		};
+		Ok(group)
+	}
 }
 
 /// The `group/` endpoint.
@@ -104,7 +134,8 @@ pub(crate) async fn request_group(
 				.ok_or("Fimfiction API error: no founder included")?;
 			let user = User::try_from(founder.clone())?;
 			insert_user(&user, db).await?;
-			let group = insert_group(Some(id), &api.data, db).await?;
+			let group = Group::try_from(api.data)?;
+			insert_group(&group, db).await?;
 			Ok((group, user))
 		}
 	}
