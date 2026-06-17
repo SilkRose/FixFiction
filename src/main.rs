@@ -15,13 +15,13 @@ mod thread;
 mod user;
 mod utility;
 
-use self::fimfiction_api::fimfic_api_headers;
-use self::oembed::get_oembed;
 use crate::blog::get_blog_endpoint;
 use crate::bookshelf::get_bookshelf_endpoint;
 use crate::chapter::get_chapter_endpoint;
 use crate::error::Result;
+use crate::fimfiction_api::fimfic_api_headers;
 use crate::group::get_group_endpoint;
+use crate::oembed::get_oembed;
 use crate::story::get_story_endpoint;
 use crate::user::get_user_endpoint;
 use actix_cors::Cors;

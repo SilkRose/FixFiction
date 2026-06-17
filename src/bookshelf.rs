@@ -43,6 +43,7 @@ pub(crate) struct Bookshelf {
 
 impl TryFrom<BookshelfData<i32>> for Bookshelf {
 	type Error = Error;
+	/// Converts Fimfiction's API response [BookshelfData] into a [Bookshelf]
 	fn try_from(value: BookshelfData<i32>) -> Result<Self> {
 		let icon_link = format!(
 			"https://raw.githubusercontent.com/SilkRose/Fimfiction-bookshelf-icons/refs/heads/mane/icons/{}/{}/{}.png",

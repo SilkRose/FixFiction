@@ -36,6 +36,7 @@ pub(crate) struct User {
 
 impl TryFrom<UserData<i32>> for User {
 	type Error = Error;
+	/// Converts Fimfiction's API response [UserData] into a [User]
 	fn try_from(value: UserData<i32>) -> Result<Self> {
 		let pfp_url = (!value.attributes.avatar.r64.ends_with("none_64.png")).then_some(
 			value

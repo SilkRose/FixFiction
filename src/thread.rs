@@ -37,6 +37,7 @@ pub(crate) struct Thread {
 
 impl TryFrom<ThreadData<i32>> for Thread {
 	type Error = Error;
+	/// Converts Fimfiction's API response [ThreadData] into a [Thread]
 	fn try_from(value: ThreadData<i32>) -> Result<Self> {
 		let thread = Thread {
 			id: value.id.parse()?,

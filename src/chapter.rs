@@ -43,6 +43,7 @@ pub(crate) struct Chapter {
 
 impl TryFrom<ChapterData<i32>> for Chapter {
 	type Error = Error;
+	/// Converts Fimfiction's API response [ChapterData] into a [Chapter]
 	fn try_from(value: ChapterData<i32>) -> Result<Self> {
 		let chapter = Self {
 			id: value.id.parse()?,

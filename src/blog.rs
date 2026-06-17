@@ -40,6 +40,7 @@ pub(crate) struct Blog {
 
 impl TryFrom<BlogData<i32>> for Blog {
 	type Error = Error;
+	/// Converts Fimfiction's API response [BlogData] into a [Blog]
 	fn try_from(value: BlogData<i32>) -> Result<Self> {
 		let blog = Self {
 			id: value.id.parse()?,

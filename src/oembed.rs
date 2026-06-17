@@ -18,6 +18,7 @@ pub(crate) struct OEmbed {
 	pub(crate) html: String,
 }
 
+/// oEmbed endpoint for enhanced embeds
 #[get("/oembed")]
 pub(crate) async fn get_oembed(query: Query<OEmbed>) -> Result<impl Responder> {
 	let embed = query.into_inner();

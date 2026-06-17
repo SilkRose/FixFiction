@@ -41,6 +41,7 @@ pub(crate) struct Group {
 
 impl TryFrom<GroupData<i32>> for Group {
 	type Error = Error;
+	/// Converts Fimfiction's API response [GroupData] into a [Group]
 	fn try_from(value: GroupData<i32>) -> Result<Self> {
 		let icon = value
 			.attributes

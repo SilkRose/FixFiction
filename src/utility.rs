@@ -305,6 +305,7 @@ pub(crate) fn unsupported_color(
 	Some(res)
 }
 
+/// Deserializes a string into an i32
 pub fn i32_string<'de, D>(deserializer: D) -> Result<i32, D::Error>
 where
 	D: Deserializer<'de>,

@@ -57,7 +57,8 @@ pub(crate) struct Story {
 
 impl TryFrom<StoryData<i32>> for Story {
 	type Error = Error;
-	fn try_from(value: StoryData<i32>) -> std::prelude::v1::Result<Self, Self::Error> {
+	/// Converts Fimfiction's API response [StoryData] into a [Story]
+	fn try_from(value: StoryData<i32>) -> Result<Self> {
 		let story = Story {
 			id: value.id.parse()?,
 			title: value.attributes.title,

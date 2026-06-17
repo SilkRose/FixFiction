@@ -84,6 +84,7 @@ pub(crate) struct Tag {
 
 impl TryFrom<TagData<i32>> for Tag {
 	type Error = Error;
+	/// Converts Fimfiction's API response [TagData] into a [Tag]
 	fn try_from(value: TagData<i32>) -> Result<Self> {
 		let old_id = match value.meta.old_id.is_empty() {
 			true => None,
