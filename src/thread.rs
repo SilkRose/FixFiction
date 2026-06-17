@@ -1,15 +1,16 @@
 //! Request a group [Thread] and to format it in HTML.
 
 use crate::database::{get_thread, insert_group, insert_thread, insert_user};
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::fimfiction_api::ApiIncluded;
-use crate::fimfiction_api::thread::ThreadApi;
+use crate::fimfiction_api::thread::{ThreadApi, ThreadData};
 use crate::group::{Group, request_group};
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters};
 use crate::user::{User, request_user};
 use crate::utility::{
-	get_color, map_picture, parse_fimfic_response, unsupported_color_opt, unsupported_cover_opt,
+	get_color, map_picture, parse_date, parse_fimfic_response, unsupported_color_opt,
+	unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
 use chrono::{DateTime, TimeDelta, Utc};
@@ -32,6 +33,27 @@ pub(crate) struct Thread {
 	pub(crate) date_created: DateTime<Utc>,
 	pub(crate) date_last_post: DateTime<Utc>,
 	pub(crate) date_cached: DateTime<Utc>,
+}
+
+impl TryFrom<ThreadData<i32>> for Thread {
+	type Error = Error;
+	fn try_from(value: ThreadData<i32>) -> Result<Self> {
+		let thread = Thread {
+			id: value.id.parse()?,
+			group_id: value.relationships.group.data.id.parse()?,
+			creator_id: value.relationships.creator.data.id.parse()?,
+			last_poster_id: value.relationships.last_poster.data.id.parse()?,
+			title: value.attributes.title,
+			link: value.meta.url,
+			posts: value.attributes.num_posts,
+			sticky: value.attributes.sticky,
+			locked: value.attributes.locked,
+			date_created: parse_date(value.attributes.date_created, "created")?.into(),
+			date_last_post: parse_date(value.attributes.date_last_post, "last post")?.into(),
+			date_cached: Utc::now(),
+		};
+		Ok(thread)
+	}
 }
 
 /// [Thread] data combined with the last poster and creator [User] data
@@ -81,7 +103,8 @@ pub(crate) async fn request_thread(
 			insert_group(&group, db).await?;
 			let mut threads = Vec::new();
 			for thread in res.data {
-				let thread = insert_thread(None, thread, group_id, db).await?;
+				let thread = Thread::try_from(thread)?;
+				insert_thread(&thread, db).await?;
 				threads.push(thread);
 			}
 			let founder = users

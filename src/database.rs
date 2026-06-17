@@ -4,13 +4,11 @@ use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
 use crate::error::Result;
-use crate::fimfiction_api::thread::ThreadData;
 use crate::group::Group;
 use crate::story::{CompletionStatus, ContentRating, Story};
 use crate::tag::{Tag, TagLink, TagType};
 use crate::thread::Thread;
 use crate::user::User;
-use crate::utility::parse_date;
 use sqlx::{Pool, Postgres};
 
 /// Selects a [Blog] from the database
@@ -404,17 +402,14 @@ pub(crate) async fn get_thread(id: i32, db: &Pool<Postgres>) -> Result<Option<Th
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a thread into the database, converting it from [ThreadData] to a [Thread]
-pub(crate) async fn insert_thread(
-	id: Option<i32>, data: ThreadData<i32>, group_id: i32, db: &Pool<Postgres>,
-) -> Result<Thread> {
-	sqlx::query_as!(
-		Thread,
+/// Inserts a [Thread] into the database
+pub(crate) async fn insert_thread(data: &Thread, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		r#"INSERT INTO Threads 
 			(id, group_id, creator_id, last_poster_id, title, link, posts,
-			sticky, locked, date_created, date_last_post)
+			sticky, locked, date_created, date_last_post, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT(id) DO UPDATE SET
 			group_id = EXCLUDED.group_id,
 			creator_id = EXCLUDED.creator_id,
@@ -426,25 +421,24 @@ pub(crate) async fn insert_thread(
 			locked = EXCLUDED.locked,
 			date_created = EXCLUDED.date_created,
 			date_last_post = EXCLUDED.date_last_post,
-			date_cached = now()
-		RETURNING
-			id, group_id, creator_id, last_poster_id, title, link, posts,
-			sticky, locked, date_created, date_last_post, date_cached;"#,
-		id.unwrap_or(data.id.parse::<i32>()?),
-		group_id,
-		data.relationships.creator.data.id.parse::<i32>()?,
-		data.relationships.last_poster.data.id.parse::<i32>()?,
-		data.attributes.title,
-		data.meta.url,
-		data.attributes.num_posts,
-		data.attributes.sticky,
-		data.attributes.locked,
-		parse_date(data.attributes.date_created, "published")?,
-		parse_date(data.attributes.date_last_post, "modified")?,
+			date_cached = EXCLUDED.date_cached;"#,
+		data.id,
+		data.group_id,
+		data.creator_id,
+		data.last_poster_id,
+		data.title,
+		data.link,
+		data.posts,
+		data.sticky,
+		data.locked,
+		data.date_created,
+		data.date_last_post,
+		data.date_cached,
 	)
 	.fetch_one(db)
 	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}"))?;
+	Ok(())
 }
 
 /// Selects a [Tag] from the database
