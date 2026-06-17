@@ -1,5 +1,7 @@
 //! [Tag] and [TagLink] data structure and related code
 
+use crate::error::{Error, Result};
+use crate::fimfiction_api::tag::TagData;
 use chrono::{DateTime, Utc};
 use core::str;
 use serde::{Deserialize, Serialize};
@@ -19,22 +21,22 @@ pub(crate) enum TagType {
 	Universe,
 }
 
-impl From<String> for TagType {
+impl TryFrom<String> for TagType {
+	type Error = Error;
 	/// Converts a Fimfiction API response string for tag type into [TagType]
-	///
-	/// #### Panics
-	///
-	/// Panics if Fimfiction returns a value not present.
-	fn from(value: String) -> Self {
+	fn try_from(value: String) -> Result<Self> {
 		match value.as_str() {
-			"character" => TagType::Character,
-			"genre" => TagType::Genre,
-			"rating" => TagType::Rating,
-			"content" => TagType::Content,
-			"series" => TagType::Series,
-			"warning" => TagType::Warning,
-			"universe" => TagType::Universe,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
+			"character" => Ok(TagType::Character),
+			"genre" => Ok(TagType::Genre),
+			"rating" => Ok(TagType::Rating),
+			"content" => Ok(TagType::Content),
+			"series" => Ok(TagType::Series),
+			"warning" => Ok(TagType::Warning),
+			"universe" => Ok(TagType::Universe),
+			_ => Err(format!(
+				"FixFiction error: failed to parse string into completion status: {value}"
+			)
+			.into()),
 		}
 	}
 }
@@ -78,6 +80,25 @@ pub(crate) struct Tag {
 	pub(crate) old_id: Option<String>,
 	pub(crate) link: String,
 	pub(crate) date_cached: DateTime<Utc>,
+}
+
+impl TryFrom<TagData<i32>> for Tag {
+	type Error = Error;
+	fn try_from(value: TagData<i32>) -> Result<Self> {
+		let old_id = match value.meta.old_id.is_empty() {
+			true => None,
+			false => Some(value.meta.old_id),
+		};
+		let tag = Tag {
+			id: value.id.parse()?,
+			name: value.attributes.name,
+			tag_type: TagType::try_from(value.attributes.r#type)?,
+			old_id,
+			link: value.meta.url,
+			date_cached: Utc::now(),
+		};
+		Ok(tag)
+	}
 }
 
 impl PartialEq for Tag {

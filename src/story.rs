@@ -233,7 +233,8 @@ pub(crate) async fn request_story(
 			remove_tag_links(id, db).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
 			for tag in api_tags {
-				let tag = insert_tag(None, tag.clone(), db).await?;
+				let tag = Tag::try_from(tag.clone())?;
+				insert_tag(&tag, db).await?;
 				insert_tag_link(id, tag.id, db).await?;
 				tags.push(tag);
 			}

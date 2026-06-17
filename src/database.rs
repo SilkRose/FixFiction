@@ -4,7 +4,6 @@ use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
 use crate::error::Result;
-use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::thread::ThreadData;
 use crate::group::Group;
 use crate::story::{CompletionStatus, ContentRating, Story};
@@ -462,33 +461,30 @@ pub(crate) async fn get_tag(id: i32, db: &Pool<Postgres>) -> Result<Option<Tag>>
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a tag into the database, converting it from [TagData] to a [Tag]
-pub(crate) async fn insert_tag(
-	id: Option<i32>, tag: TagData<i32>, db: &Pool<Postgres>,
-) -> Result<Tag> {
-	sqlx::query_as!(
-		Tag,
+/// Inserts a [Tag] into the database
+pub(crate) async fn insert_tag(tag: &Tag, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		r#"INSERT INTO Tags
-			(id, name, type, old_id, link)
+			(id, name, type, old_id, link, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5)
+			($1, $2, $3, $4, $5, $6)
 		ON CONFLICT(id) DO UPDATE SET
 			name = EXCLUDED.name,
 			type = EXCLUDED.type,
 			old_id = EXCLUDED.old_id,
 			link = EXCLUDED.link,
-			date_cached = now()
-		RETURNING
-			id, name, type AS "tag_type: TagType", old_id, link, date_cached;"#,
-		id.unwrap_or(tag.id.parse::<i32>()?),
-		tag.attributes.name,
-		TagType::from(tag.attributes.r#type) as _,
-		tag.meta.old_id,
-		tag.meta.url,
+			date_cached = EXCLUDED.date_cached;"#,
+		tag.id,
+		tag.name,
+		tag.tag_type as _,
+		tag.old_id,
+		tag.link,
+		tag.date_cached,
 	)
-	.fetch_one(db)
+	.execute(db)
 	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}"))?;
+	Ok(())
 }
 
 /// Selects [TagLink]s from the database for a given story ID
