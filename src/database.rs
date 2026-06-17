@@ -4,7 +4,6 @@ use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
 use crate::error::Result;
-use crate::fimfiction_api::story::StoryData;
 use crate::fimfiction_api::tag::TagData;
 use crate::fimfiction_api::thread::ThreadData;
 use crate::group::Group;
@@ -12,7 +11,7 @@ use crate::story::{CompletionStatus, ContentRating, Story};
 use crate::tag::{Tag, TagLink, TagType};
 use crate::thread::Thread;
 use crate::user::User;
-use crate::utility::{clean_content, parse_date};
+use crate::utility::parse_date;
 use sqlx::{Pool, Postgres};
 
 /// Selects a [Blog] from the database
@@ -139,19 +138,16 @@ pub(crate) async fn get_story(id: i32, db: &Pool<Postgres>) -> Result<Option<Sto
 	.map_err(|e| format!("FixFiction Error: database retrieval error.\n{e}").into())
 }
 
-/// Inserts a story into the database, converting it from [StoryData] to a [Story]
-pub(crate) async fn insert_story(
-	id: Option<i32>, data: StoryData<i32>, user_id: i32, db: &Pool<Postgres>,
-) -> Result<Story> {
-	sqlx::query_as!(
-		Story,
+/// Inserts a [Story] into the database
+pub(crate) async fn insert_story(data: &Story, db: &Pool<Postgres>) -> Result<()> {
+	sqlx::query!(
 		r#"INSERT INTO Stories (
 			id, title, short_description, description, published, link, cover_url,
 			color_hex, views, total_views, words, chapters, comments, rating,
 			completion_status, content_rating, likes, dislikes, author_id,
-			date_modified, date_updated, date_published)
+			date_modified, date_updated, date_published, date_cached)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 		ON CONFLICT(id) DO UPDATE SET
 			title = EXCLUDED.title,
 			short_description = EXCLUDED.short_description,
@@ -174,42 +170,35 @@ pub(crate) async fn insert_story(
 			date_modified = EXCLUDED.date_modified,
 			date_updated = EXCLUDED.date_updated,
 			date_published = EXCLUDED.date_published,
-			date_cached = now()
-		RETURNING 
-			id, title, short_description, description, published, link, cover_url,
-			color_hex, views, total_views, words, chapters, comments, rating,
-			completion_status AS "completion_status: CompletionStatus",
-			content_rating AS "content_rating: ContentRating",
-			likes, dislikes, author_id, date_modified,
-			date_updated, date_published, date_cached;"#,
-		id.unwrap_or(data.id.parse::<i32>()?),
-		clean_content(data.attributes.title),
-		clean_content(data.attributes.short_description),
-		data.attributes.description,
-		data.attributes.published,
-		data.meta.url,
-		data.attributes.cover_image.map(|cover| cover.medium.trim_end_matches("-medium").to_string()),
-		data.attributes.color.hex.trim_start_matches("#"),
-		data.attributes.num_views,
-		data.attributes.total_num_views,
-		data.attributes.num_words,
-		data.attributes.num_chapters,
-		data.attributes.num_comments,
-		data.attributes.rating,
-		CompletionStatus::from(data.attributes.completion_status) as _,
-		ContentRating::from(data.attributes.content_rating) as _,
-		data.attributes.num_likes,
-		data.attributes.num_dislikes,
-		user_id,
-		parse_date(data.attributes.date_modified, "modified")?,
-		parse_date(data.attributes.date_updated
-			.ok_or("Fimfictiion API error: no updated date")?, "updated")?,
-		parse_date(data.attributes.date_published
-			.ok_or("Fimfictiion API error: no publish date")?, "published")?,
+			date_cached = EXCLUDED.date_cached;"#,
+		data.id,
+		data.title,
+		data.short_description,
+		data.description,
+		data.published,
+		data.link,
+		data.cover_url,
+		data.color_hex,
+		data.views,
+		data.total_views,
+		data.words,
+		data.chapters,
+		data.comments,
+		data.rating,
+		data.completion_status as _,
+		data.content_rating as _,
+		data.likes,
+		data.dislikes,
+		data.author_id,
+		data.date_modified,
+		data.date_updated,
+		data.date_published,
+		data.date_cached,
 	)
-	.fetch_one(db)
+	.execute(db)
 	.await
-	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}").into())
+	.map_err(|e| format!("FixFiction Error: database insertion error.\n{e}"))?;
+	Ok(())
 }
 
 /// Selects a [Chapter] from the database, based on Story ID and Chapter number

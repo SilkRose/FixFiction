@@ -5,16 +5,16 @@ use crate::database::{
 	get_story, get_tag, get_tag_links, insert_story, insert_tag, insert_tag_link, insert_user,
 	remove_tag_links,
 };
-use crate::error::{EmbedError, EmbedResult, Result};
+use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
-use crate::fimfiction_api::story::StoryApi;
+use crate::fimfiction_api::story::{StoryApi, StoryData};
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::tag::Tag;
 use crate::user::{User, request_user};
 use crate::utility::{
-	get_color, map_cover, map_picture, map_tags, parse_chapter_number, parse_fimfic_response,
-	parse_id, unsupported_color, unsupported_cover_opt,
+	get_color, map_cover, map_picture, map_tags, parse_chapter_number, parse_date,
+	parse_fimfic_response, parse_id, unsupported_color, unsupported_cover_opt,
 };
 use crate::{check_recache, get_variant, get_variants};
 use actix_web::web::{Path, Query, ThinData};
@@ -55,6 +55,60 @@ pub(crate) struct Story {
 	pub(crate) date_cached: DateTime<Utc>,
 }
 
+impl TryFrom<StoryData<i32>> for Story {
+	type Error = Error;
+	fn try_from(value: StoryData<i32>) -> std::prelude::v1::Result<Self, Self::Error> {
+		let story = Story {
+			id: value.id.parse()?,
+			title: value.attributes.title,
+			short_description: value.attributes.short_description,
+			description: value.attributes.description,
+			published: value.attributes.published,
+			link: value.meta.url,
+			cover_url: value
+				.attributes
+				.cover_image
+				.map(|cover| cover.medium.trim_end_matches("-medium").to_string()),
+			color_hex: value
+				.attributes
+				.color
+				.hex
+				.trim_start_matches("#")
+				.to_string(),
+			views: value.attributes.num_views,
+			total_views: value.attributes.total_num_views,
+			words: value.attributes.num_words,
+			chapters: value.attributes.num_chapters,
+			comments: value.attributes.num_comments,
+			rating: value.attributes.rating,
+			completion_status: CompletionStatus::try_from(value.attributes.completion_status)?,
+			content_rating: ContentRating::try_from(value.attributes.content_rating)?,
+			likes: value.attributes.num_likes,
+			dislikes: value.attributes.num_dislikes,
+			author_id: value.relationships.author.data.id.parse()?,
+			date_modified: parse_date(value.attributes.date_modified, "modified")?.into(),
+			date_updated: parse_date(
+				value
+					.attributes
+					.date_updated
+					.ok_or("Fimfictiion API error: no updated date")?,
+				"updated",
+			)?
+			.into(),
+			date_published: parse_date(
+				value
+					.attributes
+					.date_published
+					.ok_or("Fimfictiion API error: no publish date")?,
+				"published",
+			)?
+			.into(),
+			date_cached: Utc::now(),
+		};
+		Ok(story)
+	}
+}
+
 /// Fimfiction story content rating data converted into a more usable structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
 #[sqlx(type_name = "content_rating", rename_all = "lowercase")]
@@ -64,18 +118,18 @@ pub(crate) enum ContentRating {
 	Mature,
 }
 
-impl From<String> for ContentRating {
+impl TryFrom<String> for ContentRating {
+	type Error = Error;
 	/// Converts a Fimfiction API response string for story rating into [ContentRating]
-	///
-	/// #### Panics
-	///
-	/// Panics if Fimfiction returns a value not present.
-	fn from(value: String) -> Self {
+	fn try_from(value: String) -> Result<Self> {
 		match value.as_str() {
-			"everyone" => ContentRating::Everyone,
-			"teen" => ContentRating::Teen,
-			"mature" => ContentRating::Mature,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
+			"everyone" => Ok(ContentRating::Everyone),
+			"teen" => Ok(ContentRating::Teen),
+			"mature" => Ok(ContentRating::Mature),
+			_ => Err(format!(
+				"FixFiction error: failed to parse string into content rating: {value}"
+			)
+			.into()),
 		}
 	}
 }
@@ -90,19 +144,19 @@ pub(crate) enum CompletionStatus {
 	Cancelled,
 }
 
-impl From<String> for CompletionStatus {
+impl TryFrom<String> for CompletionStatus {
+	type Error = Error;
 	/// Converts a Fimfiction API response string for story status into [CompletionStatus]
-	///
-	/// #### Panics
-	///
-	/// Panics if Fimfiction returns a value not present.
-	fn from(value: String) -> Self {
+	fn try_from(value: String) -> Result<Self> {
 		match value.as_str() {
-			"incomplete" => CompletionStatus::Incomplete,
-			"complete" => CompletionStatus::Complete,
-			"hiatus" => CompletionStatus::Hiatus,
-			"cancelled" => CompletionStatus::Cancelled,
-			_ => unreachable!(), // This should never happen, but still want to add something here later.
+			"incomplete" => Ok(CompletionStatus::Incomplete),
+			"complete" => Ok(CompletionStatus::Complete),
+			"hiatus" => Ok(CompletionStatus::Hiatus),
+			"cancelled" => Ok(CompletionStatus::Cancelled),
+			_ => Err(format!(
+				"FixFiction error: failed to parse string into completion status: {value}"
+			)
+			.into()),
 		}
 	}
 }
@@ -174,7 +228,8 @@ pub(crate) async fn request_story(
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
 			let user = User::try_from(author.clone())?;
 			insert_user(&user, db).await?;
-			let story = insert_story(Some(id), api.data, user.id, db).await?;
+			let story = Story::try_from(api.data)?;
+			insert_story(&story, db).await?;
 			remove_tag_links(id, db).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
 			for tag in api_tags {
