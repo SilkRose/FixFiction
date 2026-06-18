@@ -80,9 +80,9 @@ pub(crate) fn error_html_template(endpoint: &str, link: &str, errors: String) ->
 	let desc = format!(
 		"{errors}\n\nThe link above still redirects to Fimfiction. If this error is in error, please report it to Silk Rose on Fimfiction, or on the FixFiction GitHub issues page."
 	);
-	let msg = format!("{errors} -- Link: {link}");
+	let msg = format!("{} -- Link: {link}", errors.replace('\n', " -- "));
 	if let Err(e) = LOG.error(&msg) {
-		eprintln!("Failed to log error: {e}")
+		eprintln!("Failed to log error: {msg} -- cause: {e}")
 	}
 	let data = EmbedData {
 		title: String::from("Redirect to Fimfiction"),
