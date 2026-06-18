@@ -18,6 +18,7 @@ mod utility;
 use crate::blog::get_blog_endpoint;
 use crate::bookshelf::get_bookshelf_endpoint;
 use crate::chapter::get_chapter_endpoint;
+use crate::database::Db;
 use crate::error::Result;
 use crate::fimfiction_api::fimfic_api_headers;
 use crate::group::get_group_endpoint;
@@ -55,13 +56,7 @@ async fn main() -> Result<()> {
 	};
 
 	let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
-	let db_pool = sqlx::postgres::PgPoolOptions::new()
-		.max_connections(16)
-		.connect(&database_url)
-		.await
-		.expect("database should open");
-
-	sqlx::migrate!("./migrations").run(&db_pool).await?;
+	let db_pool = Db::new(&database_url).await?;
 
 	HttpServer::new(move || {
 		App::new()

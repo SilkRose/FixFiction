@@ -1,6 +1,6 @@
 //! Request a group [Thread] and to format it in HTML.
 
-use crate::database::{get_thread, insert_group, insert_thread, insert_user};
+use crate::database::Db;
 use crate::error::{Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::thread::{ThreadApi, ThreadData};
@@ -16,7 +16,6 @@ use crate::{check_recache, get_variant, get_variants};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
-use sqlx::{Pool, Postgres};
 
 /// Fimfiction thread data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -74,9 +73,9 @@ pub(crate) struct ThreadReturn {
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_thread(
-	group_id: i32, thread_id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
+	group_id: i32, thread_id: i32, api: &Request, db: &Db, recache: bool,
 ) -> Result<(Group, User, Option<ThreadReturn>)> {
-	let thread = get_thread(thread_id, db).await?;
+	let thread = db.get_thread(thread_id).await?;
 	let thread = check_recache!(thread, recache, app);
 	match thread {
 		Some(thread) => {
@@ -97,15 +96,15 @@ pub(crate) async fn request_thread(
 			let mut users = Vec::new();
 			for user in get_variants!(res.included, ApiIncluded::Author) {
 				let user = User::try_from(user.clone())?;
-				insert_user(&user, db).await?;
+				db.insert_user(&user).await?;
 				users.push(user);
 			}
 			let group = Group::try_from(group.clone())?;
-			insert_group(&group, db).await?;
+			db.insert_group(&group).await?;
 			let mut threads = Vec::new();
 			for thread in res.data {
 				let thread = Thread::try_from(thread)?;
-				insert_thread(&thread, db).await?;
+				db.insert_thread(&thread).await?;
 				threads.push(thread);
 			}
 			let founder = users
@@ -132,7 +131,7 @@ pub(crate) async fn request_thread(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 async fn build_thread_return(
-	thread: Thread, api: &Request, db: &Pool<Postgres>, recache: bool,
+	thread: Thread, api: &Request, db: &Db, recache: bool,
 ) -> Result<ThreadReturn> {
 	let creator = request_user(thread.creator_id, api, db, recache).await?;
 	let last_poster = request_user(thread.last_poster_id, api, db, recache).await?;

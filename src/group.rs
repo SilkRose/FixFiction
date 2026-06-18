@@ -1,6 +1,6 @@
 //! Request a [Group] and to format it in HTML.
 
-use crate::database::{get_group, insert_group, insert_user};
+use crate::database::Db;
 use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::group::{GroupApi, GroupData};
@@ -18,7 +18,6 @@ use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 
 /// Fimfiction group data converted into a more usable structure
@@ -75,7 +74,7 @@ impl TryFrom<GroupData<i32>> for Group {
 /// Requests a group by ID.
 #[get("/group/{id:.*}")]
 async fn get_group_endpoint(
-	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	api: ThinData<Request>, db: ThinData<Db>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
 ) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
@@ -119,9 +118,9 @@ async fn get_group_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_group(
-	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
+	id: i32, api: &Request, db: &Db, recache: bool,
 ) -> Result<(Group, User)> {
-	let group = get_group(id, db).await?;
+	let group = db.get_group(id).await?;
 	let group = check_recache!(group, recache, app);
 	match group {
 		Some(group) => {
@@ -134,9 +133,9 @@ pub(crate) async fn request_group(
 			let founder = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no founder included")?;
 			let user = User::try_from(founder.clone())?;
-			insert_user(&user, db).await?;
+			db.insert_user(&user).await?;
 			let group = Group::try_from(api.data)?;
-			insert_group(&group, db).await?;
+			db.insert_group(&group).await?;
 			Ok((group, user))
 		}
 	}

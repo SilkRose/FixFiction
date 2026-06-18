@@ -1,6 +1,6 @@
 //! Request a [Blog] and to format it in HTML.
 
-use crate::database::{get_blog, insert_blog, insert_user};
+use crate::database::Db;
 use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::{BlogApi, BlogData};
@@ -19,7 +19,6 @@ use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use pony::word_stats::word_count;
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 
 /// Fimfiction blog data converted into a more usable structure
@@ -67,7 +66,7 @@ impl TryFrom<BlogData<i32>> for Blog {
 /// Requests a blog by ID.
 #[get("/blog/{id:.*}")]
 async fn get_blog_endpoint(
-	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	api: ThinData<Request>, db: ThinData<Db>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
 ) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
@@ -93,9 +92,9 @@ async fn get_blog_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_blog(
-	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
+	id: i32, api: &Request, db: &Db, recache: bool,
 ) -> Result<(Blog, User, Option<Story>)> {
-	let blog = get_blog(id, db).await?;
+	let blog = db.get_blog(id).await?;
 	let blog = check_recache!(blog, recache, app);
 	match blog {
 		Some(blog) => {
@@ -121,11 +120,11 @@ pub(crate) async fn request_blog(
 				(Some(story), user)
 			} else {
 				let user = User::try_from(author.clone())?;
-				insert_user(&user, db).await?;
+				db.insert_user(&user).await?;
 				(None, user)
 			};
 			let blog = Blog::try_from(res.data)?;
-			insert_blog(&blog, db).await?;
+			db.insert_blog(&blog).await?;
 			Ok((blog, user, story))
 		}
 	}

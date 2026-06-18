@@ -1,9 +1,6 @@
 //! Request a [Chapter], or a chapter of a [Story], and to format it in HTML.
 
-use crate::database::{
-	get_chapter, get_story_chapter, insert_chapter, insert_story, insert_tag, insert_tag_link,
-	insert_user, remove_tag_links,
-};
+use crate::database::Db;
 use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::chapter::{ChapterApi, ChapterData};
@@ -23,7 +20,6 @@ use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 
 /// Fimfiction chapter data converted into a more usable structure
@@ -71,7 +67,7 @@ impl TryFrom<ChapterData<i32>> for Chapter {
 /// More direct than `story/{id}/chapter/{num}`.
 #[get("/chapter/{id:.*}")]
 async fn get_chapter_endpoint(
-	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	api: ThinData<Request>, db: ThinData<Db>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
 ) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
@@ -97,9 +93,9 @@ async fn get_chapter_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_chapter(
-	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
+	id: i32, api: &Request, db: &Db, recache: bool,
 ) -> Result<(Chapter, Story, User, Vec<Tag>)> {
-	let chapter = get_chapter(id, db).await?;
+	let chapter = db.get_chapter(id).await?;
 	let chapter = check_recache!(chapter, recache, app);
 	match chapter {
 		Some(chapter) => {
@@ -117,19 +113,19 @@ pub(crate) async fn request_chapter(
 				.ok_or("Fimfiction API error: no author included")?;
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
 			let user = User::try_from(author.clone())?;
-			insert_user(&user, db).await?;
+			db.insert_user(&user).await?;
 			let story = Story::try_from(story.clone())?;
-			insert_story(&story, db).await?;
-			remove_tag_links(story.id, db).await?;
+			db.insert_story(&story).await?;
+			db.remove_tag_links(story.id).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
 			for tag in api_tags {
 				let tag = Tag::try_from(tag.clone())?;
-				insert_tag(&tag, db).await?;
-				insert_tag_link(story.id, tag.id, db).await?;
+				db.insert_tag(&tag).await?;
+				db.insert_tag_link(story.id, tag.id).await?;
 				tags.push(tag);
 			}
 			let chapter = Chapter::try_from(api.data)?;
-			insert_chapter(&chapter, db).await?;
+			db.insert_chapter(&chapter).await?;
 			Ok((chapter, story, user, tags))
 		}
 	}
@@ -144,9 +140,9 @@ pub(crate) async fn request_chapter(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_story_chapters(
-	story_id: i32, chapter_num: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
+	story_id: i32, chapter_num: i32, api: &Request, db: &Db, recache: bool,
 ) -> Result<(Chapter, Story, User, Vec<Tag>)> {
-	let chapter = get_story_chapter(story_id, chapter_num, db).await?;
+	let chapter = db.get_story_chapter(story_id, chapter_num).await?;
 	let chapter = check_recache!(chapter, recache, app);
 	match chapter {
 		Some(chapter) => {
@@ -161,23 +157,23 @@ pub(crate) async fn request_story_chapters(
 			let author = get_variant!(api.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let user = User::try_from(author.clone())?;
-			insert_user(&user, db).await?;
+			db.insert_user(&user).await?;
 			let story = Story::try_from(api.data)?;
-			insert_story(&story, db).await?;
+			db.insert_story(&story).await?;
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
-			remove_tag_links(story_id, db).await?;
+			db.remove_tag_links(story_id).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
 			for tag in api_tags {
 				let tag = Tag::try_from(tag.clone())?;
-				insert_tag(&tag, db).await?;
-				insert_tag_link(story_id, tag.id, db).await?;
+				db.insert_tag(&tag).await?;
+				db.insert_tag_link(story_id, tag.id).await?;
 				tags.push(tag);
 			}
 			let mut chapters = Vec::new();
 			for chapter in api.included {
 				if let ApiIncluded::Chapter(data) = chapter {
 					let chapter = Chapter::try_from(data)?;
-					insert_chapter(&chapter, db).await?;
+					db.insert_chapter(&chapter).await?;
 					chapters.push(chapter);
 				}
 			}

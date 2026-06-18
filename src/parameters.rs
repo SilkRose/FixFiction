@@ -1,6 +1,7 @@
 //! Parses and handles embed [Parameters]
 
-use sqlx::{Pool, Postgres, query};
+use crate::database::Db;
+use sqlx::query;
 use std::collections::HashMap;
 use std::{fmt, iter};
 use url::form_urlencoded;
@@ -67,7 +68,7 @@ impl fmt::Display for Color {
 
 /// Parses a [HashMap<String, String>] into [Parameters]
 pub(crate) async fn parse_embed_parameters(
-	path: &mut String, queries: HashMap<String, String>, db: &Pool<Postgres>,
+	path: &mut String, queries: HashMap<String, String>, db: &Db,
 ) -> (Parameters, Vec<String>) {
 	let mut params = Parameters::default();
 	let mut errors = Vec::new();
@@ -101,7 +102,7 @@ pub(crate) fn parse_cover(params: &mut Parameters, errors: &mut Vec<String>, val
 
 /// Converts a string into a [Color]
 pub(crate) async fn parse_color(
-	params: &mut Parameters, errors: &mut Vec<String>, db: &Pool<Postgres>, value: String,
+	params: &mut Parameters, errors: &mut Vec<String>, db: &Db, value: String,
 ) {
 	let color = match value.to_lowercase().as_str() {
 		"ran" | "random" => Color::Random,
@@ -114,7 +115,7 @@ pub(crate) async fn parse_color(
 	};
 	if let Color::Custom(color) = color {
 		let db_color = query!("SELECT color FROM Colors WHERE name = $1 LIMIT 1;", color)
-			.fetch_optional(db)
+			.fetch_optional(&db.pool)
 			.await
 			.unwrap_or_default();
 		if let Some(color) = db_color {

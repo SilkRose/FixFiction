@@ -1,6 +1,6 @@
 //! Request a [Bookshelf] and to format it in HTML.
 
-use crate::database::{get_bookshelf, insert_bookshelf, insert_user};
+use crate::database::Db;
 use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::bookshelf::{BookshelfApi, BookshelfData};
@@ -17,7 +17,6 @@ use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 
 /// Fimfiction bookshelf data converted into a more usable structure
@@ -84,7 +83,7 @@ impl TryFrom<BookshelfData<i32>> for Bookshelf {
 /// Requests a bookshelf by ID.
 #[get("/bookshelf/{id:.*}")]
 async fn get_bookshelf_endpoint(
-	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	api: ThinData<Request>, db: ThinData<Db>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
 ) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
@@ -111,9 +110,9 @@ async fn get_bookshelf_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_bookshelf(
-	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
+	id: i32, api: &Request, db: &Db, recache: bool,
 ) -> Result<(Bookshelf, Option<User>)> {
-	let bookshelf = get_bookshelf(id, db).await?;
+	let bookshelf = db.get_bookshelf(id).await?;
 	let bookshelf = check_recache!(bookshelf, recache, app);
 	match bookshelf {
 		Some(bookshelf) => {
@@ -133,10 +132,10 @@ pub(crate) async fn request_bookshelf(
 			}
 			let user = get_variant!(api.included, ApiIncluded::Author);
 			let bookshelf = Bookshelf::try_from(api.data)?;
-			insert_bookshelf(&bookshelf, db).await?;
+			db.insert_bookshelf(&bookshelf).await?;
 			if let Some(user) = user {
 				let user = User::try_from(user.clone())?;
-				insert_user(&user, db).await?;
+				db.insert_user(&user).await?;
 				Ok((bookshelf, Some(user)))
 			} else {
 				Ok((bookshelf, None))

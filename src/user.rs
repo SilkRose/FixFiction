@@ -1,7 +1,7 @@
 //! Request a [User] and to format it in HTML.
 
 use crate::check_recache;
-use crate::database::{get_user, insert_user};
+use crate::database::Db;
 use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::user::{UserApi, UserData};
 use crate::html_template::{EmbedData, embed_html_template};
@@ -15,7 +15,6 @@ use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 
 /// Fimfiction user data converted into a more usable structure
@@ -71,7 +70,7 @@ impl TryFrom<UserData<i32>> for User {
 /// Requests a user by ID.
 #[get("/user/{id:.*}")]
 async fn get_user_endpoint(
-	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	api: ThinData<Request>, db: ThinData<Db>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
 ) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
@@ -97,10 +96,8 @@ async fn get_user_endpoint(
 /// - If the user is uncached:
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
-pub(crate) async fn request_user(
-	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
-) -> Result<User> {
-	let user = get_user(id, db).await?;
+pub(crate) async fn request_user(id: i32, api: &Request, db: &Db, recache: bool) -> Result<User> {
+	let user = db.get_user(id).await?;
 	let user = check_recache!(user, recache, app);
 	match user {
 		Some(user) => Ok(user),
@@ -108,7 +105,7 @@ pub(crate) async fn request_user(
 			let fimfic = format!("https://www.fimfiction.net/api/v2/users/{id}");
 			let api = parse_fimfic_response::<UserApi<i32>>(api, &fimfic).await?;
 			let user = User::try_from(api.data)?;
-			insert_user(&user, db).await?;
+			db.insert_user(&user).await?;
 			Ok(user)
 		}
 	}

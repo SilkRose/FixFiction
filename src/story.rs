@@ -1,10 +1,7 @@
 //! Request a [Story] and to format it in HTML.
 
 use crate::chapter::{chapter_html_template, request_story_chapters};
-use crate::database::{
-	get_story, get_tag, get_tag_links, insert_story, insert_tag, insert_tag_link, insert_user,
-	remove_tag_links,
-};
+use crate::database::Db;
 use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::story::{StoryApi, StoryData};
@@ -24,7 +21,6 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::Type;
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 
 /// Fimfiction story data converted into a more usable structure
@@ -168,7 +164,7 @@ impl TryFrom<String> for CompletionStatus {
 /// May also include an ordinal chapter number.
 #[get("/story/{id:.*}")]
 async fn get_story_endpoint(
-	api: ThinData<Request>, db: ThinData<Pool<Postgres>>, path: Path<String>,
+	api: ThinData<Request>, db: ThinData<Db>, path: Path<String>,
 	queries: Query<HashMap<String, String>>,
 ) -> EmbedResult<impl Responder> {
 	let mut path = path.into_inner();
@@ -203,17 +199,18 @@ async fn get_story_endpoint(
 ///   - Can't connect to Fimfiction
 ///   - Can't deserialize response from Fimfiction
 pub(crate) async fn request_story(
-	id: i32, api: &Request, db: &Pool<Postgres>, recache: bool,
+	id: i32, api: &Request, db: &Db, recache: bool,
 ) -> Result<(Story, User, Vec<Tag>)> {
-	let story = get_story(id, db).await?;
+	let story = db.get_story(id).await?;
 	let story = check_recache!(story, recache, app);
 	match story {
 		Some(story) => {
 			let user = request_user(story.author_id, api, db, recache).await?;
-			let tag_links = get_tag_links(story.id, db).await?;
+			let tag_links = db.get_tag_links(story.id).await?;
 			let mut tags = Vec::with_capacity(tag_links.len());
 			for link in tag_links {
-				let tag = get_tag(link.tag_id, db)
+				let tag = db
+					.get_tag(link.tag_id)
 					.await?
 					.expect("Database constraint means this will never fail.");
 				tags.push(tag);
@@ -228,15 +225,15 @@ pub(crate) async fn request_story(
 				.ok_or("Fimfiction API error: no author included")?;
 			let api_tags = get_variants!(api.included, ApiIncluded::Tag).collect::<Vec<_>>();
 			let user = User::try_from(author.clone())?;
-			insert_user(&user, db).await?;
+			db.insert_user(&user).await?;
 			let story = Story::try_from(api.data)?;
-			insert_story(&story, db).await?;
-			remove_tag_links(id, db).await?;
+			db.insert_story(&story).await?;
+			db.remove_tag_links(id).await?;
 			let mut tags = Vec::with_capacity(api_tags.len());
 			for tag in api_tags {
 				let tag = Tag::try_from(tag.clone())?;
-				insert_tag(&tag, db).await?;
-				insert_tag_link(id, tag.id, db).await?;
+				db.insert_tag(&tag).await?;
+				db.insert_tag_link(id, tag.id).await?;
 				tags.push(tag);
 			}
 			Ok((story, user, tags))
