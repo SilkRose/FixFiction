@@ -74,6 +74,21 @@ impl ResponseError for EmbedErrorType {
 	}
 }
 
+/// Formats a database insert error for embeds
+pub(crate) fn db_insert_err(err: sqlx::Error) -> Error {
+	format!("FixFiction Error: database insertion error:\n{err}").into()
+}
+
+/// Formats a database select error for embeds
+pub(crate) fn db_select_err(err: sqlx::Error) -> Error {
+	format!("FixFiction Error: database retrieval error.\n{err}").into()
+}
+
+/// Formats a database delete error for embeds
+pub(crate) fn db_delete_err(err: sqlx::Error) -> Error {
+	format!("FixFiction Error: database deletion error:\n{err}").into()
+}
+
 /// Formats errors to an HTML string for embedding.
 pub(crate) fn error_html_template(endpoint: &str, link: &str, errors: String) -> String {
 	let link = format!("https://www.fimfiction.net/{endpoint}/{link}");

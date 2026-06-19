@@ -3,7 +3,7 @@
 use crate::blog::Blog;
 use crate::bookshelf::Bookshelf;
 use crate::chapter::Chapter;
-use crate::error::{Error, Result};
+use crate::error::{Result, db_delete_err, db_insert_err, db_select_err};
 use crate::group::Group;
 use crate::story::{CompletionStatus, ContentRating, Story};
 use crate::tag::{Tag, TagLink, TagType};
@@ -11,30 +11,6 @@ use crate::thread::Thread;
 use crate::user::User;
 use sqlx::postgres::{PgPoolOptions, PgQueryResult};
 use sqlx::{Pool, Postgres};
-
-fn insert_err(err: sqlx::Error) -> Error {
-	format!("FixFiction Error: database insertion error:\n{err}").into()
-}
-
-fn select_err(err: sqlx::Error) -> Error {
-	format!("FixFiction Error: database retrieval error.\n{err}").into()
-}
-
-fn update_err(err: sqlx::Error) -> Error {
-	format!("FixFiction Error: database updating error:\n{err}").into()
-}
-
-fn delete_err(err: sqlx::Error) -> Error {
-	format!("FixFiction Error: database deletion error:\n{err}").into()
-}
-
-fn count_err() -> Error {
-	"FixFiction Error: database counting error".into()
-}
-
-fn db_expect() -> &'static str {
-	"database constraints means this resource will always be present in the database."
-}
 
 #[derive(Clone)]
 pub(crate) struct Db {
@@ -66,7 +42,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [Blog] into the database
@@ -102,7 +78,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects a [User] from the database
@@ -118,7 +94,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [User] into the database
@@ -154,7 +130,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects a [Story] from the database
@@ -175,7 +151,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [Story] into the database
@@ -238,7 +214,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects a [Chapter] from the database, based on Story ID and Chapter number
@@ -261,7 +237,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Selects a [Chapter] from the database, based on Chapter ID
@@ -278,7 +254,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [Chapter] into the database
@@ -312,7 +288,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects a [Group] from the database
@@ -330,7 +306,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [Group] into the database
@@ -371,7 +347,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects a [Bookshelf] from the database
@@ -389,7 +365,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [Bookshelf] into the database
@@ -436,7 +412,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects a [Thread] from the database
@@ -453,7 +429,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [Thread] into the database
@@ -491,7 +467,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects a [Tag] from the database
@@ -507,7 +483,7 @@ impl Db {
 		)
 		.fetch_optional(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a [Tag] into the database
@@ -532,7 +508,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Selects [TagLink]s from the database for a given story ID
@@ -547,7 +523,7 @@ impl Db {
 		)
 		.fetch_all(&self.pool)
 		.await
-		.map_err(select_err)
+		.map_err(db_select_err)
 	}
 
 	/// Inserts a link between a [Story] and a [Tag] into the database
@@ -567,7 +543,7 @@ impl Db {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(insert_err)
+		.map_err(db_insert_err)
 	}
 
 	/// Deletes all tag links for a given [Story] ID
@@ -575,6 +551,6 @@ impl Db {
 		sqlx::query!("DELETE FROM Tag_links WHERE story_id = $1", story_id)
 			.execute(&self.pool)
 			.await
-			.map_err(delete_err)
+			.map_err(db_delete_err)
 	}
 }
