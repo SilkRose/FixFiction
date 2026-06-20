@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO Chapters \n\t\t\t\t(id, story_id, chapter_num, title, link, views,\n\t\t\t\twords, date_published, date_modified, date_cached)\n\t\t\tVALUES\n\t\t\t\t($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n\t\t\tON CONFLICT(id) DO UPDATE SET\n\t\t\t\tstory_id = EXCLUDED.story_id,\n\t\t\t\tchapter_num = EXCLUDED.chapter_num,\n\t\t\t\ttitle = EXCLUDED.title,\n\t\t\t\tlink = EXCLUDED.link,\n\t\t\t\tviews = EXCLUDED.views,\n\t\t\t\twords = EXCLUDED.words,\n\t\t\t\tdate_published = EXCLUDED.date_published,\n\t\t\t\tdate_modified = EXCLUDED.date_modified,\n\t\t\t\tdate_cached = EXCLUDED.date_cached;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1746997f95d4b425b6a05c25175c0b7028528ce7072577b8550d16687ef9d63b"
+}

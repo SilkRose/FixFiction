@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO Tag_links\n\t\t\t\t(story_id, tag_id)\n\t\t\tVALUES\n\t\t\t\t($1, $2)\n\t\t\tON CONFLICT(story_id, tag_id) DO UPDATE SET\n\t\t\t\tdate_cached = now();",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b0c8ab7068c0f86ec578c2b6e284c2bb087e034de0f24f061f3fc0c4415339c"
+}

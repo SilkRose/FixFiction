@@ -1,0 +1,208 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\t\tid, name, description, link, color, icon_url, stories,\n\t\t\t\tnum_unread, track_unread, quick_add, email_update,\n\t\t\t\tuser_id, order_pos, date_created, date_modified, date_cached\n\t\t\tFROM Bookshelves\n\t\t\tWHERE id = $1\n\t\t\tLIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "link",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "link"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "color",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "color"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "icon_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "icon_url"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "stories",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "stories"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "num_unread",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "num_unread"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "track_unread",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "track_unread"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "quick_add",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "quick_add"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "email_update",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "email_update"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "user_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "order_pos",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "order_pos"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "date_created",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "date_created"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "date_modified",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "date_modified"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "date_cached",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "bookshelves",
+            "name": "date_cached"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d41e99f38335e53df18967ca3f1b2fe7fa023cc112a5766179173a4929b9a7ee"
+}

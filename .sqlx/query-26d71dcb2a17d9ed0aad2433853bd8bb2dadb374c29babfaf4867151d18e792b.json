@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\t\tid, name, bio, link, followers,\n\t\t\t\tstories, blogs, profile_pic_url,\n\t\t\t\tcolor_hex, date_joined, date_cached\n\t\t\tFROM Authors WHERE id = $1 LIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "bio",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "bio"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "link",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "link"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "followers",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "followers"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "stories",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "stories"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "blogs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "blogs"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "profile_pic_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "profile_pic_url"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "color_hex",
+        "type_info": "Bpchar",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "color_hex"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "date_joined",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "date_joined"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "date_cached",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "date_cached"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "26d71dcb2a17d9ed0aad2433853bd8bb2dadb374c29babfaf4867151d18e792b"
+}

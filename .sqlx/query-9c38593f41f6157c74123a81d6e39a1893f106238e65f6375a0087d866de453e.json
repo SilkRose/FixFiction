@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO Groups\n\t\t\t\t(id, name, description, link, members,\n\t\t\t\tstories, founder_id, icon_url, nsfw,\n\t\t\t\topen, hidden, date_created, date_cached)\n\t\t\tVALUES\n\t\t\t\t($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n\t\t\tON CONFLICT(id) DO UPDATE SET\n\t\t\t\tname = EXCLUDED.name,\n\t\t\t\tdescription = EXCLUDED.description,\n\t\t\t\tlink = EXCLUDED.link,\n\t\t\t\tmembers = EXCLUDED.members,\n\t\t\t\tstories = EXCLUDED.stories,\n\t\t\t\tfounder_id = EXCLUDED.founder_id,\n\t\t\t\ticon_url = EXCLUDED.icon_url,\n\t\t\t\tnsfw = EXCLUDED.nsfw,\n\t\t\t\topen = EXCLUDED.open,\n\t\t\t\thidden = EXCLUDED.hidden,\n\t\t\t\tdate_created = EXCLUDED.date_created,\n\t\t\t\tdate_cached = EXCLUDED.date_cached;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9c38593f41f6157c74123a81d6e39a1893f106238e65f6375a0087d866de453e"
+}

@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO Tags\n\t\t\t\t(id, name, type, old_id, link, date_cached)\n\t\t\tVALUES\n\t\t\t\t($1, $2, $3, $4, $5, $6)\n\t\t\tON CONFLICT(id) DO UPDATE SET\n\t\t\t\tname = EXCLUDED.name,\n\t\t\t\ttype = EXCLUDED.type,\n\t\t\t\told_id = EXCLUDED.old_id,\n\t\t\t\tlink = EXCLUDED.link,\n\t\t\t\tdate_cached = EXCLUDED.date_cached;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        {
+          "Custom": {
+            "name": "tag_type",
+            "kind": {
+              "Enum": [
+                "character",
+                "genre",
+                "rating",
+                "content",
+                "series",
+                "warning",
+                "universe"
+              ]
+            }
+          }
+        },
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b5ea2bd73a2d9f1cbb46f88f57f36ff5e189b7e31d00082c6078d7e15f82615"
+}

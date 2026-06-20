@@ -6,7 +6,13 @@
       {
         "ordinal": 0,
         "name": "color",
-        "type_info": "Bpchar"
+        "type_info": "Bpchar",
+        "origin": {
+          "Table": {
+            "table": "colors",
+            "name": "color"
+          }
+        }
       }
     ],
     "parameters": {

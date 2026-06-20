@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\t\tstory_id, tag_id, date_cached\n\t\t\tFROM Tag_links\n\t\t\tWHERE story_id = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "story_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tag_links",
+            "name": "story_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tag_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tag_links",
+            "name": "tag_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "date_cached",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tag_links",
+            "name": "date_cached"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fe9d6f74e1bc06ed3e28b70734fa8056f6073d617a8ac3047cc8ca6ea4ca7e05"
+}

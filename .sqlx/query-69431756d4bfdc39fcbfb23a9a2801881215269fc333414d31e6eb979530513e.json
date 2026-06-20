@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\t\tid, group_id, creator_id, last_poster_id, title, link, posts,\n\t\t\t\tsticky, locked, date_created, date_last_post, date_cached\n\t\t\tFROM Threads\n\t\t\tWHERE id = $1\n\t\t\tLIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "group_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "group_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "creator_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "creator_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_poster_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "last_poster_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "link",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "link"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "posts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "posts"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "sticky",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "sticky"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "locked",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "locked"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "date_created",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "date_created"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "date_last_post",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "date_last_post"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "date_cached",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "date_cached"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "69431756d4bfdc39fcbfb23a9a2801881215269fc333414d31e6eb979530513e"
+}

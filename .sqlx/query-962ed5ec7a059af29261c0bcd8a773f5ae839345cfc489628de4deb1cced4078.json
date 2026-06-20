@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO Bookshelves\n\t\t\t\t(id, name, description, link, color, icon_url, stories,\n\t\t\t\tnum_unread, track_unread, quick_add, email_update, user_id,\n\t\t\t\torder_pos, date_created, date_modified, date_cached)\n\t\t\tVALUES\n\t\t\t\t($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)\n\t\t\tON CONFLICT(id) DO UPDATE SET\n\t\t\t\tname = EXCLUDED.name,\n\t\t\t\tdescription = EXCLUDED.description,\n\t\t\t\tlink = EXCLUDED.link,\n\t\t\t\tcolor = EXCLUDED.color,\n\t\t\t\ticon_url = EXCLUDED.icon_url,\n\t\t\t\tstories = EXCLUDED.stories,\n\t\t\t\tnum_unread = EXCLUDED.num_unread,\n\t\t\t\ttrack_unread = EXCLUDED.track_unread,\n\t\t\t\tquick_add = EXCLUDED.quick_add,\n\t\t\t\temail_update = EXCLUDED.email_update,\n\t\t\t\tuser_id = EXCLUDED.user_id,\n\t\t\t\torder_pos = EXCLUDED.order_pos,\n\t\t\t\tdate_created = EXCLUDED.date_created,\n\t\t\t\tdate_modified = EXCLUDED.date_modified,\n\t\t\t\tdate_cached = EXCLUDED.date_cached;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Int4",
+        "Int4",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "962ed5ec7a059af29261c0bcd8a773f5ae839345cfc489628de4deb1cced4078"
+}

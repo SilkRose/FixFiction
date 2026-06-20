@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\t\tid, title, content, link, comments, views,\n\t\t\t\tauthor_id, tags, story_id, date_posted, date_cached\n\t\t\tFROM Blogs\n\t\t\tWHERE id = $1\n\t\t\tLIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "link",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "link"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "comments",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "comments"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "views",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "views"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "author_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "tags",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "tags"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "story_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "story_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "date_posted",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "date_posted"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "date_cached",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "blogs",
+            "name": "date_cached"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "adaebb282ab002aa23894803ab017ba3cd2f116c5036761891f559d27addca02"
+}

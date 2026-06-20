@@ -1,0 +1,103 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\t\tid, name, type AS \"tag_type: TagType\", old_id, link, date_cached\n\t\t\tFROM Tags\n\t\t\tWHERE id = $1\n\t\t\tLIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tag_type: TagType",
+        "type_info": {
+          "Custom": {
+            "name": "tag_type",
+            "kind": {
+              "Enum": [
+                "character",
+                "genre",
+                "rating",
+                "content",
+                "series",
+                "warning",
+                "universe"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "type"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "old_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "old_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "link",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "link"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "date_cached",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "date_cached"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "6bace3f64e752b1f2c48b5e6ac1b0fe2bf9ab9ffa929b0632fa9a6dc97ca19e4"
+}
