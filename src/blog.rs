@@ -61,6 +61,82 @@ impl TryFrom<BlogData<i32>> for Blog {
 	}
 }
 
+pub(crate) struct BlogEmbed;
+
+impl BlogEmbed {
+	pub(crate) fn new() -> Self {
+		Self
+	}
+
+	pub(crate) fn parse_path(self, path: String) -> Result<BlogEmbedParseId> {
+		println!("path: {path}");
+		let parts = path.split("/").collect::<Vec<_>>();
+		println!("parts: {parts:?}");
+		if parts[0].is_empty() {
+			return Err("FixFiction error: no ID value provided".into());
+		}
+		let id = parts[0].parse()?;
+		Ok(BlogEmbedParseId { id, path })
+	}
+}
+
+pub(crate) struct BlogEmbedParseId {
+	id: i32,
+	path: String,
+}
+
+impl BlogEmbedParseId {
+	pub(crate) async fn get_from_db(self, db: &Db) -> Result<BlogEmbedFromDb> {
+		let blog = db.get_blog(self.id).await?;
+		let user = match &blog {
+			Some(blog) => db.get_user(blog.author_id).await?,
+			None => None,
+		};
+		let story = match blog.as_ref().and_then(|blog| blog.story_id) {
+			Some(story_id) => db.get_story(story_id).await?,
+			None => None,
+		};
+		Ok(BlogEmbedFromDb {
+			id: self.id,
+			path: self.path,
+			blog,
+			user,
+			story,
+		})
+	}
+}
+
+pub(crate) struct BlogEmbedFromDb {
+	id: i32,
+	path: String,
+	blog: Option<Blog>,
+	user: Option<User>,
+	story: Option<Story>,
+}
+
+impl BlogEmbedFromDb {
+	pub(crate) async fn get_from_api(mut self, api: &Request) -> Result<BlogEmbedFromApi> {
+		if self.blog.is_none() {
+			// request blog here
+		}
+		Ok(BlogEmbedFromApi {
+			id: self.id,
+			path: self.path,
+			blog: self.blog,
+			user: self.user,
+			story: self.story,
+		})
+	}
+}
+
+pub(crate) struct BlogEmbedFromApi {
+	id: i32,
+	path: String,
+	blog: Option<Blog>,
+	user: Option<User>,
+	story: Option<Story>,
+}
+
 /// The `blog/` endpoint.
 ///
 /// Requests a blog by ID.
