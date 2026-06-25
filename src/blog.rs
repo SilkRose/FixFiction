@@ -20,6 +20,7 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use pony::word_stats::word_count;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 /// Fimfiction blog data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -61,80 +62,55 @@ impl TryFrom<BlogData<i32>> for Blog {
 	}
 }
 
-pub(crate) struct BlogEmbed;
+#[derive(Debug, Default)]
+struct New;
 
-impl BlogEmbed {
-	pub(crate) fn new() -> Self {
-		Self
+#[derive(Debug, Default)]
+struct PathParsed;
+
+#[derive(Debug, Default)]
+struct AddParams;
+
+#[derive(Debug, Default)]
+struct BlogEmbed<T> {
+	stage: PhantomData<T>,
+	id: Option<i32>,
+	path: Option<String>,
+	parameters: HashMap<String, String>,
+}
+
+impl<T> BlogEmbed<T> {
+	fn update_stage<S>(self) -> BlogEmbed<S> {
+		BlogEmbed {
+			stage: PhantomData,
+			id: self.id,
+			path: self.path,
+			parameters: self.parameters,
+		}
+	}
+}
+
+impl BlogEmbed<New> {
+	fn new() -> Self {
+		Self::default()
 	}
 
-	pub(crate) fn parse_path(self, path: String) -> Result<BlogEmbedParseId> {
-		println!("path: {path}");
+	fn parse_path(mut self, path: String) -> Result<BlogEmbed<PathParsed>> {
 		let parts = path.split("/").collect::<Vec<_>>();
-		println!("parts: {parts:?}");
 		if parts[0].is_empty() {
 			return Err("FixFiction error: no ID value provided".into());
 		}
-		let id = parts[0].parse()?;
-		Ok(BlogEmbedParseId { id, path })
+		self.id = Some(parts[0].parse()?);
+		self.path = Some(path);
+		Ok(self.update_stage())
 	}
 }
 
-pub(crate) struct BlogEmbedParseId {
-	id: i32,
-	path: String,
-}
-
-impl BlogEmbedParseId {
-	pub(crate) async fn get_from_db(self, db: &Db) -> Result<BlogEmbedFromDb> {
-		let blog = db.get_blog(self.id).await?;
-		let user = match &blog {
-			Some(blog) => db.get_user(blog.author_id).await?,
-			None => None,
-		};
-		let story = match blog.as_ref().and_then(|blog| blog.story_id) {
-			Some(story_id) => db.get_story(story_id).await?,
-			None => None,
-		};
-		Ok(BlogEmbedFromDb {
-			id: self.id,
-			path: self.path,
-			blog,
-			user,
-			story,
-		})
+impl BlogEmbed<PathParsed> {
+	fn add_parameters(mut self, queries: HashMap<String, String>) -> Result<BlogEmbed<AddParams>> {
+		self.parameters = queries;
+		Ok(self.update_stage())
 	}
-}
-
-pub(crate) struct BlogEmbedFromDb {
-	id: i32,
-	path: String,
-	blog: Option<Blog>,
-	user: Option<User>,
-	story: Option<Story>,
-}
-
-impl BlogEmbedFromDb {
-	pub(crate) async fn get_from_api(mut self, api: &Request) -> Result<BlogEmbedFromApi> {
-		if self.blog.is_none() {
-			// request blog here
-		}
-		Ok(BlogEmbedFromApi {
-			id: self.id,
-			path: self.path,
-			blog: self.blog,
-			user: self.user,
-			story: self.story,
-		})
-	}
-}
-
-pub(crate) struct BlogEmbedFromApi {
-	id: i32,
-	path: String,
-	blog: Option<Blog>,
-	user: Option<User>,
-	story: Option<Story>,
 }
 
 /// The `blog/` endpoint.
