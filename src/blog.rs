@@ -72,11 +72,17 @@ struct PathParsed;
 struct AddParams;
 
 #[derive(Debug, Default)]
+struct GetFromDb;
+
+#[derive(Debug, Default)]
 struct BlogEmbed<T> {
 	stage: PhantomData<T>,
 	id: Option<i32>,
 	path: Option<String>,
 	parameters: HashMap<String, String>,
+	blog: Option<Blog>,
+	user: Option<User>,
+	story: Option<Story>,
 }
 
 impl<T> BlogEmbed<T> {
@@ -86,6 +92,9 @@ impl<T> BlogEmbed<T> {
 			id: self.id,
 			path: self.path,
 			parameters: self.parameters,
+			blog: self.blog,
+			user: self.user,
+			story: self.story,
 		}
 	}
 }
@@ -107,8 +116,21 @@ impl BlogEmbed<New> {
 }
 
 impl BlogEmbed<PathParsed> {
-	fn add_parameters(mut self, queries: HashMap<String, String>) -> Result<BlogEmbed<AddParams>> {
+	fn add_parameters(mut self, queries: HashMap<String, String>) -> BlogEmbed<AddParams> {
 		self.parameters = queries;
+		self.update_stage()
+	}
+}
+
+impl BlogEmbed<AddParams> {
+	async fn get_from_db(mut self, db: &Db) -> Result<BlogEmbed<GetFromDb>> {
+		self.blog = db.get_blog(self.id.unwrap()).await?;
+		if let Some(ref blog) = self.blog {
+			self.user = db.get_user(blog.author_id).await?;
+			if let Some(story_id) = blog.story_id {
+				self.story = db.get_story(story_id).await?;
+			}
+		}
 		Ok(self.update_stage())
 	}
 }
