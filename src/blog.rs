@@ -4,6 +4,7 @@ use crate::database::Db;
 use crate::error::{EmbedError, EmbedResult, Error, Result};
 use crate::fimfiction_api::ApiIncluded;
 use crate::fimfiction_api::blog::{BlogApi, BlogData};
+use crate::fimfiction_api::story::StoryApi;
 use crate::html_template::{EmbedData, embed_html_template};
 use crate::parameters::{Color, Cover, Parameters, parse_embed_parameters};
 use crate::story::{Story, request_story};
@@ -75,6 +76,9 @@ struct AddParams;
 struct GetFromDb;
 
 #[derive(Debug, Default)]
+struct GetFromFimfic;
+
+#[derive(Debug, Default)]
 struct BlogEmbed<T> {
 	stage: PhantomData<T>,
 	id: Option<i32>,
@@ -129,6 +133,32 @@ impl BlogEmbed<AddParams> {
 			self.user = db.get_user(blog.author_id).await?;
 			if let Some(story_id) = blog.story_id {
 				self.story = db.get_story(story_id).await?;
+			}
+		}
+		Ok(self.update_stage())
+	}
+}
+
+impl BlogEmbed<GetFromDb> {
+	async fn get_from_fimfic(mut self, api: &Request) -> Result<BlogEmbed<GetFromFimfic>> {
+		if self.blog.is_none() {
+			let fimfic = format!(
+				"https://www.fimfiction.net/api/v2/blog-posts/{}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,site_post,tags,author,tagged_story",
+				self.id.unwrap()
+			);
+			let res = parse_fimfic_response::<BlogApi<i32>>(api, &fimfic).await?;
+			let author = get_variant!(res.included, ApiIncluded::Author)
+				.ok_or("Fimfiction API error: no author included")?;
+			let story_id = (res.data.relationships.tagged_story.data.id != "0")
+				.then_some(res.data.relationships.tagged_story.data.id.parse::<i32>()?);
+			self.blog = Some(res.data.try_into()?);
+			self.user = Some(author.clone().try_into()?);
+			if let Some(story_id) = story_id {
+				let fimfic = format!(
+					"https://www.fimfiction.net/api/v2/stories/{story_id}?include=author,tags"
+				);
+				let res = parse_fimfic_response::<StoryApi<i32>>(api, &fimfic).await?;
+				self.story = Some(res.data.try_into()?)
 			}
 		}
 		Ok(self.update_stage())
