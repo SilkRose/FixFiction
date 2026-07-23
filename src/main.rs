@@ -23,7 +23,7 @@ use crate::error::Result;
 use crate::fimfiction_api::fimfic_api_headers;
 use crate::group::get_group_endpoint;
 use crate::oembed::get_oembed;
-use crate::story::get_story_endpoint;
+use crate::story::{get_random_story_endpoint, get_story_endpoint};
 use crate::user::get_user_endpoint;
 use actix_cors::Cors;
 use actix_web::middleware::Compress;
@@ -76,6 +76,7 @@ async fn main() -> Result<()> {
 			.service(get_blog_endpoint)
 			.service(get_group_endpoint)
 			.service(get_bookshelf_endpoint)
+			.service(get_random_story_endpoint)
 			.service(get_oembed)
 	})
 	.bind(("0.0.0.0", 7669))? // pony

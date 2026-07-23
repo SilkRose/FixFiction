@@ -19,6 +19,7 @@ use actix_web::{HttpResponse, Responder, get};
 use chrono::{DateTime, TimeDelta, Utc};
 use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::Type;
 use std::collections::HashMap;
@@ -188,6 +189,34 @@ async fn get_story_endpoint(
 	Ok(HttpResponse::Ok()
 		.content_type("text/html; charset=utf-8")
 		.body(body))
+}
+
+/// The `random` endpoint.
+///
+/// Redirects to a random story ID.
+#[get("/random")]
+async fn get_random_story_endpoint() -> EmbedResult<impl Responder> {
+	let mut rng = rand::rng();
+	let idx = rng.random_range(1..=600_000);
+	let link = format!("https://www.fimfiction.net/story/{idx}");
+	let data = EmbedData {
+		title: String::from("Random Story"),
+		description: String::from("Forwards to a random story on Fimfiction."),
+		link,
+		color: Some(String::from("f5b7d0")),
+		cover: None,
+		site_name: String::from("Fimfictiion"),
+		site_url: String::from("https://www.fimfiction.net/"),
+		errors: vec![],
+		user_name: None,
+		user_link: None,
+		html_comment: None,
+		open_graph_type: String::from("book"),
+		open_graph_property: None,
+	};
+	Ok(HttpResponse::Ok()
+		.content_type("text/html; charset=utf-8")
+		.body(embed_html_template(data)))
 }
 
 /// Requests a [Story] from the cache. If it's not cached, it will be requested from Fimfiction.net (and also cached).
