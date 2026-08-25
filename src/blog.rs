@@ -109,10 +109,10 @@ impl BlogEmbed<New> {
 	}
 
 	fn parse_path(mut self, path: String) -> Result<BlogEmbed<PathParsed>> {
-		let id = path.split('/').next().unwrap_or_default();
-		if id.is_empty() {
-			return Err("FixFiction error: no ID value provided".into());
-		}
+		let id = path
+			.split('/')
+			.next()
+			.ok_or("FixFiction error: no ID value provided")?;
 		let parsed = id
 			.parse()
 			.map_err(|_| format!("FixFiction error: failed to parse ID: {id}"))?;
