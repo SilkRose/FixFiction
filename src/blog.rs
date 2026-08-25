@@ -21,7 +21,6 @@ use pony::http::Request;
 use pony::number_format::{FormatType, format_number_unit_metric};
 use pony::word_stats::word_count;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 /// Fimfiction blog data converted into a more usable structure
 #[derive(Debug, Clone)]
@@ -64,108 +63,133 @@ impl TryFrom<BlogData<i32>> for Blog {
 }
 
 #[derive(Debug, Default)]
-struct New;
+struct BlogEmbed();
 
-#[derive(Debug, Default)]
-struct PathParsed;
+impl BlogEmbed {
+	fn new() -> Self {
+		Self::default()
+	}
 
-#[derive(Debug, Default)]
-struct AddParams;
+	fn parse_path(self, path: String) -> Result<BlogEmbedIdParsed> {
+		let id = path
+			.split('/')
+			.next()
+			.ok_or("FixFiction error: no ID value provided")?;
+		let id = id
+			.parse()
+			.map_err(|_| format!("FixFiction error: failed to parse ID: {id}"))?;
+		Ok(BlogEmbedIdParsed { id, path })
+	}
+}
 
-#[derive(Debug, Default)]
-struct GetFromDb;
+struct BlogEmbedIdParsed {
+	id: i32,
+	path: String,
+}
 
-#[derive(Debug, Default)]
-struct GetFromFimfic;
+impl BlogEmbedIdParsed {
+	async fn add_parameters(
+		mut self, queries: HashMap<String, String>, db: &Db,
+	) -> BlogEmbedParamsParsed {
+		let (params, errors) = parse_embed_parameters(&mut self.path, queries, db).await;
+		BlogEmbedParamsParsed {
+			id: self.id,
+			path: self.path,
+			parameters: params,
+			recoverable_errors: errors,
+		}
+	}
+}
 
-#[derive(Debug, Default)]
-struct BlogEmbed<T> {
-	stage: PhantomData<T>,
-	id: Option<i32>,
-	path: Option<String>,
-	parameters: HashMap<String, String>,
+struct BlogEmbedParamsParsed {
+	id: i32,
+	path: String,
+	parameters: Parameters,
+	recoverable_errors: Vec<String>,
+}
+
+impl BlogEmbedParamsParsed {
+	async fn get_from_db(self, db: &Db) -> Result<BlogEmbedGetFromDb> {
+		let (mut blog, mut user, mut story) = (None, None, None);
+		blog = db.get_blog(self.id).await?;
+		if self.parameters.refresh {
+			blog = blog.filter(|item| {
+				Utc::now()
+					.checked_sub_signed(TimeDelta::seconds(60))
+					.is_some_and(|max_age| item.date_cached >= max_age)
+			});
+		}
+		if let Some(ref blog) = blog {
+			user = db.get_user(blog.author_id).await?;
+			if let Some(story_id) = blog.story_id {
+				story = db.get_story(story_id).await?;
+			}
+		}
+		Ok(BlogEmbedGetFromDb {
+			id: self.id,
+			path: self.path,
+			parameters: self.parameters,
+			recoverable_errors: self.recoverable_errors,
+			blog,
+			user,
+			story,
+		})
+	}
+}
+
+struct BlogEmbedGetFromDb {
+	id: i32,
+	path: String,
+	parameters: Parameters,
+	recoverable_errors: Vec<String>,
 	blog: Option<Blog>,
 	user: Option<User>,
 	story: Option<Story>,
 }
 
-impl<T> BlogEmbed<T> {
-	fn update_stage<S>(self) -> BlogEmbed<S> {
-		BlogEmbed {
-			stage: PhantomData,
-			id: self.id,
-			path: self.path,
-			parameters: self.parameters,
-			blog: self.blog,
-			user: self.user,
-			story: self.story,
-		}
-	}
-}
-
-impl BlogEmbed<New> {
-	fn new() -> Self {
-		Self::default()
-	}
-
-	fn parse_path(mut self, path: String) -> Result<BlogEmbed<PathParsed>> {
-		let id = path
-			.split('/')
-			.next()
-			.ok_or("FixFiction error: no ID value provided")?;
-		let parsed = id
-			.parse()
-			.map_err(|_| format!("FixFiction error: failed to parse ID: {id}"))?;
-		self.id = Some(parsed);
-		self.path = Some(path);
-		Ok(self.update_stage())
-	}
-}
-
-impl BlogEmbed<PathParsed> {
-	fn add_parameters(mut self, queries: HashMap<String, String>) -> BlogEmbed<AddParams> {
-		self.parameters = queries;
-		self.update_stage()
-	}
-}
-
-impl BlogEmbed<AddParams> {
-	async fn get_from_db(mut self, db: &Db) -> Result<BlogEmbed<GetFromDb>> {
-		self.blog = db.get_blog(self.id.unwrap()).await?;
-		if let Some(ref blog) = self.blog {
-			self.user = db.get_user(blog.author_id).await?;
-			if let Some(story_id) = blog.story_id {
-				self.story = db.get_story(story_id).await?;
-			}
-		}
-		Ok(self.update_stage())
-	}
-}
-
-impl BlogEmbed<GetFromDb> {
-	async fn get_from_fimfic(mut self, api: &Request) -> Result<BlogEmbed<GetFromFimfic>> {
-		if self.blog.is_none() {
+impl BlogEmbedGetFromDb {
+	async fn get_from_fimfic(self, api: &Request) -> Result<BlogEmbedGetFromFimfic> {
+		let (mut blog, mut user, mut story) = (self.blog, self.user, self.story);
+		if blog.is_none() {
 			let fimfic = format!(
 				"https://www.fimfiction.net/api/v2/blog-posts/{}?include=author&fields[blog_post]=title,date_posted,content,num_views,num_comments,site_post,tags,author,tagged_story",
-				self.id.unwrap()
+				self.id
 			);
 			let res = parse_fimfic_response::<BlogApi<i32>>(api, &fimfic).await?;
 			let author = get_variant!(res.included, ApiIncluded::Author)
 				.ok_or("Fimfiction API error: no author included")?;
 			let story_id = (res.data.relationships.tagged_story.data.id != "0")
 				.then_some(res.data.relationships.tagged_story.data.id.parse::<i32>()?);
-			self.blog = Some(res.data.try_into()?);
-			self.user = Some(author.clone().try_into()?);
+			blog = Some(res.data.try_into()?);
+			user = Some(author.clone().try_into()?);
 			if let Some(story_id) = story_id {
 				let fimfic = format!(
 					"https://www.fimfiction.net/api/v2/stories/{story_id}?include=author,tags"
 				);
 				let res = parse_fimfic_response::<StoryApi<i32>>(api, &fimfic).await?;
-				self.story = Some(res.data.try_into()?)
+				story = Some(res.data.try_into()?)
 			}
 		}
-		Ok(self.update_stage())
+		Ok(BlogEmbedGetFromFimfic {
+			id: self.id,
+			path: self.path,
+			parameters: self.parameters,
+			recoverable_errors: self.recoverable_errors,
+			blog: blog.ok_or("FixFiction error: failed to construct resource")?,
+			user: user.ok_or("FixFiction error: failed to construct resource")?,
+			story,
+		})
 	}
+}
+
+struct BlogEmbedGetFromFimfic {
+	id: i32,
+	path: String,
+	parameters: Parameters,
+	recoverable_errors: Vec<String>,
+	blog: Blog,
+	user: User,
+	story: Option<Story>,
 }
 
 /// The `blog/` endpoint.
