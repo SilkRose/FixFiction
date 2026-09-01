@@ -5,6 +5,7 @@ mod chapter;
 mod database;
 mod error;
 mod fimfiction_api;
+mod fimfiction_status;
 mod group;
 mod html_template;
 mod oembed;
