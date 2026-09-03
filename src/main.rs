@@ -32,7 +32,7 @@ use actix_cors::Cors;
 use actix_web::middleware::Compress;
 use actix_web::web::ThinData;
 use actix_web::{App, HttpServer};
-use chrono::Utc;
+use chrono::{Timelike, Utc};
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
@@ -105,6 +105,9 @@ async fn archive_loop(api: Request, db: Db) {
 		if status == FimficStatus::Unreachable {
 			continue;
 		}
+		if Utc::now().minute().is_multiple_of(10) {
+			// fetch mew/updated/heat/featured
+		}
 		// archive code here
 	}
 }
@@ -129,6 +132,8 @@ async fn fimfic_status(api: &Request, db: &Db) -> FimficStatus {
 				&& let Ok(duration) = bookshelf.debug.duration.parse::<f64>()
 			{
 				status.api_duration = Some((duration * 1000.0) as i32);
+			} else {
+				eprintln!("Fimfiction status request failed to parse");
 			}
 		}
 		Ok(Err(error)) => {
@@ -139,7 +144,19 @@ async fn fimfic_status(api: &Request, db: &Db) -> FimficStatus {
 			eprintln!("Fimfiction status request timed out");
 		}
 	}
-	db.insert_status(&status).await.unwrap();
+	if let Some(date) = status.datetime.with_second(0)
+		&& let Some(date) = date.with_nanosecond(0)
+	{
+		status.datetime = date;
+	} else {
+		eprintln!(
+			"Fimfiction status zeroing seconds/sub-seconds failed: {}",
+			status.datetime
+		);
+	}
+	if let Err(error) = db.insert_status(&status).await {
+		eprintln!("{error}");
+	}
 	match status.api_duration.is_some() {
 		true => FimficStatus::Available,
 		false => FimficStatus::Unreachable,
