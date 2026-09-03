@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 /// Fimfiction status
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FimficStatus {
 	Available,
 	Unreachable,
