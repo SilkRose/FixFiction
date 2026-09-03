@@ -8,6 +8,7 @@ mod blog;
 mod bookshelf;
 mod chapter;
 mod group;
+mod status;
 mod story;
 mod tag;
 mod tag_link;
