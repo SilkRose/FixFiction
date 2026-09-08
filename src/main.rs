@@ -37,6 +37,7 @@ use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
 use std::env;
+use std::error::Error;
 use std::time::Duration;
 
 #[tokio::main]
@@ -137,7 +138,14 @@ async fn fimfic_status(api: &Request, db: &Db) -> FimficStatus {
 			}
 		}
 		Ok(Err(error)) => {
-			eprintln!("Fimfiction status request failed: {error}");
+			eprintln!("Fimfiction status request failed");
+			eprintln!("  error: {error}");
+			eprintln!("  debug: {error:?}");
+			let mut source = error.source();
+			while let Some(err) = source {
+				eprintln!("  caused by: {err}");
+				source = err.source();
+			}
 			status.round_trip = Some(elapsed);
 		}
 		Err(_) => {
