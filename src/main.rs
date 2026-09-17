@@ -36,6 +36,7 @@ use chrono::{Timelike, Utc};
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
+use std::collections::VecDeque;
 use std::env;
 use std::error::Error;
 use std::time::Duration;
@@ -114,9 +115,57 @@ async fn archive_loop(api: Request, db: Db) {
 }
 
 async fn fimfic_status(api: &Request, db: &Db) -> FimficStatus {
+	let status = fimfic_status_loop(api, db).await;
+	if let Err(error) = db.insert_status(&status).await {
+		eprintln!("{error}");
+	}
+	match status.api_duration.is_some() {
+		true => FimficStatus::Available,
+		false => FimficStatus::Unreachable,
+	}
+}
+
+async fn fimfic_status_loop(api: &Request, db: &Db) -> FimficStatusData {
+	let mut history: Option<Vec<FimficStatusData>> = None;
+	loop {
+		let status = fimfic_status_request(api).await;
+		if status.api_duration.is_some() {
+			// Early return on success
+			break status.flatten_seconds();
+		} else {
+			// Wait 5 seconds between attempts
+			let time = status.datetime + Duration::from_secs(5);
+			let time = (time - Utc::now()).num_milliseconds();
+			if time > 0 {
+				tokio::time::sleep(Duration::from_millis(time as u64)).await;
+			}
+		}
+		if let Some(ref mut history) = history {
+			if let Some(point) = history.pop()
+				&& point.api_duration.is_some()
+			{
+				// Keep trying if the previous minute was successful
+				continue;
+			}
+		} else {
+			// Get latest history
+			match db.get_last_n_statuses(5).await {
+				Ok(latest) => {
+					history = Some(latest);
+					continue;
+				}
+				Err(err) => eprintln!("{err}"),
+			};
+		}
+		// return if all tries fail
+		break status.flatten_seconds();
+	}
+}
+
+async fn fimfic_status_request(api: &Request) -> FimficStatusData {
 	let url = "https://www.fimfiction.net/api/v2/bookshelves/1";
 	let mut status = FimficStatusData::from(Utc::now());
-	let res = tokio::time::timeout(Duration::from_secs(10), async {
+	let res = tokio::time::timeout(Duration::from_secs(5), async {
 		api.client
 			.get(url)
 			.headers(api.headers.clone())
@@ -152,21 +201,5 @@ async fn fimfic_status(api: &Request, db: &Db) -> FimficStatus {
 			eprintln!("Fimfiction status request timed out");
 		}
 	}
-	if let Some(date) = status.datetime.with_second(0)
-		&& let Some(date) = date.with_nanosecond(0)
-	{
-		status.datetime = date;
-	} else {
-		eprintln!(
-			"Fimfiction status zeroing seconds/sub-seconds failed: {}",
-			status.datetime
-		);
-	}
-	if let Err(error) = db.insert_status(&status).await {
-		eprintln!("{error}");
-	}
-	match status.api_duration.is_some() {
-		true => FimficStatus::Available,
-		false => FimficStatus::Unreachable,
-	}
+	status
 }

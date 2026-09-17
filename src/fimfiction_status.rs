@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Timelike, Utc};
 
 /// Fimfiction status
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,11 +16,29 @@ pub(crate) struct FimficStatusData {
 }
 
 impl From<DateTime<Utc>> for FimficStatusData {
+	/// Converts a [DateTime<Utc>] into a [FimficStatusData]
 	fn from(value: DateTime<Utc>) -> Self {
 		Self {
 			datetime: value,
 			api_duration: None,
 			round_trip: None,
 		}
+	}
+}
+
+impl FimficStatusData {
+	/// Flattens the seconds and sub-seconds to zero
+	pub fn flatten_seconds(mut self) -> Self {
+		if let Some(date) = self.datetime.with_second(0)
+			&& let Some(date) = date.with_nanosecond(0)
+		{
+			self.datetime = date;
+		} else {
+			eprintln!(
+				"Fimfiction status zeroing seconds/sub-seconds failed: {}",
+				self.datetime
+			);
+		}
+		self
 	}
 }
