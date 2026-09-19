@@ -28,6 +28,7 @@ use crate::group::get_group_endpoint;
 use crate::oembed::get_oembed;
 use crate::story::{get_random_story_endpoint, get_story_endpoint};
 use crate::user::get_user_endpoint;
+use crate::utility::LOG;
 use actix_cors::Cors;
 use actix_web::middleware::Compress;
 use actix_web::web::ThinData;
@@ -36,9 +37,7 @@ use chrono::{Timelike, Utc};
 use pony::env::dotenv;
 use pony::http::Request;
 use reqwest::Client;
-use std::collections::VecDeque;
 use std::env;
-use std::error::Error;
 use std::time::Duration;
 
 #[tokio::main]
@@ -99,11 +98,18 @@ async fn main() -> Result<()> {
 }
 
 async fn archive_loop(api: Request, db: Db) {
+	let client = Client::builder()
+		.default_headers(api.headers)
+		.build()
+		.unwrap_or_else(|err| {
+			eprintln!("Failed to create new client, using embed client! Error: {err:?}");
+			api.client
+		});
 	loop {
 		let time = Utc::now();
 		let diff = 60_000 - (time.timestamp_millis() % 60_000) as u64;
 		tokio::time::sleep(Duration::from_millis(diff)).await;
-		let status = fimfic_status(&api, &db).await;
+		let status = fimfic_status(&client, &db).await;
 		if status == FimficStatus::Unreachable {
 			continue;
 		}
@@ -114,9 +120,9 @@ async fn archive_loop(api: Request, db: Db) {
 	}
 }
 
-async fn fimfic_status(api: &Request, db: &Db) -> FimficStatus {
+async fn fimfic_status(api: &Client, db: &Db) -> FimficStatus {
 	let status = fimfic_status_loop(api, db).await;
-	if let Err(error) = db.insert_status(&status).await {
+	if let Err(error) = db.insert_minute_status(&status).await {
 		eprintln!("{error}");
 	}
 	match status.api_duration.is_some() {
@@ -125,7 +131,7 @@ async fn fimfic_status(api: &Request, db: &Db) -> FimficStatus {
 	}
 }
 
-async fn fimfic_status_loop(api: &Request, db: &Db) -> FimficStatusData {
+async fn fimfic_status_loop(api: &Client, db: &Db) -> FimficStatusData {
 	let mut history: Option<Vec<FimficStatusData>> = None;
 	loop {
 		let status = fimfic_status_request(api).await;
@@ -149,7 +155,7 @@ async fn fimfic_status_loop(api: &Request, db: &Db) -> FimficStatusData {
 			}
 		} else {
 			// Get latest history
-			match db.get_last_n_statuses(5).await {
+			match db.get_last_n_status_minutes(5).await {
 				Ok(latest) => {
 					history = Some(latest);
 					continue;
@@ -162,43 +168,44 @@ async fn fimfic_status_loop(api: &Request, db: &Db) -> FimficStatusData {
 	}
 }
 
-async fn fimfic_status_request(api: &Request) -> FimficStatusData {
+async fn fimfic_status_request(api: &Client) -> FimficStatusData {
 	let url = "https://www.fimfiction.net/api/v2/bookshelves/1";
 	let mut status = FimficStatusData::from(Utc::now());
-	let res = tokio::time::timeout(Duration::from_secs(5), async {
-		api.client
-			.get(url)
-			.headers(api.headers.clone())
-			.send()
-			.await
-	})
-	.await;
+	let res =
+		tokio::time::timeout(Duration::from_secs(5), async { api.get(url).send().await }).await;
 	let elapsed = (Utc::now() - status.datetime).num_milliseconds() as i32;
 	match res {
 		Ok(Ok(response)) => {
 			status.round_trip = Some(elapsed);
-			if let Ok(body) = response.bytes().await
+			if let Some(header) = response.headers().get("cf-mitigated")
+				&& header.as_bytes() == b"challenge"
+			{
+				if let Err(e) = LOG.warn("Fimfiction attack mode detected!") {
+					eprintln!("{} - {e}", Utc::now());
+				}
+				status.challenged = true
+			} else if let Ok(body) = response.bytes().await
 				&& let Ok(bookshelf) = serde_json::from_slice::<BookshelfApi>(&body)
 				&& let Ok(duration) = bookshelf.debug.duration.parse::<f64>()
 			{
 				status.api_duration = Some((duration * 1000.0) as i32);
 			} else {
-				eprintln!("Fimfiction status request failed to parse");
+				if let Err(e) = LOG.warn("Fimfiction status request failed to parse") {
+					eprintln!("{} - {e}", Utc::now());
+				}
 			}
 		}
 		Ok(Err(error)) => {
-			eprintln!("Fimfiction status request failed");
-			eprintln!("  error: {error}");
-			eprintln!("  debug: {error:?}");
-			let mut source = error.source();
-			while let Some(err) = source {
-				eprintln!("  caused by: {err}");
-				source = err.source();
+			let err = format!("Fimfiction status request failed: {error:?}");
+			if let Err(e) = LOG.warn(&err) {
+				eprintln!("{} - {e}", Utc::now());
 			}
 			status.round_trip = Some(elapsed);
 		}
 		Err(_) => {
-			eprintln!("Fimfiction status request timed out");
+			if let Err(e) = LOG.warn("Fimfiction status request timed out") {
+				eprintln!("{} - {e}", Utc::now());
+			}
 		}
 	}
 	status

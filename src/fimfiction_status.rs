@@ -13,6 +13,7 @@ pub(crate) struct FimficStatusData {
 	pub(crate) datetime: DateTime<Utc>,
 	pub(crate) api_duration: Option<i32>,
 	pub(crate) round_trip: Option<i32>,
+	pub(crate) challenged: bool,
 }
 
 impl From<DateTime<Utc>> for FimficStatusData {
@@ -22,6 +23,7 @@ impl From<DateTime<Utc>> for FimficStatusData {
 			datetime: value,
 			api_duration: None,
 			round_trip: None,
+			challenged: false,
 		}
 	}
 }
