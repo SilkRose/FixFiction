@@ -100,6 +100,7 @@ async fn main() -> Result<()> {
 async fn archive_loop(api: Request, db: Db) {
 	let client = Client::builder()
 		.default_headers(api.headers)
+		.pool_idle_timeout(Duration::from_secs(45))
 		.build()
 		.unwrap_or_else(|err| {
 			eprintln!("Failed to create new client, using embed client! Error: {err:?}");
