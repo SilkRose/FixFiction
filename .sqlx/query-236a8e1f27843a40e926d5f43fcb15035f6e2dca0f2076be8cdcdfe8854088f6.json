@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n\t\t\t\tdatetime, api_duration, round_trip, challenged\n\t\t\tFROM Fimfic_status_minutes\n\t\t\tWHERE\n\t\t\t\tdatetime >= $1\n\t\t\tAND\n\t\t\t\tdatetime <= $2;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "datetime",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "fimfic_status_minutes",
+            "name": "datetime"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "api_duration",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "fimfic_status_minutes",
+            "name": "api_duration"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "round_trip",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "fimfic_status_minutes",
+            "name": "round_trip"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "challenged",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "fimfic_status_minutes",
+            "name": "challenged"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "236a8e1f27843a40e926d5f43fcb15035f6e2dca0f2076be8cdcdfe8854088f6"
+}
